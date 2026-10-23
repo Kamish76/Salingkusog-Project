@@ -8,7 +8,8 @@ export function DevNav() {
 
   const navItems = [
     { label: "System Overview", href: "/dev" },
-    { label: "User & Role Management", href: "/dev/users", badge: "NEW" },
+    { label: "User & Role Management", href: "/dev/users" },
+    { label: "Developer Tools", href: "/dev/tools", badge: "STORAGE" },
   ];
 
   return (
