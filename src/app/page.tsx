@@ -32,8 +32,6 @@ export default async function HomePage() {
                     ? "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800"
                     : currentRole === "admin"
                     ? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-                    : currentRole === "developer"
-                    ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                     : currentRole === "user"
                     ? "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
                     : "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
@@ -91,12 +89,12 @@ export default async function HomePage() {
               </div>
               <h2 className="text-lg font-semibold mb-2">Management & Dev Console</h2>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Internal diagnostics, database controls, role management, and system operations. Restricted to accounts assigned as Developer, Admin, or SuperAdmin.
+                Internal diagnostics, database controls, role management, and system operations. Restricted to accounts assigned as Admin (Moderator) or SuperAdmin.
               </p>
             </div>
             <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
               <span className="text-xs text-zinc-500">
-                Gate: <span className="font-mono text-zinc-700 dark:text-zinc-300">role in [developer, admin, superadmin]</span>
+                Gate: <span className="font-mono text-zinc-700 dark:text-zinc-300">role in [admin, superadmin]</span>
               </span>
               <Link
                 href="/dev"
@@ -125,7 +123,7 @@ export default async function HomePage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {(["superadmin", "admin", "developer", "user", "guest"] as const).map((role) => (
+            {(["superadmin", "admin", "user", "guest"] as const).map((role) => (
               <form key={role} action={setDevRoleAction}>
                 <input type="hidden" name="role" value={role} />
                 <button
@@ -137,9 +135,8 @@ export default async function HomePage() {
                   }`}
                 >
                   Set as {role.charAt(0).toUpperCase() + role.slice(1)}
-                  {role === "superadmin" && " (Owner & Role Management)"}
-                  {role === "admin" && " (Full Dev Access)"}
-                  {role === "developer" && " (Dev Access)"}
+                  {role === "superadmin" && " (Moderator & Role Management)"}
+                  {role === "admin" && " (Moderator & Dev Access)"}
                   {role === "user" && " (Blocked from Dev)"}
                   {role === "guest" && " (Blocked from Dev)"}
                 </button>
