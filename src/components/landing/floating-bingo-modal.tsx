@@ -55,6 +55,18 @@ const ICONS_BY_CATEGORY: Record<string, string> = {
   culture: "🎨",
 };
 
+const POLAROID_ROTATIONS = [
+  "rotate-[-3.5deg]", // Slot 0: Top-Left
+  "rotate-[1.5deg]",  // Slot 1: Top-Center
+  "rotate-[-2.5deg]", // Slot 2: Top-Right
+  "rotate-[2deg]",    // Slot 3: Mid-Left
+  "rotate-[-1deg]",   // Slot 4: Center
+  "rotate-[3deg]",    // Slot 5: Mid-Right
+  "rotate-[-2.5deg]", // Slot 6: Bottom-Left
+  "rotate-[1.5deg]",  // Slot 7: Bottom-Center
+  "rotate-[-2deg]",   // Slot 8: Bottom-Right
+];
+
 export function FloatingBingoModal({
   isAuthenticated,
   tasks,
@@ -101,6 +113,20 @@ export function FloatingBingoModal({
   // Map progress by slot index
   const progressBySlot = new Map(userProgress.map((p) => [p.slotIndex, p]));
   const completedCount = progressBySlot.size;
+
+  // Stacking z-index: newer uploads have higher z-index to overlay older ones
+  const sortedCompleted = [...userProgress]
+    .filter((p) => Boolean(p.imageUrl))
+    .sort((a, b) => {
+      const timeA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+      const timeB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+      return timeA - timeB;
+    });
+
+  const uploadOrderMap = new Map<number, number>();
+  sortedCompleted.forEach((item, index) => {
+    uploadOrderMap.set(item.slotIndex, index + 1);
+  });
 
   // Reset states during render when props or active selection change
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
@@ -459,73 +485,92 @@ export function FloatingBingoModal({
               </button>
             </div>
 
-            {/* 3x3 Challenge Grid */}
-            <div className="my-2 bg-[#fcf9f5] p-3 sm:p-4 rounded-2xl border border-[#e8ded5]">
-              <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+            {/* 3x3 Challenge Grid & Polaroid Collage */}
+            <div className="my-2 bg-[#fcf9f5] p-3.5 sm:p-4.5 rounded-2xl border border-[#e8ded5] overflow-visible">
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5 overflow-visible">
                 {tasks.map((task) => {
                   const progress = progressBySlot.get(task.slotIndex);
-                  const isCompleted = Boolean(progress);
+                  const isCompleted = Boolean(progress && progress.imageUrl);
                   const isCenter = task.slotIndex === 4;
                   const icon = ICONS_BY_CATEGORY[task.category] || "📸";
+                  const rotationClass = POLAROID_ROTATIONS[task.slotIndex % POLAROID_ROTATIONS.length];
+                  const uploadRank = uploadOrderMap.get(task.slotIndex) || 1;
+                  const captionText = progress?.caption?.trim() || task.title;
 
                   return (
-                    <button
+                    <div
                       key={task.id}
-                      onClick={(e) => handleTileClick(task, e)}
-                      type="button"
-                      className={`group aspect-square rounded-2xl relative flex flex-col items-center justify-center text-center transition-all duration-200 transform cursor-pointer select-none active:scale-95 overflow-hidden ${
-                        isCompleted
-                          ? "bg-stone-900 border-2 border-emerald-500/80 shadow-md ring-2 ring-emerald-500/20"
-                          : isCenter
-                          ? "bg-[#ffdad5]/40 text-[#630002] border-2 border-[#ff5e4d] shadow-xs font-bold hover:scale-[1.02]"
-                          : "bg-white border border-[#e8ded5] hover:border-stone-400 hover:scale-[1.02] text-[#1e1b19]"
-                      }`}
+                      className="relative aspect-square flex items-center justify-center overflow-visible"
                     >
-                      {/* Highlight photo with crisp edge-to-edge layout & zero obscuring background */}
-                      {isCompleted && progress?.imageUrl ? (
-                        <div className="relative w-full h-full overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={progress.imageUrl}
-                            alt={task.title}
-                            className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
-                          />
-
-                          {/* Frosted Glass Corner Stamp */}
-                          <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-emerald-300 text-[8px] font-bold flex items-center gap-0.5 shadow-sm">
-                            <span>✓</span>
-                          </div>
-
-                          {/* Minimal Bottom Scrim with Title */}
-                          <div className="absolute inset-x-0 bottom-0 h-9 bg-gradient-to-t from-black/85 via-black/40 to-transparent flex flex-col justify-end p-1.5 text-left pointer-events-none">
-                            <span className="font-display text-[9px] font-bold text-white leading-tight truncate drop-shadow-xs">
-                              {task.title}
-                            </span>
-                            <span className="text-[7px] font-medium text-emerald-300 uppercase tracking-wider">
-                              Tap to view
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-1.5 flex flex-col items-center justify-center">
-                          <span className="text-xl mb-0.5">
-                            {isCompleted ? "✅" : icon}
-                          </span>
-                          <span className="font-display text-[10px] font-bold leading-tight truncate w-full text-stone-800">
+                      {!isCompleted ? (
+                        /* Empty Slot Button: Tap to open upload modal */
+                        <button
+                          onClick={(e) => handleTileClick(task, e)}
+                          type="button"
+                          className={`w-full h-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition-all duration-200 cursor-pointer select-none active:scale-95 ${
+                            isCenter
+                              ? "bg-[#ffdad5]/30 text-[#630002] border-[#ff5e4d]/60 shadow-xs font-bold hover:scale-[1.02]"
+                              : "bg-white/80 border-[#e8ded5] hover:border-stone-400 hover:bg-white hover:scale-[1.02] text-[#1e1b19]"
+                          }`}
+                          style={{ zIndex: 1 }}
+                        >
+                          <span className="text-xl sm:text-2xl mb-0.5">{icon}</span>
+                          <span className="font-display text-[10px] sm:text-xs font-bold leading-tight truncate w-full text-stone-800">
                             {task.title}
                           </span>
-                          {isCompleted ? (
-                            <span className="text-[8px] font-bold text-[#588157] uppercase tracking-wider">
-                              Stamped
-                            </span>
-                          ) : (
-                            <span className="text-[8px] font-bold text-[#ff5e4d] uppercase tracking-wider">
-                              + Upload
-                            </span>
-                          )}
-                        </div>
+                          <span className="text-[8px] sm:text-[9px] font-bold text-[#ff5e4d] uppercase tracking-wider mt-0.5">
+                            + Upload
+                          </span>
+                        </button>
+                      ) : (
+                        <>
+                          {/* Ghost Slot Placeholder (Faint background outline beneath polaroid) */}
+                          <div
+                            className={`w-full h-full rounded-2xl border border-dashed border-[#e8ded5]/60 bg-stone-100/35 pointer-events-none ${
+                              isCenter ? "bg-[#ffdad5]/15 border-[#ff5e4d]/25" : ""
+                            }`}
+                          />
+
+                          {/* Authentic Physical Polaroid (Overlay on top of slot, stacked by upload timestamp) */}
+                          <button
+                            onClick={(e) => handleTileClick(task, e)}
+                            type="button"
+                            aria-label={`View ${task.title} photo`}
+                            style={{
+                              zIndex: 10 + uploadRank,
+                            }}
+                            className={`group absolute w-[114%] sm:w-[118%] h-[122%] sm:h-[128%] -top-[11%] -left-[7%] sm:-top-[14%] sm:-left-[9%] bg-white border border-stone-200/90 shadow-polaroid hover:shadow-2xl rounded-[3px] p-1.5 sm:p-2 flex flex-col justify-between cursor-pointer select-none transition-all duration-200 transform hover:scale-115 hover:rotate-0 hover:z-40 active:scale-98 ${rotationClass}`}
+                          >
+                            {/* Tactile Corner Pin / Scrapbook Pushpin Accent */}
+                            <div className="absolute top-1 right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-white/95 border border-stone-300 shadow-2xs flex items-center justify-center text-[9px] font-bold text-stone-400 pointer-events-none z-10 group-hover:text-[#ff5e4d] group-hover:border-[#ff5e4d]/40 transition-colors">
+                              ＋
+                            </div>
+
+                            {/* Inner Photo Frame */}
+                            <div className="relative w-full aspect-square bg-stone-100 overflow-hidden rounded-[2px] border border-stone-200/50 shadow-[inset_0_1px_3px_rgba(0,0,0,0.08)]">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={progress?.imageUrl || ""}
+                                alt={task.title}
+                                className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-300 group-hover:scale-105"
+                              />
+
+                              {/* Subtle Corner Checkmark Badge */}
+                              <div className="absolute top-1 left-1 px-1 py-0.2 rounded-full bg-black/45 backdrop-blur-xs text-emerald-300 text-[7px] font-bold flex items-center shadow-2xs pointer-events-none">
+                                ✓
+                              </div>
+                            </div>
+
+                            {/* Polaroid Chin with Handwritten Caption or Title */}
+                            <div className="w-full pt-1 sm:pt-1.5 pb-0.5 px-0.5 text-center flex flex-col items-center justify-center min-h-[22px] sm:min-h-[26px]">
+                              <span className="font-handwriting font-bold text-stone-900 text-xs sm:text-[13px] leading-none tracking-tight truncate w-full group-hover:text-[#b4281e] transition-colors">
+                                {captionText}
+                              </span>
+                            </div>
+                          </button>
+                        </>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
