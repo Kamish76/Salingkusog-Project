@@ -55,7 +55,6 @@ export async function submitStudentPostAction(
     }
 
     const caption = (formData.get("caption") as string)?.trim() || "";
-    const collegeDept = (formData.get("collegeDept") as string)?.trim() || "Independent";
     const isAnonymous = formData.get("isAnonymous") === "true";
     const bingoTaskId = (formData.get("bingoTaskId") as string)?.trim() || null;
 
@@ -76,6 +75,22 @@ export async function submitStudentPostAction(
 
     const displayName = isAnonymous ? "Anonymous Student" : user.name;
 
+    // Check if replacing an existing photo for this bingo task
+    if (bingoTaskId) {
+      const existingSlot = await sql`
+        SELECT post_id FROM public.user_bingo_progress
+        WHERE user_id = ${user.id}::uuid AND task_id = ${bingoTaskId}::uuid
+        LIMIT 1
+      `;
+      if (existingSlot.length > 0 && existingSlot[0].post_id) {
+        // Delete the previous post to prevent orphan duplicates
+        await sql`
+          DELETE FROM public.posts
+          WHERE id = ${existingSlot[0].post_id}::uuid AND user_id = ${user.id}::uuid
+        `;
+      }
+    }
+
     // Insert post into public.posts
     const insertedPosts = await sql`
       INSERT INTO public.posts (
@@ -93,7 +108,7 @@ export async function submitStudentPostAction(
         ${user.id}::uuid,
         ${isAnonymous},
         ${displayName},
-        ${collegeDept},
+        NULL,
         ${uploadResult.url},
         ${caption},
         ${Boolean(bingoTaskId)},
@@ -106,12 +121,14 @@ export async function submitStudentPostAction(
     const newPostId = insertedPosts[0]?.id;
     let newRaffleCode: string | undefined = undefined;
 
-    // If this post fulfills a 3x3 Bingo slot, link to user_bingo_progress
+    // If this post fulfills a 3x3 Bingo slot, link or update user_bingo_progress
     if (bingoTaskId && newPostId) {
       await sql`
         INSERT INTO public.user_bingo_progress (user_id, task_id, post_id)
         VALUES (${user.id}::uuid, ${bingoTaskId}::uuid, ${newPostId}::uuid)
-        ON CONFLICT (user_id, task_id) DO NOTHING
+        ON CONFLICT (user_id, task_id) DO UPDATE SET
+          post_id = EXCLUDED.post_id,
+          completed_at = now()
       `;
 
       // Check for newly completed lines
@@ -235,6 +252,55 @@ export async function togglePostReactionAction(
     return {
       success: false,
       error: err instanceof Error ? err.message : "Failed to toggle reaction",
+    };
+  }
+}
+
+/**
+ * Remove an uploaded photo from a 3x3 Bingo slot.
+ */
+export async function removeBingoTaskPhotoAction(
+  taskId: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "Please sign in to modify your bingo card." };
+  }
+
+  try {
+    const existing = await sql`
+      SELECT post_id FROM public.user_bingo_progress
+      WHERE user_id = ${user.id}::uuid AND task_id = ${taskId}::uuid
+      LIMIT 1
+    `;
+
+    if (existing.length === 0) {
+      return { success: false, error: "No photo found for this task slot." };
+    }
+
+    const postId = existing[0].post_id;
+
+    // Delete progress entry
+    await sql`
+      DELETE FROM public.user_bingo_progress
+      WHERE user_id = ${user.id}::uuid AND task_id = ${taskId}::uuid
+    `;
+
+    // Also delete the linked post
+    if (postId) {
+      await sql`
+        DELETE FROM public.posts
+        WHERE id = ${postId}::uuid AND user_id = ${user.id}::uuid
+      `;
+    }
+
+    revalidatePath("/");
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("removeBingoTaskPhotoAction error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to remove photo",
     };
   }
 }

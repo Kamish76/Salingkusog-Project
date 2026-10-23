@@ -20,13 +20,11 @@ export default async function HomePage() {
     SELECT 
       (SELECT count(*) FROM public.posts WHERE status = 'published') as total_snaps,
       (SELECT count(*) FROM public.raffle_entries WHERE status IN ('valid', 'verified')) as total_raffles,
-      (SELECT count(DISTINCT college_dept) FROM public.posts WHERE college_dept IS NOT NULL AND status = 'published') as active_colleges,
       COALESCE((SELECT current_day FROM public.event_config WHERE key = 'active_event' LIMIT 1), 1) as current_day
   `;
 
   const totalSnaps = Number(statsRows[0]?.total_snaps || 0);
   const totalRaffles = Number(statsRows[0]?.total_raffles || 0);
-  const activeColleges = Number(statsRows[0]?.active_colleges || 0);
   const currentDay = Number(statsRows[0]?.current_day || 1);
 
   // 2. Fetch real published posts from Neon database
@@ -91,9 +89,16 @@ export default async function HomePage() {
 
   if (user) {
     const progressRows = await sql`
-      SELECT bt.slot_index, ubp.task_id, ubp.post_id, ubp.completed_at
+      SELECT 
+        bt.slot_index, 
+        ubp.task_id, 
+        ubp.post_id, 
+        ubp.completed_at,
+        p.image_url,
+        p.caption
       FROM public.user_bingo_progress ubp
       JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
+      LEFT JOIN public.posts p ON ubp.post_id = p.id
       WHERE ubp.user_id = ${user.id}::uuid
     `;
 
@@ -102,6 +107,8 @@ export default async function HomePage() {
       taskId: r.task_id,
       postId: r.post_id,
       completedAt: r.completed_at,
+      imageUrl: r.image_url || null,
+      caption: r.caption || null,
     }));
 
     const raffleRows = await sql`
@@ -192,7 +199,7 @@ export default async function HomePage() {
           </h1>
 
           <p className="mt-3 text-[#5a413d] font-body text-sm sm:text-base max-w-lg mx-auto font-normal leading-relaxed">
-            A quiet, bottomless physical memory board for Salingkusog. Snap campus selfies, cheer for your college, and unlock your 3x3 Bingo lines on the side!
+            A quiet, bottomless physical memory board for Salingkusog. Snap campus selfies, cheer for your friends, and unlock your 3x3 Bingo lines on the side!
           </p>
 
           {/* Real Live Stats Pill Bar */}
@@ -216,10 +223,11 @@ export default async function HomePage() {
             </div>
             <span className="text-[#e8ded5] hidden xs:inline">•</span>
             <div className="hidden xs:flex items-center gap-1.5 text-[#1e1b19]">
+              <span className="w-2 h-2 rounded-full bg-[#588157]"></span>
               <span className="font-display font-bold text-sm text-[#588157]">
-                {activeColleges > 0 ? `${activeColleges} Colleges` : "Colleges"}
+                Day {currentDay}
               </span>
-              <span className="text-[#8e706c]">Active</span>
+              <span className="text-[#8e706c]">Event Active</span>
             </div>
           </div>
         </section>

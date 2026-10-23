@@ -25,15 +25,6 @@ interface MemoryBoardProps {
   onOpenUpload: () => void;
 }
 
-const COLLEGES = [
-  { label: "All Moments", value: "all" },
-  { label: "CEA Tigers 🐅", value: "CEA Tigers" },
-  { label: "CAS Eagles 🦅", value: "CAS Eagles" },
-  { label: "CIT Knights ⚔️", value: "CIT Knights" },
-  { label: "CBA Phoenix 🔥", value: "CBA Phoenix" },
-  { label: "COE Wolves 🐺", value: "COE Wolves" },
-];
-
 const ROTATIONS = [
   "rotate-[-1.5deg]",
   "rotate-[1.5deg]",
@@ -60,18 +51,12 @@ function formatTimeAgo(dateInput: string | Date): string {
 }
 
 export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoardProps) {
-  const [activeFilter, setActiveFilter] = useState("all");
   const [, startTransition] = useTransition();
 
   // Optimistic reaction tracker
   const [localReactions, setLocalReactions] = useState<
     Record<string, { heart: number; fire: number; trophy: number }>
   >({});
-
-  const filteredPosts =
-    activeFilter === "all"
-      ? posts
-      : posts.filter((p) => p.collegeDept === activeFilter);
 
   const handleReact = (postId: string, type: "heart" | "fire" | "trophy") => {
     if (!isAuthenticated) {
@@ -102,32 +87,22 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
-      {/* FILTER PILLS & ACTION BAR */}
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-1">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 text-xs">
-          {COLLEGES.map((filter) => {
-            const isSelected = activeFilter === filter.value;
-            return (
-              <button
-                key={filter.value}
-                onClick={() => setActiveFilter(filter.value)}
-                type="button"
-                className={`px-3.5 py-1.5 rounded-full font-medium transition-all duration-150 cursor-pointer text-xs select-none ${
-                  isSelected
-                    ? "bg-[#1e1b19] text-white shadow-xs scale-102"
-                    : "bg-white text-[#5a413d] border border-[#e8ded5] hover:border-stone-400"
-                }`}
-              >
-                {filter.label}
-              </button>
-            );
-          })}
+      {/* CLEAN SCRAPBOOK ACTION & TITLE BAR */}
+      <div className="flex items-center justify-between flex-wrap gap-3 pb-1 border-b border-[#e8ded5]/70">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl">📸</span>
+          <h2 className="font-display font-extrabold text-lg sm:text-xl text-[#1e1b19] tracking-tight">
+            Campus Memories
+          </h2>
+          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white border border-[#e8ded5] text-[#8e706c] shadow-2xs">
+            {posts.length} {posts.length === 1 ? "snap" : "snaps"}
+          </span>
         </div>
 
         <button
           onClick={onOpenUpload}
           type="button"
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer ml-auto"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer ml-auto"
         >
           <span>＋</span>
           <span>Drop a Memory</span>
@@ -135,7 +110,7 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
       </div>
 
       {/* POLAROID MASONRY FEED OR EMPTY STATE */}
-      {filteredPosts.length === 0 ? (
+      {posts.length === 0 ? (
         <div className="w-full my-8 p-10 sm:p-16 rounded-3xl bg-white border border-[#e8ded5] shadow-scrapbook text-center flex flex-col items-center justify-center relative overflow-hidden">
           {/* Top Washi Tape */}
           <div className="washi-tape-butter w-28 h-5 absolute -top-2 left-1/2 -translate-x-1/2 opacity-80"></div>
@@ -149,7 +124,7 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
           </h3>
 
           <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-1.5 max-w-md leading-relaxed">
-            No memories have been dropped for this category yet. Be the first student to toss an intramural photo or selfie into the collegiate well!
+            No memories have been dropped yet. Be the first student to toss an intramural photo or selfie into the memory well!
           </p>
 
           <button
@@ -163,7 +138,7 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7 items-start">
-          {filteredPosts.map((post, idx) => {
+          {posts.map((post, idx) => {
             const rotation = ROTATIONS[idx % ROTATIONS.length];
             const tapeClass = TAPES[idx % TAPES.length];
 
@@ -200,7 +175,7 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
                     )}
                   </div>
 
-                  {/* Author & College Tag */}
+                  {/* Author Header */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex flex-col">
                       <span className="font-display font-bold text-sm text-[#1e1b19] leading-tight">
@@ -210,12 +185,6 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
                         {formatTimeAgo(post.createdAt)}
                       </span>
                     </div>
-
-                    {post.collegeDept && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#fbf2ee] text-[#b4281e]">
-                        {post.collegeDept}
-                      </span>
-                    )}
                   </div>
 
                   {/* Caption */}
