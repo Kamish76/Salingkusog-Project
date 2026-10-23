@@ -43,7 +43,7 @@ export default async function DevPage() {
 
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-red-200">
-              Access Restricted to Developer / Admin Accounts
+              Access Restricted to Moderator / Admin Accounts
             </h1>
             <p className="text-sm text-zinc-400">
               The <code>/dev</code> route is locked for management and internal system diagnostics. Your current session does not hold the required elevated role.
@@ -66,9 +66,8 @@ export default async function DevPage() {
             </div>
             <div>
               Required Role:{" "}
-              <span className="text-amber-300 font-bold">superadmin</span>,{" "}
-              <span className="text-purple-300 font-bold">admin</span>, or{" "}
-              <span className="text-blue-300 font-bold">developer</span>
+              <span className="text-amber-300 font-bold">superadmin</span> or{" "}
+              <span className="text-purple-300 font-bold">admin (moderator)</span>
             </div>
             <div>
               Status: <span className="text-red-400 font-bold">HTTP 403 Forbidden</span>
@@ -105,17 +104,7 @@ export default async function DevPage() {
                   type="submit"
                   className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition cursor-pointer"
                 >
-                  Simulate Admin
-                </button>
-              </form>
-
-              <form action={setDevRoleAction}>
-                <input type="hidden" name="role" value="developer" />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition cursor-pointer"
-                >
-                  Simulate Developer
+                  Simulate Admin (Moderator)
                 </button>
               </form>
 
@@ -161,11 +150,11 @@ export default async function DevPage() {
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
             <span className="text-xs uppercase tracking-wider font-mono text-emerald-400">
-              Developer Authorization Confirmed
+              Moderator Authorization Confirmed
             </span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
-            Developer & Management Console
+            Management & Moderation Console
           </h1>
           <p className="text-sm text-zinc-400">
             System health, database configuration, and management controls for Salingkusog.
@@ -219,20 +208,20 @@ export default async function DevPage() {
                     ? "text-amber-400"
                     : user?.role === "admin"
                     ? "text-purple-400"
-                    : "text-blue-400"
+                    : "text-zinc-400"
                 }`}
               >
-                {user?.role}
+                {user?.role === "admin" ? "admin (moderator)" : user?.role}
               </span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-zinc-500">Authority:</span>
               <span className="text-indigo-400">
                 {user?.role === "superadmin"
-                  ? "Root SuperAdmin (Full Control)"
+                  ? "Root SuperAdmin (Moderator + Role Management)"
                   : user?.role === "admin"
-                  ? "Admin (Management)"
-                  : "Developer (Diagnostics)"}
+                  ? "Admin (Moderator)"
+                  : "Standard User"}
               </span>
             </div>
           </div>
@@ -340,12 +329,10 @@ export default async function DevPage() {
                                 ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
                                 : u.role === "admin"
                                 ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
-                                : u.role === "developer"
-                                ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
                                 : "bg-zinc-800 text-zinc-400 border-zinc-700"
                             }`}
                           >
-                            {u.role}
+                            {u.role === "admin" ? "admin (moderator)" : u.role}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-zinc-500">{u.createdAt}</td>
@@ -363,8 +350,7 @@ export default async function DevPage() {
                                 className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-amber-500"
                               >
                                 <option value="user">user</option>
-                                <option value="developer">developer</option>
-                                <option value="admin">admin</option>
+                                <option value="admin">admin (moderator)</option>
                               </select>
                               <button
                                 type="submit"
@@ -395,11 +381,11 @@ export default async function DevPage() {
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-purple-400"></span>
               <h3 className="text-sm font-semibold text-purple-200">
-                Admin Privileges Detected
+                Admin (Moderator) Privileges Detected
               </h3>
             </div>
             <p className="text-xs text-zinc-400">
-              You are assigned as an Admin in Neon Better Auth. Elevate your session to the sole SuperAdmin to unlock the full User & Role Assignment console.
+              You are assigned as an Admin (Moderator) in Neon Better Auth. Elevate your session to the sole SuperAdmin to unlock the full User & Role Assignment console.
             </p>
           </div>
           <form action={elevateToSuperAdminAction}>
@@ -418,7 +404,7 @@ export default async function DevPage() {
               User & Role Management Console
             </h3>
             <p className="text-xs text-zinc-500">
-              Restricted to SuperAdmin. Your current role ({user?.role}) has developer inspect privileges.
+              Restricted to SuperAdmin. Your current role ({user?.role}) does not have role assignment privileges.
             </p>
           </div>
           <span className="text-xs font-mono text-zinc-500 px-2 py-1 rounded border border-zinc-800 bg-zinc-900">
@@ -446,21 +432,14 @@ export default async function DevPage() {
             <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
               <tr>
                 <td className="py-2.5 font-bold text-amber-400">superadmin</td>
-                <td className="py-2.5">Sole System Owner</td>
+                <td className="py-2.5">Sole System Owner (Moderator + Role Management)</td>
                 <td className="py-2.5 text-emerald-400">Granted</td>
                 <td className="py-2.5 text-emerald-400">Granted (Full)</td>
-                <td className="py-2.5 text-amber-400 font-bold">Exclusive (Full Control)</td>
+                <td className="py-2.5 text-amber-400 font-bold">Exclusive (Promote/Demote)</td>
               </tr>
               <tr>
                 <td className="py-2.5 font-bold text-purple-400">admin</td>
-                <td className="py-2.5">System Administrator</td>
-                <td className="py-2.5 text-emerald-400">Granted</td>
-                <td className="py-2.5 text-emerald-400">Granted</td>
-                <td className="py-2.5 text-zinc-500">Restricted</td>
-              </tr>
-              <tr>
-                <td className="py-2.5 font-bold text-blue-400">developer</td>
-                <td className="py-2.5">Engineering & Diagnostics</td>
+                <td className="py-2.5">Moderator (Management & Diagnostics)</td>
                 <td className="py-2.5 text-emerald-400">Granted</td>
                 <td className="py-2.5 text-emerald-400">Granted</td>
                 <td className="py-2.5 text-zinc-500">Restricted</td>

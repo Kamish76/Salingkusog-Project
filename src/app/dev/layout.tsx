@@ -40,12 +40,10 @@ export default async function DevLayout({
                       ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
                       : user.role === "admin"
                       ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
-                      : user.role === "developer"
-                      ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
                       : "bg-zinc-800 text-zinc-400 border-zinc-700"
                   }`}
                 >
-                  {user.role}
+                  {user.role === "admin" ? "admin (moderator)" : user.role}
                 </span>
               </div>
             ) : (
