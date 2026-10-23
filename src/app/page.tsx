@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { setDevRoleAction } from "@/app/actions/auth-role";
 import { AuthButton } from "@/components/auth-button";
 import { EventTicker } from "@/components/landing/event-ticker";
 import { BingoGridPreview } from "@/components/landing/bingo-grid-preview";
@@ -12,7 +11,6 @@ export const instant = false;
 export default async function HomePage() {
   const user = await getCurrentUser();
   const currentRole = user?.role ?? "guest";
-  const isPrivileged = currentRole === "admin" || currentRole === "superadmin";
 
   return (
     <div className="min-h-screen bg-[#00161c] text-[#bfe9f7] flex flex-col font-body selection:bg-[#e09f3e] selection:text-[#00161c] relative overflow-x-hidden">
@@ -44,37 +42,26 @@ export default async function HomePage() {
 
           {/* Right Controls */}
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Role indicator */}
-            <div className="hidden md:flex items-center gap-1.5 text-xs font-display">
-              <span className="text-[#d5c4b1]/70">Role:</span>
-              <span
-                className={`font-semibold px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider ${
-                  currentRole === "superadmin"
-                    ? "bg-[#e09f3e]/20 text-[#e09f3e] border border-[#e09f3e]/50"
-                    : currentRole === "admin"
-                    ? "bg-[#9e2a2b]/30 text-[#ffb4ab] border border-[#9e2a2b]/50"
-                    : currentRole === "user"
-                    ? "bg-[#0b3a44] text-[#bfe9f7] border border-[#335c67]"
-                    : "bg-[#00232b] text-[#d5c4b1] border border-[#335c67]/50"
-                }`}
-              >
-                {currentRole}
-              </span>
-            </div>
+            {/* Role indicator for authenticated users */}
+            {user && (
+              <div className="hidden md:flex items-center gap-1.5 text-xs font-display">
+                <span className="text-[#d5c4b1]/70">Role:</span>
+                <span
+                  className={`font-semibold px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider ${
+                    currentRole === "superadmin"
+                      ? "bg-[#e09f3e]/20 text-[#e09f3e] border border-[#e09f3e]/50"
+                      : currentRole === "admin"
+                      ? "bg-[#9e2a2b]/30 text-[#ffb4ab] border border-[#9e2a2b]/50"
+                      : "bg-[#0b3a44] text-[#bfe9f7] border border-[#335c67]"
+                  }`}
+                >
+                  {currentRole}
+                </span>
+              </div>
+            )}
 
             {/* Auth Button */}
             <AuthButton user={user} />
-
-            {/* Dev Portal Link for Admins / SuperAdmins */}
-            {isPrivileged && (
-              <Link
-                href="/dev"
-                className="text-xs font-display font-bold px-3 py-1.5 rounded-full bg-[#335c67] hover:bg-[#335c67]/80 text-[#fff3b0] border border-[#e09f3e]/40 transition hidden sm:inline-flex items-center gap-1"
-              >
-                <span>Console (/dev)</span>
-                <span>→</span>
-              </Link>
-            )}
           </div>
         </div>
       </header>
@@ -105,14 +92,6 @@ export default async function HomePage() {
                 <span className="px-3.5 py-1.5 rounded-full bg-[#9e2a2b] text-[#fff3b0] font-display font-bold text-xs shadow-md">
                   🔥 Streak Multiplier 1x
                 </span>
-                {isPrivileged && (
-                  <Link
-                    href="/dev"
-                    className="px-3.5 py-1.5 rounded-full bg-[#e09f3e] text-[#00161c] font-display font-bold text-xs shadow-md hover:bg-[#feb956] transition"
-                  >
-                    Manage Event →
-                  </Link>
-                )}
               </div>
             </div>
           </section>
@@ -144,48 +123,6 @@ export default async function HomePage() {
           {/* Right Column: Freedom Board Live Stream (Span 7) */}
           <div className="lg:col-span-7 w-full">
             <FreedomBoardPreview />
-          </div>
-        </section>
-
-        {/* Development Role Simulator & Diagnostic Control */}
-        <section className="rounded-2xl border border-[#335c67]/40 bg-[#001f26]/60 p-5 backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs">🛠️</span>
-                <h3 className="font-display text-xs font-bold text-[#e09f3e] uppercase tracking-wider">
-                  Development Role Testing Simulator
-                </h3>
-              </div>
-              <p className="text-[11px] text-[#d5c4b1]/70 mt-0.5">
-                Simulate role privileges to test access between public member view and restricted <code>/dev</code> management console.
-              </p>
-            </div>
-            <span className="text-[11px] font-mono text-[#fff3b0] px-2.5 py-1 rounded-full bg-[#00232b] border border-[#335c67]/50">
-              Active: {user ? `${user.name} (${user.role})` : "Guest (Logged Out)"}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {(["superadmin", "admin", "user", "guest"] as const).map((role) => (
-              <form key={role} action={setDevRoleAction}>
-                <input type="hidden" name="role" value={role} />
-                <button
-                  type="submit"
-                  className={`text-xs px-3 py-1.5 rounded-full border transition font-display font-medium cursor-pointer ${
-                    currentRole === role
-                      ? "bg-[#e09f3e] text-[#00161c] border-[#e09f3e] shadow-md font-bold"
-                      : "bg-[#00232b] text-[#bfe9f7] border-[#335c67]/60 hover:bg-[#002f38]"
-                  }`}
-                >
-                  Set as {role.charAt(0).toUpperCase() + role.slice(1)}
-                  {role === "superadmin" && " (SuperAdmin)"}
-                  {role === "admin" && " (Admin / Mod)"}
-                  {role === "user" && " (Member)"}
-                  {role === "guest" && " (Guest)"}
-                </button>
-              </form>
-            ))}
           </div>
         </section>
       </main>
