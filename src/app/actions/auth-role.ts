@@ -39,9 +39,9 @@ export async function updateUserRoleAction(formData: FormData) {
     throw new Error("Unauthorized: Only superadmin accounts can assign roles.");
   }
 
-  // 2. Allowed assigned roles
-  if (!["admin", "developer", "user"].includes(newRole)) {
-    throw new Error("Invalid role specified. Only admin, developer, or user can be assigned.");
+  // 2. Allowed assigned roles: superadmin can promote/demote between admin (moderator) and user
+  if (!["admin", "user"].includes(newRole)) {
+    throw new Error("Invalid role specified. Only admin or user can be assigned.");
   }
 
   // 3. Guardrail: Protect root superadmin from alteration or demotion
