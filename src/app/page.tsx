@@ -1,13 +1,122 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { sql } from "@/lib/db";
 import { AuthButton } from "@/components/auth-button";
-import { MemoryBoard } from "@/components/landing/memory-board";
-import { FloatingBingoModal } from "@/components/landing/floating-bingo-modal";
+import { ScrapbookLandingController } from "@/components/landing/scrapbook-landing-controller";
+import type { PostRecord } from "@/components/landing/memory-board";
+import type {
+  BingoTaskItem,
+  UserProgressItem,
+  RaffleEntryItem,
+} from "@/components/landing/floating-bingo-modal";
 
 export const instant = false;
 
 export default async function HomePage() {
   const user = await getCurrentUser();
+
+  // 1. Fetch live event stats from Neon database
+  const statsRows = await sql`
+    SELECT 
+      (SELECT count(*) FROM public.posts WHERE status = 'published') as total_snaps,
+      (SELECT count(*) FROM public.raffle_entries WHERE status IN ('valid', 'verified')) as total_raffles,
+      (SELECT count(DISTINCT college_dept) FROM public.posts WHERE college_dept IS NOT NULL AND status = 'published') as active_colleges,
+      COALESCE((SELECT current_day FROM public.event_config WHERE key = 'active_event' LIMIT 1), 1) as current_day
+  `;
+
+  const totalSnaps = Number(statsRows[0]?.total_snaps || 0);
+  const totalRaffles = Number(statsRows[0]?.total_raffles || 0);
+  const activeColleges = Number(statsRows[0]?.active_colleges || 0);
+  const currentDay = Number(statsRows[0]?.current_day || 1);
+
+  // 2. Fetch real published posts from Neon database
+  const postRows = await sql`
+    SELECT 
+      p.id,
+      p.user_id,
+      COALESCE(p.display_name, 'Student') as display_name,
+      p.college_dept,
+      p.image_url,
+      p.caption,
+      p.is_bingo_entry,
+      p.created_at,
+      bt.title as task_title,
+      bt.slot_index,
+      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'heart'), 0) as heart_count,
+      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'fire'), 0) as fire_count,
+      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'trophy'), 0) as trophy_count
+    FROM public.posts p
+    LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
+    WHERE p.status = 'published'
+    ORDER BY p.created_at DESC
+    LIMIT 60
+  `;
+
+  const posts: PostRecord[] = postRows.map((r) => ({
+    id: r.id,
+    userId: r.user_id,
+    displayName: r.display_name,
+    collegeDept: r.college_dept,
+    imageUrl: r.image_url,
+    caption: r.caption,
+    isBingoEntry: Boolean(r.is_bingo_entry),
+    taskTitle: r.task_title,
+    slotIndex: r.slot_index !== null ? Number(r.slot_index) : null,
+    createdAt: r.created_at,
+    heartCount: Number(r.heart_count),
+    fireCount: Number(r.fire_count),
+    trophyCount: Number(r.trophy_count),
+  }));
+
+  // 3. Fetch real 9 Bingo challenge tasks
+  const taskRows = await sql`
+    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
+    FROM public.bingo_tasks
+    ORDER BY slot_index ASC
+  `;
+
+  const tasks: BingoTaskItem[] = taskRows.map((r) => ({
+    id: r.id,
+    slotIndex: Number(r.slot_index),
+    title: r.title,
+    description: r.description,
+    category: r.category,
+    unlockDay: Number(r.unlock_day),
+    requiresSelfie: Boolean(r.requires_selfie),
+  }));
+
+  // 4. Fetch authenticated user's real progress and raffle entries
+  let userProgress: UserProgressItem[] = [];
+  let raffleEntries: RaffleEntryItem[] = [];
+
+  if (user) {
+    const progressRows = await sql`
+      SELECT bt.slot_index, ubp.task_id, ubp.post_id, ubp.completed_at
+      FROM public.user_bingo_progress ubp
+      JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
+      WHERE ubp.user_id = ${user.id}::uuid
+    `;
+
+    userProgress = progressRows.map((r) => ({
+      slotIndex: Number(r.slot_index),
+      taskId: r.task_id,
+      postId: r.post_id,
+      completedAt: r.completed_at,
+    }));
+
+    const raffleRows = await sql`
+      SELECT raffle_code, line_type, line_index
+      FROM public.raffle_entries
+      WHERE user_id = ${user.id}::uuid
+      ORDER BY created_at DESC
+    `;
+
+    raffleEntries = raffleRows.map((r) => ({
+      raffleCode: r.raffle_code,
+      lineType: r.line_type,
+      lineIndex: Number(r.line_index),
+    }));
+  }
 
   return (
     <div className="min-h-screen bg-[#fcf9f5] text-[#1e1b19] flex flex-col font-body selection:bg-[#ffdcc4] selection:text-[#6f3800] relative overflow-x-hidden">
@@ -47,7 +156,7 @@ export default async function HomePage() {
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fff8f5] border border-[#f4a261]/40 text-xs">
               <span className="w-2 h-2 rounded-full bg-[#ff5e4d] animate-pulse"></span>
               <span className="font-display font-bold text-[11px] text-[#8e4e14] uppercase tracking-wider">
-                Day 1 Live
+                Day {currentDay} Live
               </span>
             </div>
 
@@ -86,48 +195,55 @@ export default async function HomePage() {
             A quiet, bottomless physical memory board for Salingkusog. Snap campus selfies, cheer for your college, and unlock your 3x3 Bingo lines on the side!
           </p>
 
-          {/* Quick Stats Pill Marquee */}
+          {/* Real Live Stats Pill Bar */}
           <div className="mt-6 inline-flex items-center gap-3 sm:gap-6 px-4 sm:px-6 py-2 rounded-2xl bg-white border border-[#e8ded5] shadow-xs text-xs font-body">
             <div className="flex items-center gap-1.5 text-[#1e1b19]">
-              <span className="font-display font-bold text-sm text-[#ff5e4d]">3,420+</span>
-              <span className="text-[#8e706c]">Photos Snapped</span>
+              <span className="font-display font-bold text-sm text-[#ff5e4d]">
+                {totalSnaps}
+              </span>
+              <span className="text-[#8e706c]">
+                {totalSnaps === 1 ? "Photo Snapped" : "Photos Snapped"}
+              </span>
             </div>
             <span className="text-[#e8ded5]">•</span>
             <div className="flex items-center gap-1.5 text-[#1e1b19]">
-              <span className="font-display font-bold text-sm text-[#8e4e14]">840</span>
-              <span className="text-[#8e706c]">Raffle Entries</span>
+              <span className="font-display font-bold text-sm text-[#8e4e14]">
+                {totalRaffles}
+              </span>
+              <span className="text-[#8e706c]">
+                {totalRaffles === 1 ? "Raffle Entry" : "Raffle Entries"}
+              </span>
             </div>
             <span className="text-[#e8ded5] hidden xs:inline">•</span>
             <div className="hidden xs:flex items-center gap-1.5 text-[#1e1b19]">
-              <span className="font-display font-bold text-sm text-[#588157]">9 Colleges</span>
-              <span className="text-[#8e706c]">Battling</span>
+              <span className="font-display font-bold text-sm text-[#588157]">
+                {activeColleges > 0 ? `${activeColleges} Colleges` : "Colleges"}
+              </span>
+              <span className="text-[#8e706c]">Active</span>
             </div>
           </div>
         </section>
 
-        {/* POLAROID MEMORY BOARD (WHERE IMAGES LAND) */}
+        {/* POLAROID MEMORY BOARD & CONTROLLER */}
         <section aria-label="Campus Memory Board" className="w-full">
-          <MemoryBoard />
+          <ScrapbookLandingController
+            posts={posts}
+            tasks={tasks}
+            userProgress={userProgress}
+            raffleEntries={raffleEntries}
+            currentDay={currentDay}
+            user={
+              user
+                ? {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                  }
+                : null
+            }
+          />
         </section>
       </main>
-
-      {/* FLOATING 3X3 BINGO MODAL ICON & SIDE OVERLAY */}
-      <FloatingBingoModal isAuthenticated={Boolean(user)} />
-
-      {/* GUEST FLOATING BOTTOM BAR PROMPT */}
-      {!user && (
-        <div className="fixed bottom-6 left-4 sm:left-8 z-30 pointer-events-auto">
-          <div className="flex items-center gap-2 p-2 sm:p-2.5 rounded-full bg-white/95 border border-[#e8ded5] shadow-polaroid backdrop-blur-md">
-            <span className="text-base sm:text-lg pl-2">📸</span>
-            <span className="font-body text-xs text-[#5a413d] hidden sm:inline">
-              Join Salingkusog to drop photos & claim raffle tickets!
-            </span>
-            <div className="pl-1">
-              <AuthButton user={null} />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* FOOTER */}
       <footer className="border-t border-[#e8ded5] bg-[#fff8f5] py-8 px-4 text-center text-xs text-[#8e706c] font-body">

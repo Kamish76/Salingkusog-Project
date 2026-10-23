@@ -3,43 +3,85 @@
 import { useState } from "react";
 import { authClient } from "@/lib/auth/client";
 
-interface BingoTile {
-  id: number;
-  label: string;
+export interface BingoTaskItem {
+  id: string;
+  slotIndex: number;
+  title: string;
+  description: string;
   category: string;
-  status: "completed_coral" | "completed_sage" | "center_free" | "pending" | "locked";
-  icon: string;
+  unlockDay: number;
+  requiresSelfie: boolean;
 }
 
-const INITIAL_TILES: BingoTile[] = [
-  { id: 0, label: "Morning Parade", category: "Opening", status: "completed_coral", icon: "🎉" },
-  { id: 1, label: "College Cheer", category: "Spirit", status: "pending", icon: "📣" },
-  { id: 2, label: "Food Booth Run", category: "Social", status: "completed_sage", icon: "🍢" },
-  { id: 3, label: "5k Sunrise Run", category: "Sports", status: "completed_coral", icon: "🏃" },
-  { id: 4, label: "Free Mascot Snap", category: "Special", status: "center_free", icon: "⭐" },
-  { id: 5, label: "Friendship Selfie", category: "Social", status: "completed_sage", icon: "🤝" },
-  { id: 6, label: "Courtside Action", category: "Sports", status: "pending", icon: "🏀" },
-  { id: 7, label: "Banner & Chants", category: "Spirit", status: "completed_coral", icon: "🎨" },
-  { id: 8, label: "Night Fireworks", category: "Finale", status: "locked", icon: "🔒" },
-];
+export interface UserProgressItem {
+  slotIndex: number;
+  taskId: string;
+  postId: string;
+  completedAt: string | Date;
+}
+
+export interface RaffleEntryItem {
+  raffleCode: string;
+  lineType: string;
+  lineIndex: number;
+}
 
 interface FloatingBingoModalProps {
-  isAuthenticated?: boolean;
+  isAuthenticated: boolean;
+  tasks: BingoTaskItem[];
+  userProgress: UserProgressItem[];
+  raffleEntries: RaffleEntryItem[];
+  currentDay: number;
+  onSelectTaskToUpload?: (taskId: string) => void;
 }
 
-export function FloatingBingoModal({ isAuthenticated = false }: FloatingBingoModalProps) {
+const ICONS_BY_CATEGORY: Record<string, string> = {
+  spirit: "📣",
+  booth: "🍢",
+  sports: "🏀",
+  culture: "🎨",
+};
+
+export function FloatingBingoModal({
+  isAuthenticated,
+  tasks,
+  userProgress,
+  raffleEntries,
+  currentDay,
+  onSelectTaskToUpload,
+}: FloatingBingoModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeHint, setActiveHint] = useState<string | null>(null);
 
-  const handleTileClick = (tile: BingoTile) => {
-    if (tile.status === "locked") {
-      setActiveHint("🔒 Day 3 challenge — unlocks on finals day!");
-    } else if (tile.status === "center_free") {
-      setActiveHint("⭐ Center star is automatically unlocked for all registered students!");
-    } else if (tile.status.startsWith("completed")) {
-      setActiveHint(`✅ Verified photo proof submitted for "${tile.label}"!`);
+  // Set of completed slot indices
+  const completedSlots = new Set(userProgress.map((p) => p.slotIndex));
+  const completedCount = completedSlots.size;
+
+  const handleTileClick = (task: BingoTaskItem) => {
+    const isCompleted = completedSlots.has(task.slotIndex);
+    const isLocked = task.unlockDay > currentDay;
+
+    if (isCompleted) {
+      setActiveHint(`✅ Slot #${task.slotIndex + 1} ("${task.title}") is completed and verified!`);
+      return;
+    }
+
+    if (isLocked) {
+      setActiveHint(`🔒 Day ${task.unlockDay} challenge. Unlocks when organizers advance the event day.`);
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setActiveHint(`📸 Tapped Slot #${task.slotIndex + 1} ("${task.title}"). Sign in with Google to submit proof!`);
+      return;
+    }
+
+    // Open upload modal with this task selected
+    if (onSelectTaskToUpload) {
+      setIsOpen(false);
+      onSelectTaskToUpload(task.id);
     } else {
-      setActiveHint(`📸 Tapped "${tile.label}". ${isAuthenticated ? "Upload your selfie proof!" : "Sign in to submit your selfie!"}`);
+      setActiveHint(`📸 Slot #${task.slotIndex + 1}: ${task.description}`);
     }
   };
 
@@ -64,10 +106,16 @@ export function FloatingBingoModal({ isAuthenticated = false }: FloatingBingoMod
           aria-label="Open 3x3 Bingo Card"
           className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-white text-[#1e1b19] border border-[#e8ded5] shadow-polaroid hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
         >
-          {/* Pulsing Notification Dot */}
+          {/* Status Indicator */}
           <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff5e4d] opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-[#ff5e4d]"></span>
+            {completedCount > 0 ? (
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-[#588157]"></span>
+            ) : (
+              <>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff5e4d] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-[#ff5e4d]"></span>
+              </>
+            )}
           </span>
 
           <span className="text-xl">🎯</span>
@@ -77,7 +125,7 @@ export function FloatingBingoModal({ isAuthenticated = false }: FloatingBingoMod
               3x3 Bingo Card
             </span>
             <span className="font-body text-[10px] text-[#8e706c] font-medium leading-tight">
-              3 of 9 complete • Day 1
+              {completedCount} of 9 complete • Day {currentDay}
             </span>
           </div>
 
@@ -103,11 +151,11 @@ export function FloatingBingoModal({ isAuthenticated = false }: FloatingBingoMod
                     Intramurals 3x3 Bingo
                   </span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ffdad5] text-[#b4281e] tracking-wide uppercase">
-                    Day 1
+                    Day {currentDay}
                   </span>
                 </div>
                 <p className="font-body text-xs text-[#5a413d] mt-0.5">
-                  Snap selfies, complete any row or column, and win stage raffle tickets!
+                  Snap selfies, complete lines, and claim official stage raffle tickets.
                 </p>
               </div>
 
@@ -124,41 +172,44 @@ export function FloatingBingoModal({ isAuthenticated = false }: FloatingBingoMod
             {/* 3x3 Challenge Grid */}
             <div className="my-2 bg-[#fcf9f5] p-3 sm:p-4 rounded-2xl border border-[#e8ded5]">
               <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                {INITIAL_TILES.map((tile) => {
-                  const isCenter = tile.status === "center_free";
-                  const isCoral = tile.status === "completed_coral";
-                  const isSage = tile.status === "completed_sage";
-                  const isLocked = tile.status === "locked";
+                {tasks.map((task) => {
+                  const isCompleted = completedSlots.has(task.slotIndex);
+                  const isLocked = task.unlockDay > currentDay;
+                  const isCenter = task.slotIndex === 4;
+                  const icon = ICONS_BY_CATEGORY[task.category] || "📸";
 
                   return (
                     <button
-                      key={tile.id}
-                      onClick={() => handleTileClick(tile)}
+                      key={task.id}
+                      onClick={() => handleTileClick(task)}
                       type="button"
                       className={`aspect-square rounded-xl flex flex-col items-center justify-center text-center p-1.5 transition-all duration-150 transform cursor-pointer select-none active:scale-95 shadow-xs ${
-                        isCenter
-                          ? "bg-[#ffdad5] text-[#630002] border-2 border-[#ff5e4d] shadow-sm font-bold animate-pulse"
-                          : isCoral
-                          ? "bg-white text-[#1e1b19] border-2 border-[#ff5e4d] shadow-sm font-bold"
-                          : isSage
+                        isCompleted
                           ? "bg-white text-[#1e1b19] border-2 border-[#588157] shadow-sm font-bold"
                           : isLocked
                           ? "bg-stone-100 border border-stone-200 text-stone-400 opacity-60"
+                          : isCenter
+                          ? "bg-[#ffdad5]/40 text-[#630002] border-2 border-[#ff5e4d] shadow-xs font-bold"
                           : "bg-white border border-[#e8ded5] hover:border-stone-400 text-[#1e1b19]"
                       }`}
                     >
-                      <span className="text-xl mb-0.5">{tile.icon}</span>
-                      <span className="font-display text-[10px] font-bold leading-tight truncate w-full text-stone-800">
-                        {tile.label}
+                      <span className="text-xl mb-0.5">
+                        {isCompleted ? "✅" : isLocked ? "🔒" : icon}
                       </span>
-                      {(isCoral || isSage) && (
-                        <span className="text-[8px] font-bold text-[#b4281e] uppercase tracking-wider">
-                          ✓ Stamped
+                      <span className="font-display text-[10px] font-bold leading-tight truncate w-full text-stone-800">
+                        {task.title}
+                      </span>
+                      {isCompleted ? (
+                        <span className="text-[8px] font-bold text-[#588157] uppercase tracking-wider">
+                          Stamped
                         </span>
-                      )}
-                      {isCenter && (
+                      ) : isLocked ? (
+                        <span className="text-[8px] font-medium text-stone-400 uppercase tracking-wider">
+                          Day {task.unlockDay}
+                        </span>
+                      ) : (
                         <span className="text-[8px] font-bold text-[#ff5e4d] uppercase tracking-wider">
-                          ★ Free
+                          Ready
                         </span>
                       )}
                     </button>
@@ -175,24 +226,31 @@ export function FloatingBingoModal({ isAuthenticated = false }: FloatingBingoMod
               )}
             </div>
 
-            {/* Winning Line / Raffle Status Box */}
-            <div className="mt-3 p-3 rounded-2xl bg-[#fff8f5] border border-[#f4a261]/40 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🎟️</span>
-                <div>
-                  <span className="font-display text-xs font-bold text-[#8e4e14] block leading-tight">
-                    Row 2 Completed!
-                  </span>
-                  <span className="font-mono text-[10px] text-stone-600 block">
-                    Ticket: SK-RFL-78A42B
-                  </span>
+            {/* Real Claimed Raffle Ticket Box */}
+            {raffleEntries.length > 0 ? (
+              <div className="mt-3 p-3 rounded-2xl bg-[#fff8f5] border border-[#f4a261]/40 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🎟️</span>
+                  <div>
+                    <span className="font-display text-xs font-bold text-[#8e4e14] block leading-tight">
+                      Raffle Ticket Earned!
+                    </span>
+                    <span className="font-mono text-[10px] text-stone-600 block">
+                      Code: {raffleEntries[0].raffleCode} ({raffleEntries[0].lineType})
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <span className="px-2.5 py-1 rounded-full bg-[#f4a261]/20 text-[#8e4e14] font-bold text-[10px] tracking-wide uppercase">
-                Active in Draw
-              </span>
-            </div>
+                <span className="px-2.5 py-1 rounded-full bg-[#f4a261]/20 text-[#8e4e14] font-bold text-[10px] tracking-wide uppercase">
+                  Valid Entry
+                </span>
+              </div>
+            ) : (
+              <div className="mt-3 p-3 rounded-2xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center gap-2 text-stone-600 text-xs font-body">
+                <span>🎟️</span>
+                <span>Complete any 3-slot row, column, or diagonal line to earn a verifiable stage raffle entry!</span>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="mt-4 pt-3 border-t border-[#e8ded5] flex flex-col gap-2">
@@ -202,7 +260,7 @@ export function FloatingBingoModal({ isAuthenticated = false }: FloatingBingoMod
                   type="button"
                   className="w-full py-2.5 rounded-full bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display font-bold text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span>Sign in with Google to Claim & Snap</span>
+                  <span>Sign in with Google to Play</span>
                   <span>→</span>
                 </button>
               ) : (
