@@ -121,24 +121,44 @@ export default async function DevPage() {
     );
   }
 
-  // 2. Authorized View: Fetch registered users for Superadmin
+  // 2. Authorized View: Fetch registered users for Superadmin (max 5, pinned own credential, newest first)
   let registeredUsers: DbUserRecord[] = [];
-  if (superAdmin && isDbConfigured) {
-    try {
-      const rows = await sql`
-        SELECT id, name, email, COALESCE(role, 'user') as role, "createdAt"
-        FROM neon_auth."user"
-        ORDER BY "createdAt" ASC
-      `;
-      registeredUsers = (rows as unknown as UserRow[]).map((r) => ({
-        id: r.id,
-        name: r.name || "Unnamed User",
-        email: r.email,
-        role: r.role || "user",
-        createdAt: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "Unknown",
-      }));
-    } catch (e) {
-      console.error("Error fetching registered users:", e);
+  let totalRegisteredCount = 0;
+
+  if (superAdmin) {
+    if (isDbConfigured) {
+      try {
+        const countRows = await sql`SELECT COUNT(*) as count FROM neon_auth."user"`;
+        totalRegisteredCount = Number(countRows[0]?.count || 0);
+
+        const callerEmail = user?.email || null;
+        const rows = await sql`
+          SELECT id, name, email, COALESCE(role, 'user') as role, "createdAt"
+          FROM neon_auth."user"
+          ORDER BY 
+            CASE WHEN email = ${callerEmail} THEN 0 ELSE 1 END,
+            "createdAt" DESC
+          LIMIT 5
+        `;
+
+        registeredUsers = (rows as unknown as UserRow[]).map((r) => ({
+          id: r.id,
+          name: r.name || "Unnamed User",
+          email: r.email,
+          role: r.role || "user",
+          createdAt: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "Unknown",
+        }));
+      } catch (e) {
+        console.error("Error fetching registered users:", e);
+      }
+    } else {
+      const mockUsers: DbUserRecord[] = [
+        { id: "usr_superadmin_1", name: "Root SuperAdmin", email: "superadmin@salingkusog.internal", role: "superadmin", createdAt: "10/23/2026" },
+        { id: "usr_admin_1", name: "Admin (Moderator)", email: "admin@salingkusog.internal", role: "admin", createdAt: "10/23/2026" },
+        { id: "usr_user_1", name: "Standard User", email: "user@salingkusog.internal", role: "user", createdAt: "10/23/2026" },
+      ];
+      totalRegisteredCount = mockUsers.length;
+      registeredUsers = mockUsers.slice(0, 5);
     }
   }
 
@@ -282,97 +302,149 @@ export default async function DevPage() {
 
       {/* 3. Exclusive SuperAdmin User & Role Management Console */}
       {superAdmin ? (
-        <div className="p-6 rounded-xl border border-amber-500/30 bg-amber-950/10 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
+        <div className="p-6 rounded-2xl border border-amber-500/20 bg-zinc-900/60 shadow-xl space-y-5">
+          {/* Section Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-800/80">
+            <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                <span className="text-xs uppercase font-mono font-bold tracking-wider text-amber-400">
+                <span className="text-[11px] uppercase font-mono font-bold tracking-wider text-amber-400">
                   SuperAdmin Exclusive Tool
                 </span>
               </div>
-              <h2 className="text-xl font-bold text-white mt-1">
+              <h2 className="text-xl font-bold text-white tracking-tight">
                 User & Role Assignment Management
               </h2>
               <p className="text-xs text-zinc-400">
-                Directly manage access tiers in <code>neon_auth.user</code>. The root superadmin is protected and cannot be demoted.
+                Directly manage access tiers in <code className="text-zinc-300">neon_auth.user</code>. Pinned own credential with newest registered accounts (max 5).
               </p>
             </div>
-            <div className="text-xs font-mono px-3 py-1 rounded bg-amber-900/40 text-amber-300 border border-amber-800 self-start sm:self-auto">
-              {registeredUsers.length} Registered {registeredUsers.length === 1 ? "Account" : "Accounts"}
+
+            <div className="flex items-center gap-3 self-start sm:self-center">
+              <div className="text-xs font-mono px-3 py-1.5 rounded-lg bg-zinc-950/80 text-zinc-300 border border-zinc-800">
+                <span className="text-zinc-500">Total:</span>{" "}
+                <span className="text-amber-400 font-bold">{totalRegisteredCount}</span>{" "}
+                {totalRegisteredCount === 1 ? "Account" : "Accounts"}
+              </div>
+
+              <Link
+                href="/dev/users"
+                className="group text-xs font-mono px-3.5 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 transition flex items-center gap-1.5 font-medium shadow-sm whitespace-nowrap"
+              >
+                <span>Full Directory & Filter</span>
+                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+              </Link>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950/80">
-            <table className="w-full text-left text-xs font-mono">
-              <thead>
-                <tr className="border-b border-zinc-800 text-zinc-400 bg-zinc-900/70">
-                  <th className="py-3 px-4">User</th>
-                  <th className="py-3 px-4">Email</th>
-                  <th className="py-3 px-4">Current Role</th>
-                  <th className="py-3 px-4">Registered</th>
-                  <th className="py-3 px-4 text-right">Assign Role Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
-                {registeredUsers.length > 0 ? (
-                  registeredUsers.map((u) => {
-                    const isRootSuperAdmin = u.role === "superadmin";
-                    return (
-                      <tr key={u.id} className="hover:bg-zinc-900/40 transition">
-                        <td className="py-3 px-4 font-semibold text-white">{u.name}</td>
-                        <td className="py-3 px-4 text-zinc-400">{u.email}</td>
-                        <td className="py-3 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${
-                              u.role === "superadmin"
-                                ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                                : u.role === "admin"
-                                ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
-                                : "bg-zinc-800 text-zinc-400 border-zinc-700"
-                            }`}
-                          >
-                            {u.role === "admin" ? "admin (moderator)" : u.role}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-zinc-500">{u.createdAt}</td>
-                        <td className="py-3 px-4 text-right">
-                          {isRootSuperAdmin ? (
-                            <span className="text-[11px] text-amber-400/90 font-medium">
-                              Protected Root
-                            </span>
-                          ) : (
-                            <form action={updateUserRoleAction} className="inline-flex items-center gap-2">
-                              <input type="hidden" name="targetUserId" value={u.id} />
-                              <select
-                                name="newRole"
-                                defaultValue={u.role}
-                                className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-amber-500"
-                              >
-                                <option value="user">user</option>
-                                <option value="admin">admin (moderator)</option>
-                              </select>
-                              <button
-                                type="submit"
-                                className="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-medium transition cursor-pointer"
-                              >
-                                Update
-                              </button>
-                            </form>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-zinc-500">
-                      No accounts found in <code>neon_auth.user</code> yet. Log in with Google to create your account!
-                    </td>
+          {/* Table Container */}
+          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/90 shadow-inner">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-zinc-400 bg-zinc-900/80">
+                    <th className="py-3 px-4">User</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Current Role</th>
+                    <th className="py-3 px-4">Registered</th>
+                    <th className="py-3 px-4 text-right">Assign Role Action</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
+                  {registeredUsers.length > 0 ? (
+                    registeredUsers.map((u) => {
+                      const isRootSuperAdmin = u.role === "superadmin";
+                      const isCallerAccount = u.email === user?.email;
+
+                      return (
+                        <tr
+                          key={u.id}
+                          className={`hover:bg-zinc-900/50 transition ${
+                            isCallerAccount ? "bg-amber-500/[0.04]" : ""
+                          }`}
+                        >
+                          <td className="py-3.5 px-4 font-semibold text-white flex items-center gap-2.5">
+                            <span className="w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-[10px] font-bold text-zinc-300">
+                              {u.name.charAt(0).toUpperCase()}
+                            </span>
+                            <span>{u.name}</span>
+                            {isCallerAccount && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                YOU
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-zinc-400 font-mono">{u.email}</td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border inline-block ${
+                                u.role === "superadmin"
+                                  ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                                  : u.role === "admin"
+                                  ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                                  : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                              }`}
+                            >
+                              {u.role === "admin" ? "admin (moderator)" : u.role}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-zinc-500 font-mono">{u.createdAt}</td>
+                          <td className="py-3.5 px-4 text-right">
+                            {isRootSuperAdmin ? (
+                              <span className="text-[11px] text-amber-400/90 font-medium">
+                                Protected Root
+                              </span>
+                            ) : (
+                              <form
+                                action={updateUserRoleAction}
+                                className="inline-flex items-center gap-2"
+                              >
+                                <input type="hidden" name="targetUserId" value={u.id} />
+                                <select
+                                  name="newRole"
+                                  defaultValue={u.role}
+                                  className="bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 cursor-pointer"
+                                >
+                                  <option value="user">user</option>
+                                  <option value="admin">admin (moderator)</option>
+                                </select>
+                                <button
+                                  type="submit"
+                                  className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-semibold transition cursor-pointer"
+                                >
+                                  Update
+                                </button>
+                              </form>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-zinc-500">
+                        No accounts found in <code>neon_auth.user</code> yet. Log in with Google to create your account!
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table Footer */}
+            <div className="p-3.5 border-t border-zinc-800/80 bg-zinc-900/40 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono text-zinc-400">
+              <div>
+                Showing <span className="text-zinc-200 font-bold">{registeredUsers.length}</span> of{" "}
+                <span className="text-zinc-200 font-bold">{totalRegisteredCount}</span> accounts (Your credential pinned at top + newest accounts, max 5)
+              </div>
+              <Link
+                href="/dev/users"
+                className="text-amber-400/90 hover:text-amber-300 transition flex items-center gap-1 hover:underline"
+              >
+                <span>Open Full Directory with Search & Filter</span>
+                <span>→</span>
+              </Link>
+            </div>
           </div>
         </div>
       ) : user?.role === "admin" ? (
@@ -388,14 +460,22 @@ export default async function DevPage() {
               You are assigned as an Admin (Moderator) in Neon Better Auth. Elevate your session to the sole SuperAdmin to unlock the full User & Role Assignment console.
             </p>
           </div>
-          <form action={elevateToSuperAdminAction}>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition cursor-pointer whitespace-nowrap"
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <Link
+              href="/dev/users"
+              className="px-3 py-2 rounded-lg border border-purple-500/50 bg-purple-900/40 hover:bg-purple-900/60 text-purple-200 text-xs font-medium transition cursor-pointer whitespace-nowrap"
             >
-              ★ Elevate to SuperAdmin
-            </button>
-          </form>
+              View User Directory →
+            </Link>
+            <form action={elevateToSuperAdminAction}>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition cursor-pointer whitespace-nowrap"
+              >
+                ★ Elevate to SuperAdmin
+              </button>
+            </form>
+          </div>
         </div>
       ) : (
         <div className="p-5 rounded-xl border border-zinc-800 bg-zinc-900/30 flex items-center justify-between">
