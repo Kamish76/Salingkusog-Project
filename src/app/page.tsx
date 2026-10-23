@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { setDevRoleAction } from "@/app/actions/auth-role";
+import { AuthButton } from "@/components/auth-button";
 
 export const instant = false;
 
@@ -24,10 +25,12 @@ export default async function HomePage() {
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-zinc-500">Current Role:</span>
+              <span className="text-zinc-500">Role:</span>
               <span
                 className={`font-mono font-medium px-2 py-0.5 rounded ${
-                  currentRole === "admin"
+                  currentRole === "superadmin"
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800"
+                    : currentRole === "admin"
                     ? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
                     : currentRole === "developer"
                     ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
@@ -39,6 +42,8 @@ export default async function HomePage() {
                 {currentRole.toUpperCase()}
               </span>
             </div>
+
+            <AuthButton user={user} />
 
             <Link
               href="/dev"
@@ -58,7 +63,7 @@ export default async function HomePage() {
             Welcome to Salingkusog Portal
           </h1>
           <p className="text-zinc-600 dark:text-zinc-400 text-base sm:text-lg max-w-2xl leading-relaxed">
-            This is the public user side accessible to all members and guests. Explore platform resources, check system updates, or request developer access.
+            This is the public user side accessible to all members and guests. Explore platform resources, check system updates, or sign in to access management capabilities.
           </p>
         </section>
 
@@ -86,12 +91,12 @@ export default async function HomePage() {
               </div>
               <h2 className="text-lg font-semibold mb-2">Management & Dev Console</h2>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Internal diagnostics, database controls, role management, and system operations. Restricted to accounts assigned as Developer or Admin.
+                Internal diagnostics, database controls, role management, and system operations. Restricted to accounts assigned as Developer, Admin, or SuperAdmin.
               </p>
             </div>
             <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
               <span className="text-xs text-zinc-500">
-                Gate: <span className="font-mono text-zinc-700 dark:text-zinc-300">role in [developer, admin]</span>
+                Gate: <span className="font-mono text-zinc-700 dark:text-zinc-300">role in [developer, admin, superadmin]</span>
               </span>
               <Link
                 href="/dev"
@@ -111,7 +116,7 @@ export default async function HomePage() {
                 Role Testing Simulator
               </h3>
               <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
-                Switch roles to verify access control between the user side and the restricted <code>/dev</code> management side.
+                Switch simulated roles to test access control between the user side and the restricted <code>/dev</code> management side.
               </p>
             </div>
             <span className="text-xs font-mono text-amber-700 dark:text-amber-400">
@@ -120,18 +125,19 @@ export default async function HomePage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {(["admin", "developer", "user", "guest"] as const).map((role) => (
+            {(["superadmin", "admin", "developer", "user", "guest"] as const).map((role) => (
               <form key={role} action={setDevRoleAction}>
                 <input type="hidden" name="role" value={role} />
                 <button
                   type="submit"
-                  className={`text-xs px-3 py-1.5 rounded border transition font-medium ${
+                  className={`text-xs px-3 py-1.5 rounded border transition font-medium cursor-pointer ${
                     currentRole === role
                       ? "bg-amber-600 text-white border-amber-600 shadow-sm"
                       : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700 dark:hover:bg-zinc-800"
                   }`}
                 >
                   Set as {role.charAt(0).toUpperCase() + role.slice(1)}
+                  {role === "superadmin" && " (Owner & Role Management)"}
                   {role === "admin" && " (Full Dev Access)"}
                   {role === "developer" && " (Dev Access)"}
                   {role === "user" && " (Blocked from Dev)"}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { AuthButton } from "@/components/auth-button";
 
 export const instant = false;
 
@@ -33,13 +34,25 @@ export default async function DevLayout({
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span className="text-zinc-400">Signed as:</span>
                 <span className="font-mono text-zinc-200">{user.name}</span>
-                <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[10px] uppercase">
+                <span
+                  className={`px-2 py-0.5 rounded font-mono text-[10px] uppercase font-bold border ${
+                    user.role === "superadmin"
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                      : user.role === "admin"
+                      ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                      : user.role === "developer"
+                      ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                      : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                  }`}
+                >
                   {user.role}
                 </span>
               </div>
             ) : (
               <span className="text-zinc-500 font-mono">Status: Unauthenticated</span>
             )}
+
+            <AuthButton user={user} />
 
             <Link
               href="/"

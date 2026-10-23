@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
+import { sql } from "@/lib/db";
+import { auth } from "@/lib/auth/server";
 
-export type UserRole = "admin" | "developer" | "user";
+export type UserRole = "superadmin" | "admin" | "developer" | "user";
 
 export interface AuthUser {
   id: string;
@@ -9,23 +11,72 @@ export interface AuthUser {
   role: UserRole;
 }
 
-// shortcut: reads role from dev_role cookie for instant testing; upgrade to neon_auth sessions when OAuth/SMTP is configured
 export async function getCurrentUser(): Promise<AuthUser | null> {
+  // 1. Live Neon Managed Better Auth session resolution
+  try {
+    const { data: session } = await auth.getSession();
+    if (session?.user) {
+      let userRole: UserRole = "user";
+
+      if (process.env.DATABASE_URL) {
+        const rows = await sql`
+          SELECT role FROM neon_auth."user" WHERE id = ${session.user.id} LIMIT 1
+        `;
+        if (rows.length > 0 && rows[0].role) {
+          userRole = rows[0].role as UserRole;
+        }
+      }
+
+      return {
+        id: session.user.id,
+        name: session.user.name || "Authenticated User",
+        email: session.user.email,
+        role: userRole,
+      };
+    }
+  } catch (err: unknown) {
+    // If Next.js signals dynamic render bailout, rethrow to allow Next.js runtime to switch properly
+    const errorObj = err as { digest?: string };
+    if (
+      typeof errorObj?.digest === "string" &&
+      (errorObj.digest.startsWith("DYNAMIC_SERVER_USAGE") ||
+        errorObj.digest === "HANGING_PROMISE_REJECTION")
+    ) {
+      throw err;
+    }
+  }
+
+  // 2. Dev role simulator fallback for offline/local testing
   const cookieStore = await cookies();
   const devRole = cookieStore.get("dev_role")?.value as UserRole | undefined;
 
   if (!devRole) {
-    return null; // Guest user
+    return null; // Guest / Unauthenticated
   }
 
   return {
     id: `usr_${devRole}_1`,
-    name: devRole === "admin" ? "Lead Admin" : devRole === "developer" ? "Core Developer" : "Standard User",
+    name:
+      devRole === "superadmin"
+        ? "Root SuperAdmin"
+        : devRole === "admin"
+        ? "Lead Admin"
+        : devRole === "developer"
+        ? "Core Developer"
+        : "Standard User",
     email: `${devRole}@salingkusog.internal`,
     role: devRole,
   };
 }
 
 export function isDevAuthorized(user: AuthUser | null): boolean {
-  return user?.role === "admin" || user?.role === "developer";
+  return (
+    user?.role === "superadmin" ||
+    user?.role === "admin" ||
+    user?.role === "developer"
+  );
+}
+
+export function isSuperAdmin(user: AuthUser | null): boolean {
+  return user?.role === "superadmin";
 }
