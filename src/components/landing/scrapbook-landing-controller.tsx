@@ -32,6 +32,7 @@ export function ScrapbookLandingController({
   currentDay,
   user,
 }: ScrapbookLandingControllerProps) {
+  const [isBingoOpen, setIsBingoOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [preselectedTaskId, setPreselectedTaskId] = useState<string | undefined>(undefined);
   const [uploadOriginRect, setUploadOriginRect] = useState<{
@@ -40,14 +41,24 @@ export function ScrapbookLandingController({
     width: number;
     height: number;
   } | null>(null);
+  const [uploadSource, setUploadSource] = useState<"bingo" | "board">("board");
 
   const handleOpenUpload = (
     taskId?: string,
-    originRect?: { top: number; left: number; width: number; height: number }
+    originRect?: { top: number; left: number; width: number; height: number },
+    source: "bingo" | "board" = "board"
   ) => {
     setPreselectedTaskId(taskId);
     setUploadOriginRect(originRect || null);
+    setUploadSource(source);
+    // Keep bingo modal mounted at the back so returning requires zero reload
     setIsUploadOpen(true);
+  };
+
+  const handleCloseUpload = () => {
+    setIsUploadOpen(false);
+    setUploadOriginRect(null);
+    setUploadSource("board");
   };
 
   return (
@@ -56,7 +67,7 @@ export function ScrapbookLandingController({
       <MemoryBoard
         posts={posts}
         isAuthenticated={Boolean(user)}
-        onOpenUpload={(rect) => handleOpenUpload(undefined, rect)}
+        onOpenUpload={(rect) => handleOpenUpload(undefined, rect, "board")}
       />
 
       {/* Floating 3x3 Bingo Side Widget & Modal */}
@@ -66,17 +77,18 @@ export function ScrapbookLandingController({
         userProgress={userProgress}
         raffleEntries={raffleEntries}
         currentDay={currentDay}
-        onSelectTaskToUpload={(taskId, rect) => handleOpenUpload(taskId, rect)}
+        isOpen={isBingoOpen}
+        onOpenChange={setIsBingoOpen}
+        isUploadOpen={isUploadOpen}
+        onSelectTaskToUpload={(taskId, rect) => handleOpenUpload(taskId, rect, "bingo")}
       />
 
       {/* Photo Upload / Drop Memory Modal */}
       <UploadMemoryModal
         isOpen={isUploadOpen}
-        onClose={() => {
-          setIsUploadOpen(false);
-          setUploadOriginRect(null);
-        }}
+        onClose={handleCloseUpload}
         originRect={uploadOriginRect}
+        returnToBingo={uploadSource === "bingo"}
         isAuthenticated={Boolean(user)}
         currentDay={currentDay}
         bingoTasks={tasks.map((t) => ({

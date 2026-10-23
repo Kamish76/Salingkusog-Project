@@ -42,7 +42,10 @@ interface FloatingBingoModalProps {
   userProgress: UserProgressItem[];
   raffleEntries: RaffleEntryItem[];
   currentDay: number;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onSelectTaskToUpload?: (taskId: string, originRect?: OriginRect) => void;
+  isUploadOpen?: boolean;
 }
 
 const ICONS_BY_CATEGORY: Record<string, string> = {
@@ -58,9 +61,24 @@ export function FloatingBingoModal({
   userProgress,
   raffleEntries,
   currentDay,
+  isOpen: externalIsOpen,
+  onOpenChange,
   onSelectTaskToUpload,
+  isUploadOpen = false,
 }: FloatingBingoModalProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isControlled = externalIsOpen !== undefined;
+  const isOpen = isControlled ? externalIsOpen : internalIsOpen;
+  const setIsOpen = useCallback(
+    (open: boolean) => {
+      if (isControlled) {
+        onOpenChange?.(open);
+      } else {
+        setInternalIsOpen(open);
+      }
+    },
+    [isControlled, onOpenChange]
+  );
   const [activeHint, setActiveHint] = useState<string | null>(null);
   const [selectedSlotDetail, setSelectedSlotDetail] = useState<{
     task: BingoTaskItem;
@@ -83,6 +101,23 @@ export function FloatingBingoModal({
   // Map progress by slot index
   const progressBySlot = new Map(userProgress.map((p) => [p.slotIndex, p]));
   const completedCount = progressBySlot.size;
+
+  // Reset states during render when props or active selection change
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (!isOpen) {
+      setIsBingoExpanded(false);
+    }
+  }
+
+  const [prevSelectedSlotDetail, setPrevSelectedSlotDetail] = useState(selectedSlotDetail);
+  if (selectedSlotDetail !== prevSelectedSlotDetail) {
+    setPrevSelectedSlotDetail(selectedSlotDetail);
+    if (!selectedSlotDetail) {
+      setIsExpanded(false);
+    }
+  }
 
   // Manage Apple fluid zoom entrance state for Photo Detail
   useEffect(() => {
@@ -133,12 +168,13 @@ export function FloatingBingoModal({
       setBingoButtonRect(null);
       setIsBingoClosing(false);
     }, 380);
-  }, [isBingoClosing]);
+  }, [isBingoClosing, setIsOpen]);
 
   // Keyboard accessibility: Escape to dismiss
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (isUploadOpen) return;
         if (selectedSlotDetail) {
           handleCloseDetail();
         } else if (isOpen) {
@@ -148,7 +184,7 @@ export function FloatingBingoModal({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedSlotDetail, isOpen, handleCloseDetail, handleCloseBingo]);
+  }, [selectedSlotDetail, isOpen, isUploadOpen, handleCloseDetail, handleCloseBingo]);
 
   const handleTileClick = (task: BingoTaskItem, e: React.MouseEvent<HTMLButtonElement>) => {
     const progress = progressBySlot.get(task.slotIndex);
@@ -182,10 +218,9 @@ export function FloatingBingoModal({
       return;
     }
 
-    // Empty slot: open upload modal immediately with origin animation from pressed tile
+    // Empty slot: open upload modal immediately with origin animation from pressed tile (keep bingo mounted at back)
     if (onSelectTaskToUpload) {
       const rect = e.currentTarget.getBoundingClientRect();
-      setIsOpen(false);
       onSelectTaskToUpload(task.id, {
         top: rect.top,
         left: rect.left,
@@ -224,7 +259,7 @@ export function FloatingBingoModal({
     const rect = e.currentTarget.getBoundingClientRect();
     setSelectedSlotDetail(null);
     setOriginRect(null);
-    setIsOpen(false);
+    // Keep bingo mounted at back when switching to upload
     if (onSelectTaskToUpload) {
       onSelectTaskToUpload(taskId, {
         top: rect.top,

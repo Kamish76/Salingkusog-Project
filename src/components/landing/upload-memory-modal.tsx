@@ -28,6 +28,7 @@ interface UploadMemoryModalProps {
   bingoTasks: BingoTaskOption[];
   preselectedTaskId?: string;
   originRect?: OriginRect | null;
+  returnToBingo?: boolean;
 }
 
 export function UploadMemoryModal({
@@ -38,6 +39,7 @@ export function UploadMemoryModal({
   bingoTasks,
   preselectedTaskId,
   originRect,
+  returnToBingo = false,
 }: UploadMemoryModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -56,10 +58,18 @@ export function UploadMemoryModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync preselectedTaskId when prop changes during render
+  // Sync preselectedTaskId and isOpen when props change during render
   if (preselectedTaskId !== prevPreselectedTaskId) {
     setPrevPreselectedTaskId(preselectedTaskId);
     setSelectedTaskId(preselectedTaskId || "");
+  }
+
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (!isOpen) {
+      setIsExpanded(false);
+    }
   }
 
   // Manage Apple fluid zoom entrance state
@@ -257,7 +267,9 @@ export function UploadMemoryModal({
         opacity: isExpanded ? 1 : 0,
         transition: "opacity 300ms cubic-bezier(0.16, 1, 0.3, 1)",
       }}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-between p-4 sm:p-7 bg-black/65 backdrop-blur-xs select-none overflow-y-auto"
+      className={`fixed inset-0 z-[60] flex flex-col items-center justify-between p-4 sm:p-7 ${
+        returnToBingo ? "bg-black/50" : "bg-black/65"
+      } backdrop-blur-xs select-none overflow-y-auto`}
     >
       {/* Top Floating Glass Header Pill */}
       <div
@@ -469,9 +481,10 @@ export function UploadMemoryModal({
             <button
               onClick={handleClose}
               type="button"
+              aria-label={returnToBingo ? "Back to Bingo Card" : "Cancel"}
               className="py-3 px-4 rounded-full bg-white/10 hover:bg-white/15 active:scale-98 text-white/80 hover:text-white font-display font-medium text-xs backdrop-blur-md border border-white/10 transition cursor-pointer flex items-center justify-center"
             >
-              Cancel
+              {returnToBingo ? "← Back to Bingo" : "Cancel"}
             </button>
           </div>
         )}
