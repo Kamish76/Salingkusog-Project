@@ -20,7 +20,9 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
       if (process.env.DATABASE_URL) {
         const rows = await sql`
-          SELECT role FROM neon_auth."user" WHERE id = ${session.user.id} LIMIT 1
+          SELECT role FROM neon_auth."user" 
+          WHERE id = ${session.user.id}::uuid OR email = ${session.user.email} 
+          LIMIT 1
         `;
         if (rows.length > 0 && rows[0].role) {
           userRole = rows[0].role as UserRole;
