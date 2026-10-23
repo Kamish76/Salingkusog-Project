@@ -1,43 +1,39 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Space_Grotesk, Rubik } from "next/font/google";
+import { Bricolage_Grotesque, Karla, Caveat } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const rubik = Rubik({
-  variable: "--font-rubik",
+const karla = Karla({
+  variable: "--font-karla",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
 });
 
+const caveat = Caveat({
+  variable: "--font-caveat",
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: "Salingkusog | Freedom Board & 3x3 Intramurals Bingo",
+  title: "Salingkusog | Collegiate Memory Board & 3x3 Intramurals Bingo",
   description:
-    "Snap your day. Fill your board. Join the campus challenge and claim stage raffle tickets during university intramurals.",
+    "Drop student memories into the infinite campus board, track your 3x3 Intramurals Bingo card, and claim verified stage raffle entries.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${rubik.variable} h-full antialiased dark`}
+      className={`${bricolage.variable} ${karla.variable} ${caveat.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-body bg-[#00161c] text-[#bfe9f7]">
+      <body className="min-h-full flex flex-col font-body bg-[#fcf9f5] text-[#1e1b19]">
         {children}
       </body>
     </html>
