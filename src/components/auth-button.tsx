@@ -48,7 +48,7 @@ export function AuthButton({ user }: AuthButtonProps) {
       <button
         onClick={handleSignOut}
         disabled={loading}
-        className="px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-mono transition cursor-pointer disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00232b] hover:bg-[#9e2a2b]/30 text-[#fff3b0] border border-[#335c67] text-xs font-display font-semibold transition cursor-pointer disabled:opacity-50"
       >
         {loading ? "Signing out..." : "Sign Out"}
       </button>
@@ -59,7 +59,7 @@ export function AuthButton({ user }: AuthButtonProps) {
     <button
       onClick={handleGoogleSignIn}
       disabled={loading}
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-medium shadow transition cursor-pointer disabled:opacity-50"
+      className="btn-tactile-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-display font-bold transition cursor-pointer disabled:opacity-50"
     >
       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
         <path
