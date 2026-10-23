@@ -1,82 +1,96 @@
 # Salingkusog Project Roadmap
 
-This roadmap breaks down the delivery of the Salingkusog Freedom Board and Bingo System into 5 structured phases.
+This roadmap breaks down the delivery of the Salingkusog Freedom Board, 3x3 Bingo Challenge, Raffle Engine, and Realtime Dashboard into 5 structured phases.
 
 ---
 
 ## Roadmap Overview
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Phase 1    │ ──> │   Phase 2    │ ──> │   Phase 3    │ ──> │   Phase 4    │ ──> │   Phase 5    │
-│ Architecture │     │ Freedom Wall │     │ Bingo System │     │ Engagement & │     │ Launch &     │
-│  & Storage   │     │  Photo Feed  │     │ & Cross-post │     │  Moderation  │     │ Live Event   │
-└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│     Phase 1     │ ──> │     Phase 2     │ ──> │     Phase 3     │ ──> │     Phase 4     │ ──> │     Phase 5     │
+│  Architecture,  │     │ 3x3 Bingo Grid  │     │  Raffle Engine  │     │ Realtime Home   │     │ Social Export,  │
+│  Storage & DB   │     │  & Day-Locking  │     │  & /dev/raffle  │     │ Dashboard & Feed│     │ QA & Live Event │
+└─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
 ---
 
 ## Phase 1: Architecture, Storage & Database Foundation (Milestone 1)
-- [x] Establish git branch (`docu`) and baseline documentation (`docs/PROJECT_SCOPE.md`, `docs/ROADMAP.md`, `docs/BRAINSTORMING.md`).
-- [ ] Configure Neon Object Storage / S3 bucket upload pipeline for images (`assets` bucket configured in `neon.ts`).
-- [ ] Implement database migrations for core tables:
-  - `posts` table (with anonymity flag, user attribution, image URL, and status).
-  - `bingo_tasks` table (with slot index, challenge description, and active status).
-  - `user_bingo_progress` table (connecting user, task, and the uploaded post proof).
-- [ ] Establish server actions for secure file upload and signed URL generation.
+- [x] Configure Neon Managed Better Auth & Google OAuth with Next.js 16 Proxy handshake.
+- [x] Configure Neon Object Storage / S3 bucket (`assets`) with client-side 1080p WebP image optimization (`src/lib/image-processing.ts`, `src/lib/storage.ts`).
+- [x] Establish RBAC hierarchy (`superadmin`, `admin`, `user`) and dedicated User Management Console (`/dev/users`).
+- [ ] Database Schema Migration via Neon SQL (`src/lib/db.ts`):
+  - [ ] `bingo_tasks`: 3x3 grid slots (0..8), `unlock_day` (Day 1, 2, 3), `requires_selfie` boolean.
+  - [ ] `posts`: image URL, user ID, caption, `is_bingo_entry`, `bingo_task_id`, `status`.
+  - [ ] `user_bingo_progress`: user ID, task ID, post ID, `completed_at`.
+  - [ ] `raffle_entries`: `raffle_code`, user ID, `line_type`, `line_index`, `task_ids`, `post_ids`, verification status.
+  - [ ] `post_reactions`: cheer/hype reactions.
+- [ ] Seed default 9 Salingkusog intramurals challenge tasks across Days 1–3.
 
 ---
 
-## Phase 2: Public Freedom Board Core Feed (Milestone 2)
-- [ ] Build Public Feed layout (responsive masonry grid with image lightbox / full-screen preview).
-- [ ] Implement Fast Image Loading (optimized Next.js `<Image />` with blur placeholders).
-- [ ] Build Upload Modal:
-  - Image file picker + client-side compression (converts to WebP/JPEG < 1.5MB for fast loading).
-  - Caption input (max 280 characters).
-  - Anonymity toggle: "Post Anonymously" vs. "Display My Name".
-  - Optional College / Team affiliation selector.
-- [ ] Auth Gate check: If guest, prompt Google OAuth login dialog, then return to upload.
-- [ ] Optimistic feed updates or quick revalidation on post submission.
+## Phase 2: 3x3 Bingo Grid Engine & Multi-Day Locking (Milestone 2)
+- [ ] Build Interactive 3x3 Bingo Grid UI (`src/components/bingo/bingo-grid.tsx`):
+  - 9 structured tiles displaying challenge title, category badge, and day indicator.
+  - Tile States:
+    - 🔒 **Locked**: Assigned to a future day (displays padlock + day label).
+    - ⏳ **Unlocked / Pending**: Available to complete today.
+    - ✅ **Completed**: Shows thumbnail of uploaded photo proof with checkmark.
+- [ ] Slot Submission Modal (`src/components/bingo/task-upload-modal.tsx`):
+  - Displays specific selfie instructions and task requirements.
+  - Camera capture / photo picker.
+  - In-browser 1080p WebP downscaler (<300 KB).
+  - Optional caption input and anonymity toggle.
+- [ ] Server Action for Task Proof Submission:
+  - Validates caller authentication and checks that `unlock_day` is active.
+  - Uploads photo to Neon Storage, records post in `posts`, and links progress in `user_bingo_progress`.
 
 ---
 
-## Phase 3: Intramurals Bingo Engine & Cross-Posting (Milestone 3)
-- [ ] Build Interactive Bingo Card UI:
-  - 3x3 (9 tasks) or 4x4 (16 tasks) responsive grid.
-  - Slot card states: `Pending`, `In-Progress`, `Completed` (displaying thumbnail of uploaded photo).
-- [ ] Seed default Salingkusog intramurals challenge tasks (e.g. mascot selfie, cheering at sports event, food stall snack, etc.).
-- [ ] Slot Submission Flow:
-  - Clicking a slot opens task instructions and photo upload.
-  - Submitting marks the slot completed for the authenticated user.
-  - Automatically inserts an entry into `posts` with `is_bingo_entry = true` and `bingo_task_id = ...`.
-- [ ] Bingo Win Detection & Celebration:
-  - Calculate completed rows, columns, and diagonals in real time.
-  - Trigger celebratory confetti and award "BINGO!" digital badge.
+## Phase 3: Raffle Ticket Engine & Admin Verification Portal (Milestone 3)
+- [ ] Line Completion Detection Engine (`src/lib/bingo-win.ts`):
+  - Evaluates rows (0-2), columns (0-2), diagonals (0-1), and blackout.
+  - Identifies which lines are newly completed and eligible for raffle submission.
+- [ ] "Submit Done & Claim Raffle" Flow:
+  - User taps claim button upon line completion.
+  - Server generates unique, secure Raffle ID (e.g. `SK-RFL-XXXXXX`).
+  - Stores entry in `raffle_entries` with line snapshot (`task_ids`, `post_ids`).
+- [ ] User Raffle Wallet UI:
+  - Displays all earned Raffle IDs, timestamp, and line type (Row, Column, Diagonal).
+- [ ] Live Draw Organizer Verification Panel (`/dev/raffle`):
+  - Search / lookup by `raffle_code`.
+  - Side-by-side display of the 3 selfie photos submitted for that line.
+  - Verification actions: **"Verify & Award"** or **"Disqualify"** (records reason).
 
 ---
 
-## Phase 4: Social Engagement & Admin Moderation (Milestone 4)
-- [ ] Feed Filtering & Sorting:
-  - Tabs: `All Posts`, `🎯 Bingo Proofs`, `💬 General Shoutouts`, `🔥 Top Trending`.
-  - Filter by College / Department (e.g., Engineering, Education, Business, Arts).
-- [ ] Quick Reactions System:
-  - Reaction buttons on each post: 🔥 (Hype), 👏 (Cheer), ❤️ (Love), 🏆 (Winner).
-  - Instant optimistic counter increment for authenticated users.
-- [ ] Moderation Dashboard in `/dev`:
-  - Accessible to `superadmin` and `admin` roles.
-  - Real-time review queue of latest uploads.
-  - 1-click "Hide Post" or "Flag Content".
-  - Moderator ability to see true account identity for any reported anonymous post.
-  - Ability for organizers to add or modify active Bingo tasks.
+## Phase 4: Home Page Dashboard & Realtime Campus Feed (Milestone 4)
+- [ ] Public Unauthenticated Visitor Experience:
+  - Event banner, countdown, and active day theme.
+  - Realtime photo preview masonry gallery.
+  - Campus activity counters (photos uploaded, completed lines, active colleges).
+  - Seamless 1-tap Google OAuth login.
+- [ ] Authenticated Student Live Dashboard:
+  - Personal 3x3 Bingo Board view + Today's active tasks.
+  - Realtime upload stream featuring recently uploaded selfies and intramural proofs.
+  - Live celebration ticker for completed rows/cols by fellow students.
+  - Campus spirit leaderboard / highlight reel for top contributors.
+- [ ] Lightweight Realtime / Polling Refresh:
+  - Polling or SSE / Neon Realtime integration for live feed updates without page reloads.
 
 ---
 
-## Phase 5: Stress Testing, Campus Rollout & Event Execution (Milestone 5)
-- [ ] Mobile Performance & Low-Bandwidth Optimization:
-  - Test on congested university Wi-Fi / LTE mobile data.
-  - Progressive Web App (PWA) manifest or Add to Home Screen prompts.
-- [ ] QR Code generation and promotional material kit:
-  - QR codes for posters around campus sports arenas and student booths linking straight to the Freedom Board.
-- [ ] Intramurals Day 1 to Day N Live Operations:
-  - Live monitoring during opening ceremony and championship games.
-  - Announce top bingo finishers or raffle prize winners.
+## Phase 5: Social Export Templates, QA & Live Campus Launch (Milestone 5)
+- [ ] Social Story & Feed Exporter:
+  - In-browser HTML5 Canvas generator.
+  - **9:16 Vertical Story Template** for Instagram & TikTok.
+  - **1:1 Square Post Template** for Facebook & Instagram feed.
+  - Overlays Salingkusog branding, user alias/name, and completed bingo line stamps.
+  - 1-click Download / Web Share API (`navigator.share`).
+- [ ] Mobile Performance & Low-Bandwidth Stress Testing:
+  - Verify smooth operation under campus Wi-Fi / LTE conditions.
+- [ ] On-Site Physical Banners & QR Codes:
+  - Generate QR codes linking directly to the mobile dashboard and upload modal.
+- [ ] Live Event Operations & Stage Raffle Drawing Support:
+  - Standby support during intramural opening ceremonies, daily games, and awarding.
