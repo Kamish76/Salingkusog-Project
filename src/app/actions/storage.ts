@@ -8,6 +8,7 @@ import {
   uploadImageToBucket,
   deleteBucketObject,
 } from "@/lib/storage";
+import { moderateImageBuffer } from "@/lib/moderation";
 
 export interface StorageActionResult {
   success: boolean;
@@ -75,6 +76,22 @@ export async function uploadStorageImageAction(
     }
 
     const contentType = inspection.detectedType || file.type || "image/webp";
+
+    // Pre-upload OpenAI Multimodal Safety Moderation
+    const moderation = await moderateImageBuffer(buffer, contentType);
+    if (!moderation.approved) {
+      if (moderation.flagged) {
+        return {
+          success: false,
+          error: "Image rejected: Content flagged by safety policy.",
+        };
+      }
+      return {
+        success: false,
+        error: moderation.error || "Safety review failed. Please try again.",
+      };
+    }
+
     const result = await uploadImageToBucket(buffer, file.name, contentType);
 
     revalidatePath("/dev/tools/storage");
