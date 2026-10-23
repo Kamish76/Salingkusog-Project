@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { getCurrentUser, isDevAuthorized, isSuperAdmin } from "@/lib/auth";
-import { setDevRoleAction, updateUserRoleAction } from "@/app/actions/auth-role";
+import {
+  setDevRoleAction,
+  updateUserRoleAction,
+  elevateToSuperAdminAction,
+} from "@/app/actions/auth-role";
 import { AuthButton } from "@/components/auth-button";
 import { sql } from "@/lib/db";
 
@@ -384,6 +388,28 @@ export default async function DevPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      ) : user?.role === "admin" ? (
+        <div className="p-6 rounded-xl border border-purple-500/40 bg-purple-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+              <h3 className="text-sm font-semibold text-purple-200">
+                Admin Privileges Detected
+              </h3>
+            </div>
+            <p className="text-xs text-zinc-400">
+              You are assigned as an Admin in Neon Better Auth. Elevate your session to the sole SuperAdmin to unlock the full User & Role Assignment console.
+            </p>
+          </div>
+          <form action={elevateToSuperAdminAction}>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition cursor-pointer whitespace-nowrap"
+            >
+              ★ Elevate to SuperAdmin
+            </button>
+          </form>
         </div>
       ) : (
         <div className="p-5 rounded-xl border border-zinc-800 bg-zinc-900/30 flex items-center justify-between">

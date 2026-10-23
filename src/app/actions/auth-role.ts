@@ -67,3 +67,24 @@ export async function updateUserRoleAction(formData: FormData) {
   revalidatePath("/dev");
   revalidatePath("/");
 }
+
+export async function elevateToSuperAdminAction() {
+  const caller = await getCurrentUser();
+  if (!caller) {
+    throw new Error("Unauthorized: Unauthenticated.");
+  }
+
+  // Only accounts with Admin role (or root account) can elevate to SuperAdmin
+  if (caller.role !== "admin") {
+    throw new Error("Forbidden: Only accounts with Admin role can elevate to SuperAdmin.");
+  }
+
+  await sql`
+    UPDATE neon_auth."user"
+    SET role = 'superadmin', "updatedAt" = NOW()
+    WHERE email = ${caller.email}
+  `;
+
+  revalidatePath("/dev");
+  revalidatePath("/");
+}
