@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { AuthButton } from "@/components/auth-button";
+import { DevNav } from "@/components/dev-nav";
 
 export const instant = false;
 
@@ -61,6 +62,9 @@ export default async function DevLayout({
           </div>
         </div>
       </header>
+
+      {/* Dev Section Tabs Navigation */}
+      <DevNav />
 
       {/* Main Dev Container */}
       <div className="flex-1 max-w-6xl w-full mx-auto px-6 py-8">{children}</div>

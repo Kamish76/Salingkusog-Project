@@ -298,8 +298,16 @@ export default async function DevPage() {
                 Directly manage access tiers in <code>neon_auth.user</code>. The root superadmin is protected and cannot be demoted.
               </p>
             </div>
-            <div className="text-xs font-mono px-3 py-1 rounded bg-amber-900/40 text-amber-300 border border-amber-800 self-start sm:self-auto">
-              {registeredUsers.length} Registered {registeredUsers.length === 1 ? "Account" : "Accounts"}
+            <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+              <Link
+                href="/dev/users"
+                className="text-xs font-mono px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium transition cursor-pointer flex items-center gap-1.5 shadow"
+              >
+                <span>Dedicated Management Page (Filter Search) →</span>
+              </Link>
+              <div className="text-xs font-mono px-3 py-1.5 rounded bg-amber-900/40 text-amber-300 border border-amber-800">
+                {registeredUsers.length} Registered {registeredUsers.length === 1 ? "Account" : "Accounts"}
+              </div>
             </div>
           </div>
 
@@ -388,14 +396,22 @@ export default async function DevPage() {
               You are assigned as an Admin (Moderator) in Neon Better Auth. Elevate your session to the sole SuperAdmin to unlock the full User & Role Assignment console.
             </p>
           </div>
-          <form action={elevateToSuperAdminAction}>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition cursor-pointer whitespace-nowrap"
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <Link
+              href="/dev/users"
+              className="px-3 py-2 rounded-lg border border-purple-500/50 bg-purple-900/40 hover:bg-purple-900/60 text-purple-200 text-xs font-medium transition cursor-pointer whitespace-nowrap"
             >
-              ★ Elevate to SuperAdmin
-            </button>
-          </form>
+              View User Directory →
+            </Link>
+            <form action={elevateToSuperAdminAction}>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition cursor-pointer whitespace-nowrap"
+              >
+                ★ Elevate to SuperAdmin
+              </button>
+            </form>
+          </div>
         </div>
       ) : (
         <div className="p-5 rounded-xl border border-zinc-800 bg-zinc-900/30 flex items-center justify-between">
