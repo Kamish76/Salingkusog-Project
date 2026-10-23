@@ -9,6 +9,8 @@ export interface AuthUser {
   name: string;
   email: string;
   role: UserRole;
+  banned?: boolean;
+  banReason?: string | null;
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
@@ -17,18 +19,24 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     const { data: session } = await auth.getSession();
     if (session?.user) {
       let userRole: UserRole = "user";
+      let isBanned = false;
+      let banReason: string | null = null;
 
       if (process.env.DATABASE_URL) {
         const rows = await sql`
-          SELECT role FROM neon_auth."user" 
+          SELECT role, COALESCE(banned, false) as banned, "banReason" FROM neon_auth."user" 
           WHERE id = ${session.user.id}::uuid OR email = ${session.user.email} 
           LIMIT 1
         `;
-        if (rows.length > 0 && rows[0].role) {
-          const dbRole = rows[0].role as string;
-          if (dbRole === "superadmin" || dbRole === "admin" || dbRole === "user") {
-            userRole = dbRole;
+        if (rows.length > 0) {
+          if (rows[0].role) {
+            const dbRole = rows[0].role as string;
+            if (dbRole === "superadmin" || dbRole === "admin" || dbRole === "user") {
+              userRole = dbRole;
+            }
           }
+          isBanned = Boolean(rows[0].banned);
+          banReason = (rows[0].banReason as string) || null;
         }
       }
 
@@ -37,6 +45,8 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
         name: session.user.name || "Authenticated User",
         email: session.user.email,
         role: userRole,
+        banned: isBanned,
+        banReason,
       };
     }
   } catch (err: unknown) {
@@ -82,4 +92,8 @@ export function isDevAuthorized(user: AuthUser | null): boolean {
 
 export function isSuperAdmin(user: AuthUser | null): boolean {
   return user?.role === "superadmin";
+}
+
+export function isUserBanned(user: AuthUser | null): boolean {
+  return Boolean(user?.banned);
 }
