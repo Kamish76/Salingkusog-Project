@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { auth } from "@/lib/auth/server";
 
-export type UserRole = "superadmin" | "admin" | "developer" | "user";
+export type UserRole = "superadmin" | "admin" | "user";
 
 export interface AuthUser {
   id: string;
@@ -25,7 +25,10 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
           LIMIT 1
         `;
         if (rows.length > 0 && rows[0].role) {
-          userRole = rows[0].role as UserRole;
+          const dbRole = rows[0].role as string;
+          if (dbRole === "superadmin" || dbRole === "admin" || dbRole === "user") {
+            userRole = dbRole;
+          }
         }
       }
 
@@ -62,21 +65,19 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       devRole === "superadmin"
         ? "Root SuperAdmin"
         : devRole === "admin"
-        ? "Lead Admin"
-        : devRole === "developer"
-        ? "Core Developer"
+        ? "Admin (Moderator)"
         : "Standard User",
     email: `${devRole}@salingkusog.internal`,
     role: devRole,
   };
 }
 
+export function isModerator(user: AuthUser | null): boolean {
+  return user?.role === "superadmin" || user?.role === "admin";
+}
+
 export function isDevAuthorized(user: AuthUser | null): boolean {
-  return (
-    user?.role === "superadmin" ||
-    user?.role === "admin" ||
-    user?.role === "developer"
-  );
+  return isModerator(user);
 }
 
 export function isSuperAdmin(user: AuthUser | null): boolean {

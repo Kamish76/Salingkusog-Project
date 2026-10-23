@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { AuthButton } from "@/components/auth-button";
+import { DevNav } from "@/components/dev-nav";
 
 export const instant = false;
 
@@ -40,12 +41,10 @@ export default async function DevLayout({
                       ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
                       : user.role === "admin"
                       ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
-                      : user.role === "developer"
-                      ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
                       : "bg-zinc-800 text-zinc-400 border-zinc-700"
                   }`}
                 >
-                  {user.role}
+                  {user.role === "admin" ? "admin (moderator)" : user.role}
                 </span>
               </div>
             ) : (
@@ -63,6 +62,9 @@ export default async function DevLayout({
           </div>
         </div>
       </header>
+
+      {/* Dev Section Tabs Navigation */}
+      <DevNav />
 
       {/* Main Dev Container */}
       <div className="flex-1 max-w-6xl w-full mx-auto px-6 py-8">{children}</div>
