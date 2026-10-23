@@ -67,6 +67,27 @@ const POLAROID_ROTATIONS = [
   "rotate-[-2deg]",   // Slot 8: Bottom-Right
 ];
 
+const POLAROID_SHAPES: Record<
+  "landscape" | "portrait" | "square",
+  { card: string; photo: string; detailAspect: string }
+> = {
+  landscape: {
+    card: "w-[124%] sm:w-[130%] h-[105%] sm:h-[110%] -top-[2.5%] -left-[12%] sm:-top-[5%] sm:-left-[15%]",
+    photo: "aspect-[16/10]",
+    detailAspect: "aspect-[16/10] max-h-[58vh]",
+  },
+  portrait: {
+    card: "w-[105%] sm:w-[110%] h-[128%] sm:h-[135%] -top-[14%] -left-[2.5%] sm:-top-[17%] sm:-left-[5%]",
+    photo: "aspect-[3/4]",
+    detailAspect: "aspect-[3/4] max-h-[70vh]",
+  },
+  square: {
+    card: "w-[114%] sm:w-[118%] h-[122%] sm:h-[128%] -top-[11%] -left-[7%] sm:-top-[14%] sm:-left-[9%]",
+    photo: "aspect-square",
+    detailAspect: "aspect-square max-h-[62vh]",
+  },
+};
+
 export function FloatingBingoModal({
   isAuthenticated,
   tasks,
@@ -127,6 +148,29 @@ export function FloatingBingoModal({
   sortedCompleted.forEach((item, index) => {
     uploadOrderMap.set(item.slotIndex, index + 1);
   });
+
+  // Track natural image aspect ratio to adapt polaroid orientation (landscape vs portrait vs square)
+  const [imageOrientations, setImageOrientations] = useState<
+    Record<number, "portrait" | "landscape" | "square">
+  >({});
+
+  useEffect(() => {
+    userProgress.forEach((p) => {
+      if (p.imageUrl && p.slotIndex !== undefined) {
+        const img = new Image();
+        img.onload = () => {
+          const aspect = img.naturalWidth / img.naturalHeight;
+          const orientation: "portrait" | "landscape" | "square" =
+            aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
+          setImageOrientations((prev) => {
+            if (prev[p.slotIndex] === orientation) return prev;
+            return { ...prev, [p.slotIndex]: orientation };
+          });
+        };
+        img.src = p.imageUrl;
+      }
+    });
+  }, [userProgress]);
 
   // Reset states during render when props or active selection change
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
@@ -496,6 +540,8 @@ export function FloatingBingoModal({
                   const rotationClass = POLAROID_ROTATIONS[task.slotIndex % POLAROID_ROTATIONS.length];
                   const uploadRank = uploadOrderMap.get(task.slotIndex) || 1;
                   const captionText = progress?.caption?.trim() || task.title;
+                  const orientation = imageOrientations[task.slotIndex] || "square";
+                  const shape = POLAROID_SHAPES[orientation];
 
                   return (
                     <div
@@ -531,7 +577,7 @@ export function FloatingBingoModal({
                             }`}
                           />
 
-                          {/* Authentic Physical Polaroid (Overlay on top of slot, stacked by upload timestamp) */}
+                          {/* Authentic Physical Polaroid (Overlay on top of slot, adaptive orientation) */}
                           <button
                             onClick={(e) => handleTileClick(task, e)}
                             type="button"
@@ -539,19 +585,31 @@ export function FloatingBingoModal({
                             style={{
                               zIndex: 10 + uploadRank,
                             }}
-                            className={`group absolute w-[114%] sm:w-[118%] h-[122%] sm:h-[128%] -top-[11%] -left-[7%] sm:-top-[14%] sm:-left-[9%] bg-white border border-stone-200/90 shadow-polaroid hover:shadow-2xl rounded-[3px] p-1.5 sm:p-2 flex flex-col justify-between cursor-pointer select-none transition-all duration-200 transform hover:scale-115 hover:rotate-0 hover:z-40 active:scale-98 ${rotationClass}`}
+                            className={`group absolute ${shape.card} bg-white border border-stone-200/90 shadow-polaroid hover:shadow-2xl rounded-[3px] p-1.5 sm:p-2 flex flex-col justify-between cursor-pointer select-none transition-all duration-200 transform hover:scale-115 hover:rotate-0 hover:z-40 active:scale-98 ${rotationClass}`}
                           >
                             {/* Tactile Corner Pin / Scrapbook Pushpin Accent */}
                             <div className="absolute top-1 right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-white/95 border border-stone-300 shadow-2xs flex items-center justify-center text-[9px] font-bold text-stone-400 pointer-events-none z-10 group-hover:text-[#ff5e4d] group-hover:border-[#ff5e4d]/40 transition-colors">
                               ＋
                             </div>
 
-                            {/* Inner Photo Frame */}
-                            <div className="relative w-full aspect-square bg-stone-100 overflow-hidden rounded-[2px] border border-stone-200/50 shadow-[inset_0_1px_3px_rgba(0,0,0,0.08)]">
+                            {/* Inner Photo Frame (Adapts aspect ratio to orientation) */}
+                            <div className={`relative w-full ${shape.photo} bg-stone-100 overflow-hidden rounded-[2px] border border-stone-200/50 shadow-[inset_0_1px_3px_rgba(0,0,0,0.08)]`}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={progress?.imageUrl || ""}
                                 alt={task.title}
+                                onLoad={(e) => {
+                                  const target = e.currentTarget;
+                                  if (target.naturalWidth && target.naturalHeight) {
+                                    const aspect = target.naturalWidth / target.naturalHeight;
+                                    const detected: "portrait" | "landscape" | "square" =
+                                      aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
+                                    setImageOrientations((prev) => {
+                                      if (prev[task.slotIndex] === detected) return prev;
+                                      return { ...prev, [task.slotIndex]: detected };
+                                    });
+                                  }
+                                }}
                                 className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-300 group-hover:scale-105"
                               />
 
@@ -562,7 +620,7 @@ export function FloatingBingoModal({
                             </div>
 
                             {/* Polaroid Chin with Handwritten Caption or Title */}
-                            <div className="w-full pt-1 sm:pt-1.5 pb-0.5 px-0.5 text-center flex flex-col items-center justify-center min-h-[22px] sm:min-h-[26px]">
+                            <div className="w-full pt-1 sm:pt-1.5 pb-0.5 px-0.5 text-center flex flex-col items-center justify-center min-h-[20px] sm:min-h-[24px]">
                               <span className="font-handwriting font-bold text-stone-900 text-xs sm:text-[13px] leading-none tracking-tight truncate w-full group-hover:text-[#b4281e] transition-colors">
                                 {captionText}
                               </span>
@@ -677,7 +735,9 @@ export function FloatingBingoModal({
           <div
             onClick={(e) => e.stopPropagation()}
             style={getImageAnimationStyles()}
-            className="relative w-full max-w-md aspect-[4/3] sm:aspect-square max-h-[62vh] overflow-hidden shadow-2xl ring-1 ring-white/20 bg-stone-950 flex items-center justify-center will-change-transform my-auto"
+            className={`relative w-full max-w-md ${
+              POLAROID_SHAPES[imageOrientations[selectedSlotDetail.task.slotIndex] || "square"].detailAspect
+            } overflow-hidden shadow-2xl ring-1 ring-white/20 bg-stone-950 flex items-center justify-center will-change-transform my-auto`}
           >
             {selectedSlotDetail.progress.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
