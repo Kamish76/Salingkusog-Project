@@ -22,7 +22,7 @@ export interface PostRecord {
 interface MemoryBoardProps {
   posts: PostRecord[];
   isAuthenticated: boolean;
-  onOpenUpload: () => void;
+  onOpenUpload: (originRect?: { top: number; left: number; width: number; height: number }) => void;
 }
 
 const ROTATIONS = [
@@ -100,7 +100,10 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
         </div>
 
         <button
-          onClick={onOpenUpload}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            onOpenUpload({ top: r.top, left: r.left, width: r.width, height: r.height });
+          }}
           type="button"
           className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer ml-auto"
         >
@@ -128,7 +131,10 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
           </p>
 
           <button
-            onClick={onOpenUpload}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              onOpenUpload({ top: r.top, left: r.left, width: r.width, height: r.height });
+            }}
             type="button"
             className="mt-6 px-6 py-2.5 rounded-full bg-[#1e1b19] hover:bg-stone-800 text-white font-display font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2"
           >

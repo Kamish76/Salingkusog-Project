@@ -34,9 +34,19 @@ export function ScrapbookLandingController({
 }: ScrapbookLandingControllerProps) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [preselectedTaskId, setPreselectedTaskId] = useState<string | undefined>(undefined);
+  const [uploadOriginRect, setUploadOriginRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
-  const handleOpenUpload = (taskId?: string) => {
+  const handleOpenUpload = (
+    taskId?: string,
+    originRect?: { top: number; left: number; width: number; height: number }
+  ) => {
     setPreselectedTaskId(taskId);
+    setUploadOriginRect(originRect || null);
     setIsUploadOpen(true);
   };
 
@@ -46,7 +56,7 @@ export function ScrapbookLandingController({
       <MemoryBoard
         posts={posts}
         isAuthenticated={Boolean(user)}
-        onOpenUpload={() => handleOpenUpload()}
+        onOpenUpload={(rect) => handleOpenUpload(undefined, rect)}
       />
 
       {/* Floating 3x3 Bingo Side Widget & Modal */}
@@ -56,13 +66,17 @@ export function ScrapbookLandingController({
         userProgress={userProgress}
         raffleEntries={raffleEntries}
         currentDay={currentDay}
-        onSelectTaskToUpload={(taskId) => handleOpenUpload(taskId)}
+        onSelectTaskToUpload={(taskId, rect) => handleOpenUpload(taskId, rect)}
       />
 
       {/* Photo Upload / Drop Memory Modal */}
       <UploadMemoryModal
         isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
+        onClose={() => {
+          setIsUploadOpen(false);
+          setUploadOriginRect(null);
+        }}
+        originRect={uploadOriginRect}
         isAuthenticated={Boolean(user)}
         currentDay={currentDay}
         bingoTasks={tasks.map((t) => ({
