@@ -13,3 +13,4 @@ This directory contains ordered, idempotent SQL migration files for the Salingku
 |---|---|---|---|
 | `0001_initial_moderation_and_bingo.sql` | `bingo_tasks`, `posts`, `user_bingo_progress` | Applied | Baseline schema for 3x3 challenge slots, photo proof posts, and 9 seeded tasks. |
 | `0002_raffle_and_reactions.sql` | `raffle_entries`, `post_reactions`, `event_config` | Applied | Raffle ticket entries, line tracking, cheer reactions, and event day configuration. |
+| `0003_add_raffle_active_flag.sql` | `event_config` | Applied | Adds `is_raffle_active` toggle column to control raffle drawings. |

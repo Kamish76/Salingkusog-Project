@@ -20,12 +20,14 @@ export default async function HomePage() {
     SELECT 
       (SELECT count(*) FROM public.posts WHERE status = 'published') as total_snaps,
       (SELECT count(*) FROM public.raffle_entries WHERE status IN ('valid', 'verified')) as total_raffles,
-      COALESCE((SELECT current_day FROM public.event_config WHERE key = 'active_event' LIMIT 1), 1) as current_day
+      COALESCE((SELECT current_day FROM public.event_config WHERE key = 'active_event' LIMIT 1), 1) as current_day,
+      COALESCE((SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), true) as is_raffle_active
   `;
 
   const totalSnaps = Number(statsRows[0]?.total_snaps || 0);
   const totalRaffles = Number(statsRows[0]?.total_raffles || 0);
   const currentDay = Number(statsRows[0]?.current_day || 1);
+  const isRaffleActive = Boolean(statsRows[0]?.is_raffle_active ?? true);
 
   // 2. Fetch real published posts from Neon database
   const postRows = await sql`
@@ -213,14 +215,23 @@ export default async function HomePage() {
               </span>
             </div>
             <span className="text-[#e8ded5]">•</span>
-            <div className="flex items-center gap-1.5 text-[#1e1b19]">
-              <span className="font-display font-bold text-sm text-[#8e4e14]">
-                {totalRaffles}
-              </span>
-              <span className="text-[#8e706c]">
-                {totalRaffles === 1 ? "Raffle Entry" : "Raffle Entries"}
-              </span>
-            </div>
+            {isRaffleActive ? (
+              <div className="flex items-center gap-1.5 text-[#1e1b19]">
+                <span className="font-display font-bold text-sm text-[#8e4e14]">
+                  {totalRaffles}
+                </span>
+                <span className="text-[#8e706c]">
+                  {totalRaffles === 1 ? "Raffle Entry" : "Raffle Entries"}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[#8e706c]">
+                <span className="text-xs">🎟️</span>
+                <span className="font-display font-semibold text-[11px] text-[#8e706c] uppercase tracking-wider">
+                  Raffle Paused
+                </span>
+              </div>
+            )}
             <span className="text-[#e8ded5] hidden xs:inline">•</span>
             <div className="hidden xs:flex items-center gap-1.5 text-[#1e1b19]">
               <span className="w-2 h-2 rounded-full bg-[#588157]"></span>
@@ -240,6 +251,7 @@ export default async function HomePage() {
             userProgress={userProgress}
             raffleEntries={raffleEntries}
             currentDay={currentDay}
+            isRaffleActive={isRaffleActive}
             user={
               user
                 ? {

@@ -42,6 +42,7 @@ interface FloatingBingoModalProps {
   userProgress: UserProgressItem[];
   raffleEntries: RaffleEntryItem[];
   currentDay: number;
+  isRaffleActive?: boolean;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   onSelectTaskToUpload?: (taskId: string, originRect?: OriginRect) => void;
@@ -94,6 +95,7 @@ export function FloatingBingoModal({
   userProgress,
   raffleEntries,
   currentDay,
+  isRaffleActive = true,
   isOpen: externalIsOpen,
   onOpenChange,
   onSelectTaskToUpload,
@@ -158,16 +160,22 @@ export function FloatingBingoModal({
     userProgress.forEach((p) => {
       if (p.imageUrl && p.slotIndex !== undefined) {
         const img = new Image();
-        img.onload = () => {
-          const aspect = img.naturalWidth / img.naturalHeight;
-          const orientation: "portrait" | "landscape" | "square" =
-            aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
-          setImageOrientations((prev) => {
-            if (prev[p.slotIndex] === orientation) return prev;
-            return { ...prev, [p.slotIndex]: orientation };
-          });
+        const updateOrientation = () => {
+          if (img.naturalWidth && img.naturalHeight) {
+            const aspect = img.naturalWidth / img.naturalHeight;
+            const orientation: "portrait" | "landscape" | "square" =
+              aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
+            setImageOrientations((prev) => {
+              if (prev[p.slotIndex] === orientation) return prev;
+              return { ...prev, [p.slotIndex]: orientation };
+            });
+          }
         };
+        img.onload = updateOrientation;
         img.src = p.imageUrl;
+        if (img.complete) {
+          updateOrientation();
+        }
       }
     });
   }, [userProgress]);
@@ -643,7 +651,31 @@ export function FloatingBingoModal({
             </div>
 
             {/* Real Claimed Raffle Ticket Box */}
-            {raffleEntries.length > 0 ? (
+            {!isRaffleActive ? (
+              raffleEntries.length > 0 ? (
+                <div className="mt-3 p-3 rounded-2xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl opacity-70">🎟️</span>
+                    <div>
+                      <span className="font-display text-xs font-bold text-stone-700 block leading-tight">
+                        Raffle Drawings on Standby
+                      </span>
+                      <span className="font-mono text-[10px] text-stone-500 block">
+                        {raffleEntries.length} ticket{raffleEntries.length === 1 ? "" : "s"} safely saved · {raffleEntries[0].raffleCode}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-stone-200/70 text-stone-600 font-bold text-[10px] tracking-wide uppercase">
+                    Standby
+                  </span>
+                </div>
+              ) : (
+                <div className="mt-3 p-3 rounded-2xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center gap-2 text-stone-500 text-xs font-body">
+                  <span className="opacity-70">🎟️</span>
+                  <span>Raffle drawings are temporarily on pause while event setup is underway. Bingo stamps are active!</span>
+                </div>
+              )
+            ) : raffleEntries.length > 0 ? (
               <div className="mt-3 p-3 rounded-2xl bg-[#fff8f5] border border-[#f4a261]/40 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">🎟️</span>

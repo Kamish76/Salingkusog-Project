@@ -5,6 +5,7 @@ import {
   updateUserRoleAction,
   elevateToSuperAdminAction,
 } from "@/app/actions/auth-role";
+import { toggleRaffleStatusAction } from "@/app/actions/event-config";
 import { AuthButton } from "@/components/auth-button";
 import { sql } from "@/lib/db";
 
@@ -162,6 +163,31 @@ export default async function DevPage() {
     }
   }
 
+  // 3. Fetch Event Configuration & Raffle System Status
+  let isRaffleActive = true;
+  let eventDay = 1;
+  let configUpdatedAt: string | null = null;
+
+  if (isDbConfigured) {
+    try {
+      const configRows = await sql`
+        SELECT is_raffle_active, current_day, updated_at
+        FROM public.event_config
+        WHERE key = 'active_event'
+        LIMIT 1
+      `;
+      if (configRows.length > 0) {
+        isRaffleActive = Boolean(configRows[0].is_raffle_active ?? true);
+        eventDay = Number(configRows[0].current_day || 1);
+        configUpdatedAt = configRows[0].updated_at
+          ? new Date(configRows[0].updated_at).toLocaleTimeString()
+          : null;
+      }
+    } catch (e) {
+      console.error("Error fetching event configuration:", e);
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Page Title & Status Banner */}
@@ -201,6 +227,81 @@ export default async function DevPage() {
               Simulate Guest
             </button>
           </form>
+        </div>
+      </div>
+
+      {/* Event & Raffle System Control Panel */}
+      <div
+        className={`p-6 rounded-2xl border transition shadow-lg ${
+          isRaffleActive
+            ? "border-emerald-500/30 bg-emerald-950/10"
+            : "border-amber-500/30 bg-amber-950/10"
+        } flex flex-col md:flex-row md:items-center justify-between gap-5`}
+      >
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-bold tracking-wide uppercase border ${
+                isRaffleActive
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+                  : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isRaffleActive ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                }`}
+              ></span>
+              {isRaffleActive ? "Raffle System Active / Live" : "Raffle System Paused / Offline"}
+            </span>
+
+            <span className="text-[11px] font-mono text-zinc-400 bg-zinc-900/90 px-2 py-0.5 rounded border border-zinc-800">
+              Day {eventDay} Active
+            </span>
+
+            {configUpdatedAt && (
+              <span className="text-[11px] font-mono text-zinc-500 hidden sm:inline">
+                Last updated: {configUpdatedAt}
+              </span>
+            )}
+          </div>
+
+          <div>
+            <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+              <span>🎟️</span>
+              <span>Campus Raffle Drawings & Claim Engine</span>
+            </h2>
+            <p className="text-xs text-zinc-400 max-w-xl">
+              Controls stage raffle ticket generation upon completed 3x3 bingo lines and client-side raffle UI. When paused, student photo uploads still complete bingo slots, but ticket generation and raffle displays enter standby mode.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 self-start md:self-center">
+          {superAdmin ? (
+            <form action={toggleRaffleStatusAction}>
+              <input
+                type="hidden"
+                name="enabled"
+                value={isRaffleActive ? "false" : "true"}
+              />
+              <button
+                type="submit"
+                className={`px-4 py-2.5 rounded-xl font-mono text-xs font-bold tracking-wide shadow-md transition cursor-pointer flex items-center gap-2 ${
+                  isRaffleActive
+                    ? "bg-amber-600 hover:bg-amber-500 text-white border border-amber-500/50"
+                    : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/50"
+                }`}
+              >
+                <span>{isRaffleActive ? "⏸ Pause Raffle System" : "▶ Activate Raffle System"}</span>
+              </button>
+            </form>
+          ) : (
+            <div className="text-xs font-mono px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-500 flex items-center gap-1.5">
+              <span>🔒</span>
+              <span>Switch Locked (SuperAdmin Required)</span>
+            </div>
+          )}
         </div>
       </div>
 

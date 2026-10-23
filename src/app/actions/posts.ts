@@ -153,8 +153,14 @@ export async function submitStudentPostAction(
 
       const evaluation = evaluateBingoLines(completedSlots, claimedLines);
 
-      // If there's an unclaimed completed line, automatically claim the first one
-      if (evaluation.claimableLines.length > 0) {
+      // Check if raffle system is active before claiming raffle entries
+      const configRows = await sql`
+        SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1
+      `;
+      const isRaffleActive = configRows[0]?.is_raffle_active ?? true;
+
+      // If raffle is active and there's an unclaimed completed line, claim the first one
+      if (isRaffleActive && evaluation.claimableLines.length > 0) {
         const lineToClaim = evaluation.claimableLines[0].line;
         const generatedCode = generateRaffleCode();
 

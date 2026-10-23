@@ -31,6 +31,12 @@ interface UploadMemoryModalProps {
   returnToBingo?: boolean;
 }
 
+const PREVIEW_ASPECTS: Record<"portrait" | "landscape" | "square", string> = {
+  portrait: "aspect-[3/4] max-h-[52vh]",
+  landscape: "aspect-[4/3] max-h-[46vh]",
+  square: "aspect-square max-h-[48vh]",
+};
+
 export function UploadMemoryModal({
   isOpen,
   onClose,
@@ -51,6 +57,7 @@ export function UploadMemoryModal({
   const [isDragging, setIsDragging] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<string | null>(null);
+  const [previewOrientation, setPreviewOrientation] = useState<"portrait" | "landscape" | "square">("landscape");
 
   // Fluid opening animation states
   const [isExpanded, setIsExpanded] = useState(false);
@@ -95,6 +102,7 @@ export function UploadMemoryModal({
       setIsClosing(false);
       setSelectedFile(null);
       setPreviewUrl(null);
+      setPreviewOrientation("landscape");
       setCaption("");
       setErrorMessage(null);
       setSuccessInfo(null);
@@ -138,10 +146,19 @@ export function UploadMemoryModal({
       });
       setSelectedFile(convertedFile);
       setPreviewUrl(processed.previewUrl);
+      const aspect = processed.resizedWidth / processed.resizedHeight;
+      setPreviewOrientation(aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square");
     } catch (err: unknown) {
       console.error("Image processing failed:", err);
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      const img = new Image();
+      img.onload = () => {
+        const aspect = img.naturalWidth / img.naturalHeight;
+        setPreviewOrientation(aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square");
+      };
+      img.src = url;
     }
   };
 
@@ -350,7 +367,9 @@ export function UploadMemoryModal({
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               style={getCardAnimationStyles()}
-              className={`relative w-full aspect-[4/3] sm:aspect-square max-h-[50vh] overflow-hidden shadow-2xl ring-1 ring-white/20 flex items-center justify-center cursor-pointer transition-all duration-300 group will-change-transform ${
+              className={`relative w-full ${
+                previewUrl ? PREVIEW_ASPECTS[previewOrientation] : "aspect-[4/3] sm:aspect-square max-h-[50vh]"
+              } overflow-hidden shadow-2xl ring-1 ring-white/20 flex items-center justify-center cursor-pointer transition-all duration-300 group will-change-transform ${
                 previewUrl
                   ? "bg-stone-950"
                   : isDragging

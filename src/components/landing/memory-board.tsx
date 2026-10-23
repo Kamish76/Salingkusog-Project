@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { togglePostReactionAction } from "@/app/actions/posts";
 
 export interface PostRecord {
@@ -36,6 +36,12 @@ const ROTATIONS = [
 
 const TAPES = ["washi-tape-coral", "washi-tape-sage", "washi-tape-butter"];
 
+const PHOTO_ASPECTS: Record<"portrait" | "landscape" | "square", string> = {
+  portrait: "aspect-[3/4]",
+  landscape: "aspect-[4/3]",
+  square: "aspect-square",
+};
+
 function formatTimeAgo(dateInput: string | Date): string {
   const date = new Date(dateInput);
   const now = new Date();
@@ -52,6 +58,35 @@ function formatTimeAgo(dateInput: string | Date): string {
 
 export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoardProps) {
   const [, startTransition] = useTransition();
+
+  // Track natural image aspect ratio to adapt polaroid orientation (landscape vs portrait vs square)
+  const [imageOrientations, setImageOrientations] = useState<
+    Record<string, "portrait" | "landscape" | "square">
+  >({});
+
+  useEffect(() => {
+    posts.forEach((p) => {
+      if (p.imageUrl) {
+        const img = new Image();
+        const updateOrientation = () => {
+          if (img.naturalWidth && img.naturalHeight) {
+            const aspect = img.naturalWidth / img.naturalHeight;
+            const orientation: "portrait" | "landscape" | "square" =
+              aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
+            setImageOrientations((prev) => {
+              if (prev[p.id] === orientation) return prev;
+              return { ...prev, [p.id]: orientation };
+            });
+          }
+        };
+        img.onload = updateOrientation;
+        img.src = p.imageUrl;
+        if (img.complete) {
+          updateOrientation();
+        }
+      }
+    });
+  }, [posts]);
 
   // Optimistic reaction tracker
   const [localReactions, setLocalReactions] = useState<
@@ -154,6 +189,9 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
               trophy: post.trophyCount,
             };
 
+            const orientation = imageOrientations[post.id] || "landscape";
+            const photoAspect = PHOTO_ASPECTS[orientation];
+
             return (
               <div
                 key={post.id}
@@ -166,12 +204,24 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
 
                 <div>
                   {/* Photo Thumbnail */}
-                  <div className="aspect-[4/3] bg-stone-100 rounded-lg overflow-hidden mb-3 relative">
+                  <div className={`${photoAspect} bg-stone-100 rounded-lg overflow-hidden mb-3 relative transition-[aspect-ratio] duration-300`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={post.imageUrl}
                       alt={post.caption || "Student memory"}
                       loading="lazy"
+                      onLoad={(e) => {
+                        const target = e.currentTarget;
+                        if (target.naturalWidth && target.naturalHeight) {
+                          const aspect = target.naturalWidth / target.naturalHeight;
+                          const detected: "portrait" | "landscape" | "square" =
+                            aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
+                          setImageOrientations((prev) => {
+                            if (prev[post.id] === detected) return prev;
+                            return { ...prev, [post.id]: detected };
+                          });
+                        }
+                      }}
                       className="w-full h-full object-cover transition-transform duration-300 hover:scale-103"
                     />
                     {post.taskTitle && (
