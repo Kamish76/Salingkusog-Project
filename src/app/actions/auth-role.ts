@@ -123,7 +123,8 @@ export async function fetchUsersAction(
   const search = params.search?.trim() || "";
   const role = params.role?.trim() || "";
   const offset = Math.max(0, Number(params.offset) || 0);
-  const limit = Math.max(1, Math.min(50, Number(params.limit) || 10));
+  const limit = Math.max(1, Math.min(50, Number(params.limit) || 5));
+  const callerEmail = caller?.email || null;
 
   if (!process.env.DATABASE_URL) {
     const mockUsers: ManagedUserRecord[] = [
@@ -138,6 +139,12 @@ export async function fetchUsersAction(
         u.email.toLowerCase().includes(search.toLowerCase());
       const matchesRole = !role || role === "all" || u.role === role;
       return matchesSearch && matchesRole;
+    });
+    // Order own credential first, then newest
+    filtered.sort((a, b) => {
+      if (a.email === callerEmail) return -1;
+      if (b.email === callerEmail) return 1;
+      return 0;
     });
     const paged = filtered.slice(offset, offset + limit);
     return {
@@ -164,7 +171,9 @@ export async function fetchUsersAction(
       FROM neon_auth."user"
       WHERE (${searchPattern}::text IS NULL OR name ILIKE ${searchPattern} OR email ILIKE ${searchPattern})
         AND (${filterRole}::text IS NULL OR COALESCE(role, 'user') = ${filterRole})
-      ORDER BY "createdAt" ASC
+      ORDER BY 
+        CASE WHEN email = ${callerEmail} THEN 0 ELSE 1 END,
+        "createdAt" DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
 

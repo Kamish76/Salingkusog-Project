@@ -38,7 +38,7 @@ export function UserManagementClient({
           search: searchQuery,
           role,
           offset: 0,
-          limit: 10,
+          limit: 5,
         });
         setUsers(result.users);
         setTotalCount(result.totalCount);
@@ -77,7 +77,7 @@ export function UserManagementClient({
         search,
         role: roleFilter,
         offset: users.length,
-        limit: 10,
+        limit: 5,
       });
 
       setUsers((prev) => {
