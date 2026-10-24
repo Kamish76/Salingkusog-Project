@@ -484,7 +484,7 @@ export function FloatingBingoModal({
   return (
     <>
       {/* PERSISTENT BINGO STAMP TRIGGER BUTTON */}
-      <aside aria-label="3x3 Bingo Challenge" className="fixed bottom-6 right-5 sm:right-8 z-40">
+      <aside aria-label="3x3 Bingo Challenge" className="fixed bottom-safe right-3 sm:right-8 z-40">
         <button
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -501,7 +501,7 @@ export function FloatingBingoModal({
           }}
           type="button"
           aria-label="Open 3x3 Bingo Card"
-          className="group relative flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-[#1e1b19] border border-[#e8ded5] hover:border-stone-400 focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none transition-colors cursor-pointer shadow-xs"
+          className="group relative flex items-center gap-2.5 sm:gap-3 px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] rounded-xl bg-white text-[#1e1b19] border border-[#e8ded5] hover:border-stone-400 focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none transition-all cursor-pointer shadow-md sm:shadow-xs active:scale-95"
         >
           {/* Status Indicator */}
           <span className="relative flex h-2.5 w-2.5">
@@ -521,7 +521,7 @@ export function FloatingBingoModal({
             <span className="font-display font-bold text-xs sm:text-sm tracking-tight text-[#1e1b19] leading-tight">
               3×3 Bingo Rally
             </span>
-            <span className="font-body text-[11px] text-[#8e706c] font-normal leading-tight">
+            <span className="font-body text-[10px] sm:text-[11px] text-[#8e706c] font-normal leading-tight">
               {completedCount} of 9 completed
             </span>
           </div>
@@ -543,16 +543,16 @@ export function FloatingBingoModal({
           <div
             onClick={(e) => e.stopPropagation()}
             style={getBingoCardStyles()}
-            className="relative w-full max-w-md bg-white border border-[#e8ded5] rounded-2xl shadow-xl p-6 sm:p-7 flex flex-col justify-between overflow-hidden max-h-[92vh] overflow-y-auto will-change-transform"
+            className="relative w-full max-w-md bg-white border border-[#e8ded5] rounded-2xl shadow-xl p-4 sm:p-7 flex flex-col justify-between overflow-hidden max-h-[90dvh] overflow-y-auto will-change-transform"
           >
             {/* Top Washi Tape Strip */}
             <div className="washi-tape-coral w-32 h-5.5 absolute -top-2 left-1/2 -translate-x-1/2 rounded-xs pointer-events-none z-10 opacity-90"></div>
 
             {/* Header with Close Button */}
-            <div className="flex items-start justify-between mb-4 pt-1">
+            <div className="flex items-start justify-between mb-3 sm:mb-4 pt-1">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-display font-bold text-lg sm:text-xl text-[#1e1b19] tracking-tight">
+                  <span className="font-display font-bold text-base sm:text-xl text-[#1e1b19] tracking-tight">
                     Intramurals 3x3 Bingo
                   </span>
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-200">
@@ -568,7 +568,7 @@ export function FloatingBingoModal({
                 onClick={handleCloseBingo}
                 type="button"
                 aria-label="Close modal"
-                className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center text-sm font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer -mr-1 -mt-1"
+                className="w-10 h-10 sm:w-9 sm:h-9 min-h-[44px] min-w-[44px] rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center text-sm font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer -mr-1 -mt-1 active:scale-95 shrink-0"
               >
                 ✕
               </button>
@@ -804,7 +804,7 @@ export function FloatingBingoModal({
               onClick={handleCloseDetail}
               type="button"
               aria-label="Close photo view"
-              className="w-7 h-7 rounded-lg bg-stone-800 hover:bg-stone-700 text-white flex items-center justify-center text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer shrink-0 ml-2"
+              className="w-10 h-10 sm:w-8 sm:h-8 min-h-[44px] min-w-[44px] rounded-lg bg-stone-800 hover:bg-stone-700 text-white flex items-center justify-center text-sm font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer shrink-0 ml-2 active:scale-95"
             >
               ✕
             </button>
@@ -868,7 +868,7 @@ export function FloatingBingoModal({
                 onClick={handleChangePhoto}
                 type="button"
                 disabled={isRemoving}
-                className="py-3 px-4 rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-display font-bold text-xs border border-stone-700 transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center justify-center gap-2"
+                className="py-3 px-4 min-h-[44px] rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-display font-bold text-xs border border-stone-700 transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center justify-center gap-2 active:scale-95"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -880,7 +880,7 @@ export function FloatingBingoModal({
                 onClick={handleRemovePhoto}
                 type="button"
                 disabled={isRemoving}
-                className="py-3 px-4 rounded-lg bg-red-950/80 hover:bg-red-900 text-red-200 hover:text-white font-display font-bold text-xs border border-red-800 transition focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:outline-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                className="py-3 px-4 min-h-[44px] rounded-lg bg-red-950/80 hover:bg-red-900 text-red-200 hover:text-white font-display font-bold text-xs border border-red-800 transition focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:outline-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
               >
                 <svg className="w-4 h-4 text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -892,7 +892,7 @@ export function FloatingBingoModal({
             <button
               onClick={handleCloseDetail}
               type="button"
-              className="w-full py-2.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white font-display font-medium text-xs border border-stone-800 transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer"
+              className="w-full py-3 min-h-[44px] rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white font-display font-medium text-xs border border-stone-800 transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer active:scale-95"
             >
               ← Back to 3x3 Card
             </button>
