@@ -1,0 +1,171 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { sql } from "@/lib/db";
+import { AuthButton } from "@/components/auth-button";
+import { PersonalGalleryView } from "@/components/gallery/personal-gallery-view";
+import type { PostRecord } from "@/components/landing/memory-board";
+import type { BingoTaskItem, UserProgressItem } from "@/components/landing/floating-bingo-modal";
+
+export const instant = false;
+
+export default async function PersonalGalleryPage() {
+  const user = await getCurrentUser();
+
+  if (!user || !user.id) {
+    redirect("/?auth=required");
+  }
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
+  if (!isUuid) {
+    redirect("/?auth=invalid");
+  }
+
+  // 1. Fetch event config
+  const configRows = await sql`
+    SELECT COALESCE(current_day, 1) as current_day
+    FROM public.event_config
+    WHERE key = 'active_event'
+    LIMIT 1
+  `;
+  const currentDay = Number(configRows[0]?.current_day || 1);
+
+  // 2. Fetch all published posts by this authenticated student (without reactions)
+  const postRows = await sql`
+    SELECT 
+      p.id,
+      p.user_id,
+      COALESCE(p.display_name, 'Student') as display_name,
+      p.college_dept,
+      p.image_url,
+      p.caption,
+      p.is_bingo_entry,
+      p.created_at,
+      bt.title as task_title,
+      bt.slot_index
+    FROM public.posts p
+    LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
+    WHERE p.user_id = ${user.id}::uuid AND p.status = 'published'
+    ORDER BY p.created_at DESC
+  `;
+
+  const posts: PostRecord[] = postRows.map((r) => ({
+    id: r.id,
+    userId: r.user_id,
+    displayName: r.display_name,
+    collegeDept: r.college_dept,
+    imageUrl: r.image_url,
+    caption: r.caption,
+    isBingoEntry: Boolean(r.is_bingo_entry),
+    taskTitle: r.task_title,
+    slotIndex: r.slot_index !== null ? Number(r.slot_index) : null,
+    createdAt: r.created_at,
+  }));
+
+  // 3. Fetch Bingo tasks
+  const taskRows = await sql`
+    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
+    FROM public.bingo_tasks
+    ORDER BY slot_index ASC
+  `;
+
+  const tasks: BingoTaskItem[] = taskRows.map((r) => ({
+    id: r.id,
+    slotIndex: Number(r.slot_index),
+    title: r.title,
+    description: r.description,
+    category: r.category,
+    unlockDay: Number(r.unlock_day),
+    requiresSelfie: Boolean(r.requires_selfie),
+  }));
+
+  // 4. Fetch User Bingo progress for all completed slots
+  const progressRows = await sql`
+    SELECT 
+      bt.slot_index, 
+      ubp.task_id, 
+      ubp.post_id, 
+      ubp.completed_at,
+      p.image_url,
+      p.caption
+    FROM public.user_bingo_progress ubp
+    JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
+    LEFT JOIN public.posts p ON ubp.post_id = p.id
+    WHERE ubp.user_id = ${user.id}::uuid
+  `;
+
+  const userProgress: UserProgressItem[] = progressRows.map((r) => ({
+    slotIndex: Number(r.slot_index),
+    taskId: r.task_id,
+    postId: r.post_id,
+    completedAt: r.completed_at,
+    imageUrl: r.image_url || null,
+    caption: r.caption || null,
+  }));
+
+  return (
+    <div className="min-h-screen flex flex-col justify-between selection:bg-[#ffdad5] selection:text-[#b4281e]">
+      {/* HEADER NAVIGATION */}
+      <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-[#fcf9f5]/90 border-b border-[#e8ded5]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-[#f5ece9] text-[#1e1b19] border border-[#e8ded5] text-xs font-display font-bold transition shadow-2xs"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+              </svg>
+              <span>Campus Board</span>
+            </Link>
+
+            <span className="text-xs text-[#8e706c] font-body border-l border-[#e8ded5] pl-3 hidden sm:inline">
+              Salingkusog 2026
+            </span>
+          </div>
+
+          {/* Right Status & Controls */}
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 text-xs font-body text-[#5a413d]">
+              <span className="w-2 h-2 rounded-full bg-[#ff5e4d]"></span>
+              <span className="font-display font-bold text-[#8e4e14]">Day {currentDay}</span>
+            </div>
+
+            <span className="text-xs font-display font-semibold text-[#5a413d] hidden md:inline">
+              {user.name?.split(" ")[0] ?? "Student"}
+            </span>
+
+            <AuthButton user={user} callbackURL="/gallery" />
+          </div>
+        </div>
+      </header>
+
+      {/* MAIN GALLERY VIEW */}
+      <main className="relative z-10 pt-6 sm:pt-8 pb-20 max-w-6xl mx-auto px-4 sm:px-6 flex-1 w-full">
+        <PersonalGalleryView
+          posts={posts}
+          user={{
+            id: user.id,
+            name: user.name ?? "Student",
+            email: user.email ?? "",
+          }}
+          currentDay={currentDay}
+          tasks={tasks}
+          userProgress={userProgress}
+        />
+      </main>
+
+      {/* FOOTER */}
+      <footer className="border-t border-[#e8ded5] bg-[#fff8f5] py-8 px-4 text-center text-xs text-[#8e706c] font-body">
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="font-display font-bold text-stone-700">
+            Salingkusog 2026 · Collegiate Memory Board & 3x3 Bingo
+          </p>
+          <p className="font-handwriting text-sm text-[#b4281e]">
+            made with warm paper & student spirit
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}

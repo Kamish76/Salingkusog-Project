@@ -12,8 +12,16 @@ import type {
 
 export const instant = false;
 
-export default async function HomePage() {
+interface HomePageProps {
+  searchParams?: Promise<{
+    auth?: string;
+  }>;
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
   const user = await getCurrentUser();
+  const resolvedParams = searchParams ? await searchParams : {};
+  const isAuthRequired = resolvedParams.auth === "required";
 
   // 1. Fetch live event stats from Neon database
   const statsRows = await sql`
@@ -41,10 +49,7 @@ export default async function HomePage() {
       p.is_bingo_entry,
       p.created_at,
       bt.title as task_title,
-      bt.slot_index,
-      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'heart'), 0) as heart_count,
-      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'fire'), 0) as fire_count,
-      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'trophy'), 0) as trophy_count
+      bt.slot_index
     FROM public.posts p
     LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
     WHERE p.status = 'published'
@@ -63,9 +68,6 @@ export default async function HomePage() {
     taskTitle: r.task_title,
     slotIndex: r.slot_index !== null ? Number(r.slot_index) : null,
     createdAt: r.created_at,
-    heartCount: Number(r.heart_count),
-    fireCount: Number(r.fire_count),
-    trophyCount: Number(r.trophy_count),
   }));
 
   // 3. Fetch real 9 Bingo challenge tasks
@@ -133,51 +135,42 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#fcf9f5] text-[#1e1b19] flex flex-col font-body selection:bg-[#ffdcc4] selection:text-[#6f3800] relative overflow-x-hidden">
-      {/* Scrapbook Warm Ambient Background Gradients */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-60">
-        <div className="absolute -top-24 left-1/4 w-96 h-96 bg-[#fed7aa]/35 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 -right-20 w-[420px] h-[420px] bg-[#fecdd3]/25 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 left-10 w-80 h-80 bg-[#bbf7d0]/20 rounded-full blur-3xl"></div>
-      </div>
-
-      {/* FLOATING WARM SCRAPBOOK HEADER */}
-      <header className="sticky top-3 sm:top-4 z-40 px-3 sm:px-6 max-w-6xl mx-auto w-full">
-        <div className="bg-white/92 backdrop-blur-md px-4 sm:px-6 py-2.5 rounded-full border border-[#e8ded5] shadow-scrapbook flex items-center justify-between gap-3">
+      {/* ANCHORED SCRAPBOOK HEADER */}
+      <header className="sticky top-0 z-40 w-full border-b border-[#e8ded5] bg-[#fcf9f5]/95">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Logo & Subtitle */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-full bg-stone-100 text-stone-800 flex items-center justify-center border border-stone-200/80 group-hover:scale-105 transition-transform text-base shadow-xs">
-              ⚡
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-display font-extrabold text-base sm:text-lg tracking-tight text-[#1e1b19]">
-                  Salingkusog
-                </span>
-                <span className="text-[10px] bg-[#f5ece9] text-[#5a413d] px-2 py-0.5 rounded-full font-bold tracking-wide uppercase">
-                  Memory Well
-                </span>
-              </div>
-              <span className="text-[11px] font-handwriting text-[#8e706c] -mt-0.5 hidden xs:inline tracking-wide">
-                curated collegiate intramural moments
-              </span>
-            </div>
+          <Link href="/" className="flex items-center gap-3">
+            <span className="font-display font-extrabold text-lg sm:text-xl tracking-tight text-[#1e1b19]">
+              Salingkusog
+            </span>
+            <span className="text-xs text-[#8e706c] font-body border-l border-[#e8ded5] pl-3 hidden sm:inline">
+              Intramurals 2026
+            </span>
           </Link>
 
           {/* Right Status & Controls */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Live Day Status Pill */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fff8f5] border border-[#f4a261]/40 text-xs">
-              <span className="w-2 h-2 rounded-full bg-[#ff5e4d] animate-pulse"></span>
-              <span className="font-display font-bold text-[11px] text-[#8e4e14] uppercase tracking-wider">
-                Day {currentDay} Live
-              </span>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 text-xs font-body text-[#5a413d]">
+              <span className="w-2 h-2 rounded-full bg-[#ff5e4d]"></span>
+              <span className="font-display font-bold text-[#8e4e14]">Day {currentDay}</span>
             </div>
 
-            {/* Authenticated user indicator */}
+            {/* Authenticated user indicator & My Gallery link */}
             {user && (
-              <span className="text-xs font-display font-semibold text-[#5a413d] hidden md:inline">
-                {user.name?.split(" ")[0] ?? "Student"}
-              </span>
+              <>
+                <Link
+                  href="/gallery"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f5ece9] hover:bg-[#ebdcd3] text-[#1e1b19] border border-[#e8ded5] text-xs font-display font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none"
+                >
+                  <svg className="w-3.5 h-3.5 text-[#ff5e4d]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                  </svg>
+                  <span>My Gallery</span>
+                </Link>
+                <span className="text-xs font-display font-semibold text-[#5a413d] hidden md:inline">
+                  {user.name?.split(" ")[0] ?? "Student"}
+                </span>
+              </>
             )}
 
             {/* Google Auth Button */}
@@ -187,30 +180,54 @@ export default async function HomePage() {
       </header>
 
       {/* MAIN CAMPUS SCRAPBOOK CANVAS */}
-      <main className="relative z-10 pt-8 sm:pt-12 pb-24 max-w-6xl mx-auto px-4 sm:px-6 flex-1 w-full flex flex-col gap-8 sm:gap-10">
+      <main className="relative z-10 pt-6 sm:pt-10 pb-24 max-w-6xl mx-auto px-4 sm:px-6 flex-1 w-full flex flex-col gap-8 sm:gap-10">
+        {/* SCRAPBOOK AUTH REQUIRED BANNER */}
+        {isAuthRequired && !user && (
+          <div className="relative mx-auto max-w-xl w-full p-4 sm:p-5 rounded-2xl bg-[#fff8f5] border-2 border-dashed border-[#ffdad5] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#ffdad5] text-[#b4281e] flex items-center justify-center shrink-0 mt-0.5">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-sm text-[#1e1b19]">
+                  Personal Gallery Access
+                </h2>
+                <p className="text-xs text-[#5a413d] font-body mt-0.5">
+                  Sign in with your Google account to view and manage your uploaded memories.
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 w-full sm:w-auto flex justify-end">
+              <AuthButton user={null} callbackURL="/gallery" />
+            </div>
+          </div>
+        )}
+
         {/* HERO TITLE SECTION */}
         <section className="text-center max-w-2xl mx-auto pt-2 sm:pt-4">
-          <div className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-white border border-[#e8ded5] text-stone-600 text-xs font-medium tracking-wide shadow-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#ff5e4d]"></span>
-            <span className="font-display font-semibold text-[11px] text-[#8e4e14]">
-              Intramurals 2026 • Live Photo Chute
+          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-md bg-white border border-[#e8ded5] text-stone-600 text-xs font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#ff5e4d]"></span>
+            <span className="font-display font-semibold text-xs text-[#8e4e14]">
+              Intramurals 2026 • Live Photo Rally
             </span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-display font-extrabold text-[#1e1b19] tracking-tight leading-[1.15]">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-display font-extrabold text-[#1e1b19] tracking-tight leading-[1.12]">
             Toss memories into the{" "}
-            <span className="font-handwriting font-normal text-[#ff5e4d] text-4xl sm:text-6xl md:text-7xl ml-1">
+            <span className="font-handwriting font-normal text-[#ff5e4d] text-4xl sm:text-6xl md:text-7xl block sm:inline">
               infinite well
             </span>
           </h1>
 
-          <p className="mt-3 text-[#5a413d] font-body text-sm sm:text-base max-w-lg mx-auto font-normal leading-relaxed">
-            A quiet, bottomless physical memory board for Salingkusog. Snap campus selfies, cheer for your friends, and unlock your 3x3 Bingo lines on the side!
+          <p className="mt-4 text-[#5a413d] font-body text-sm sm:text-base max-w-lg mx-auto font-normal leading-relaxed">
+            A quiet tactile physical memory board for Salingkusog. Snap campus selfies, cheer for your friends, and unlock your 3×3 Bingo rally stamps.
           </p>
 
-          {/* Real Live Stats Pill Bar */}
-          <div className="mt-6 inline-flex items-center gap-3 sm:gap-6 px-4 sm:px-6 py-2 rounded-2xl bg-white border border-[#e8ded5] shadow-xs text-xs font-body">
-            <div className="flex items-center gap-1.5 text-[#1e1b19]">
+          {/* Real Live Stats Bar */}
+          <div className="mt-6 inline-flex items-center gap-3 sm:gap-6 px-5 py-2.5 rounded-xl bg-white border border-[#e8ded5] text-xs font-body">
+            <div className="flex items-center gap-2 text-[#1e1b19]">
               <span className="font-display font-bold text-sm text-[#ff5e4d]">
                 {totalSnaps}
               </span>
@@ -220,7 +237,7 @@ export default async function HomePage() {
             </div>
             <span className="text-[#e8ded5]">•</span>
             {isRaffleActive ? (
-              <div className="flex items-center gap-1.5 text-[#1e1b19]">
+              <div className="flex items-center gap-2 text-[#1e1b19]">
                 <span className="font-display font-bold text-sm text-[#8e4e14]">
                   {totalRaffles}
                 </span>
@@ -229,15 +246,14 @@ export default async function HomePage() {
                 </span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-[#8e706c]">
-                <span className="text-xs">🎟️</span>
-                <span className="font-display font-semibold text-[11px] text-[#8e706c] uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-[#8e706c]">
+                <span className="font-display font-semibold text-xs text-[#8e706c]">
                   Raffle Paused
                 </span>
               </div>
             )}
             <span className="text-[#e8ded5] hidden xs:inline">•</span>
-            <div className="hidden xs:flex items-center gap-1.5 text-[#1e1b19]">
+            <div className="hidden xs:flex items-center gap-2 text-[#1e1b19]">
               <span className="w-2 h-2 rounded-full bg-[#588157]"></span>
               <span className="font-display font-bold text-sm text-[#588157]">
                 Day {currentDay}

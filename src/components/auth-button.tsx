@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth/client";
+import { signOutAction } from "@/app/actions/auth-role";
 
 interface AuthButtonProps {
   user: {
@@ -9,18 +10,25 @@ interface AuthButtonProps {
     email?: string | null;
     role?: string | null;
   } | null;
+  callbackURL?: string;
+  className?: string;
 }
 
-export function AuthButton({ user }: AuthButtonProps) {
+export function AuthButton({ user, callbackURL, className }: AuthButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      await authClient.signIn.social({
+      const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
+      const target = callbackURL || (currentPath === "/gallery" ? "/gallery" : currentPath === "/dev" ? "/dev" : "/");
+      const result = await authClient.signIn.social({
         provider: "google",
-        callbackURL: window.location.pathname === "/dev" ? "/dev" : "/",
+        callbackURL: target,
       });
+      if (result?.data?.url) {
+        window.location.href = result.data.url;
+      }
     } catch (err) {
       console.error("Sign in failed:", err);
       setLoading(false);
@@ -30,13 +38,13 @@ export function AuthButton({ user }: AuthButtonProps) {
   const handleSignOut = async () => {
     try {
       setLoading(true);
-      await authClient.signOut({
-        fetchOptions: {
-          onSuccess: () => {
-            window.location.reload();
-          },
-        },
-      });
+      try {
+        await authClient.signOut();
+      } catch (err) {
+        console.warn("Neon authClient signOut warning:", err);
+      }
+      await signOutAction();
+      window.location.href = "/";
     } catch (err) {
       console.error("Sign out failed:", err);
       setLoading(false);
@@ -48,7 +56,7 @@ export function AuthButton({ user }: AuthButtonProps) {
       <button
         onClick={handleSignOut}
         disabled={loading}
-        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white hover:bg-[#ffdad5] text-[#b4281e] border border-[#e8ded5] text-xs font-display font-semibold transition cursor-pointer disabled:opacity-50"
+        className={className || "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white hover:bg-[#ffdad5] text-[#b4281e] border border-[#e8ded5] text-xs font-display font-semibold transition cursor-pointer disabled:opacity-50"}
       >
         {loading ? "Signing out..." : "Sign Out"}
       </button>
@@ -59,7 +67,7 @@ export function AuthButton({ user }: AuthButtonProps) {
     <button
       onClick={handleGoogleSignIn}
       disabled={loading}
-      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#1e1b19] hover:bg-stone-800 text-white text-xs font-display font-bold shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+      className={className || "inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#1e1b19] hover:bg-stone-800 text-white text-xs font-display font-bold shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"}
     >
       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
         <path
