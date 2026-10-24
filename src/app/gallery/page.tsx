@@ -115,7 +115,7 @@ export default async function PersonalGalleryPage() {
               {user.name?.split(" ")[0] ?? "Student"}
             </span>
 
-            <AuthButton user={user} />
+            <AuthButton user={user} callbackURL="/gallery" />
           </div>
         </div>
       </header>

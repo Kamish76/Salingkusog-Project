@@ -12,8 +12,16 @@ import type {
 
 export const instant = false;
 
-export default async function HomePage() {
+interface HomePageProps {
+  searchParams?: Promise<{
+    auth?: string;
+  }>;
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
   const user = await getCurrentUser();
+  const resolvedParams = searchParams ? await searchParams : {};
+  const isAuthRequired = resolvedParams.auth === "required";
 
   // 1. Fetch live event stats from Neon database
   const statsRows = await sql`
@@ -179,6 +187,30 @@ export default async function HomePage() {
 
       {/* MAIN CAMPUS SCRAPBOOK CANVAS */}
       <main className="relative z-10 pt-6 sm:pt-10 pb-24 max-w-6xl mx-auto px-4 sm:px-6 flex-1 w-full flex flex-col gap-8 sm:gap-10">
+        {/* SCRAPBOOK AUTH REQUIRED BANNER */}
+        {isAuthRequired && !user && (
+          <div className="relative mx-auto max-w-xl w-full p-4 sm:p-5 rounded-2xl bg-[#fff8f5] border-2 border-dashed border-[#ffdad5] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#ffdad5] text-[#b4281e] flex items-center justify-center shrink-0 mt-0.5">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-sm text-[#1e1b19]">
+                  Personal Gallery Access
+                </h2>
+                <p className="text-xs text-[#5a413d] font-body mt-0.5">
+                  Sign in with your Google account to view and manage your uploaded memories.
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 w-full sm:w-auto flex justify-end">
+              <AuthButton user={null} callbackURL="/gallery" />
+            </div>
+          </div>
+        )}
+
         {/* HERO TITLE SECTION */}
         <section className="text-center max-w-2xl mx-auto pt-2 sm:pt-4">
           <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-md bg-white border border-[#e8ded5] text-stone-600 text-xs font-medium">

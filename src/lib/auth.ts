@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { auth } from "@/lib/auth/server";
 
@@ -13,16 +12,10 @@ export interface AuthUser {
   banReason?: string | null;
 }
 
-export const DEV_USER_IDS: Record<UserRole, string> = {
-  superadmin: "00000000-0000-4000-a000-000000000001",
-  admin: "00000000-0000-4000-a000-000000000002",
-  user: "00000000-0000-4000-a000-000000000003",
-};
-
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  // 1. Live Neon Managed Better Auth session resolution
+  // Live Neon Managed Better Auth session resolution (Google OAuth)
   try {
     const { data: session } = await auth.getSession();
     if (session?.user) {
@@ -76,25 +69,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     }
   }
 
-  // 2. Dev role simulator fallback for offline/local testing
-  const cookieStore = await cookies();
-  const devRole = cookieStore.get("dev_role")?.value as UserRole | undefined;
-
-  if (!devRole) {
-    return null; // Guest / Unauthenticated
-  }
-
-  return {
-    id: DEV_USER_IDS[devRole] || DEV_USER_IDS.user,
-    name:
-      devRole === "superadmin"
-        ? "Root SuperAdmin"
-        : devRole === "admin"
-        ? "Admin (Moderator)"
-        : "Standard User",
-    email: `${devRole}@salingkusog.internal`,
-    role: devRole,
-  };
+  return null;
 }
 
 export function isModerator(user: AuthUser | null): boolean {

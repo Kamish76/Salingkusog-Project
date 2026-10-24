@@ -5,24 +5,22 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { getCurrentUser, isSuperAdmin, isDevAuthorized, isModerator } from "@/lib/auth";
 
-export async function setDevRole(role: string) {
+export async function signOutAction() {
   const cookieStore = await cookies();
-  if (!role || role === "guest") {
-    cookieStore.delete("dev_role");
-  } else {
-    cookieStore.set("dev_role", role, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-    });
-  }
+  cookieStore.delete("dev_role");
+  revalidatePath("/");
+  revalidatePath("/gallery");
+}
+
+export async function setDevRole(_role?: string) {
+  const cookieStore = await cookies();
+  cookieStore.delete("dev_role");
   revalidatePath("/");
   revalidatePath("/dev");
 }
 
-export async function setDevRoleAction(formData: FormData) {
-  const role = formData.get("role")?.toString() || "guest";
-  await setDevRole(role);
+export async function setDevRoleAction(_formData?: FormData) {
+  await setDevRole();
 }
 
 export async function updateUserRoleAction(formData: FormData) {
