@@ -13,6 +13,7 @@ import {
   generateRaffleCode,
   type ClaimedLine,
 } from "@/lib/bingo-engine";
+import { recordActivityLog } from "@/lib/activity-logger";
 
 export interface SubmitPostResult {
   success: boolean;
@@ -120,9 +121,21 @@ export async function submitStudentPostAction(
 
     const newPostId = insertedPosts[0]?.id;
     let newRaffleCode: string | undefined = undefined;
+    let slotIndex: number | null = null;
+    let taskTitle: string | null = null;
 
     // If this post fulfills a 3x3 Bingo slot, link or update user_bingo_progress
     if (bingoTaskId && newPostId) {
+      // Lookup bingo task details for audit logs
+      const taskRows = await sql`
+        SELECT slot_index, title FROM public.bingo_tasks
+        WHERE id = ${bingoTaskId}::uuid LIMIT 1
+      `;
+      if (taskRows.length > 0) {
+        slotIndex = Number(taskRows[0].slot_index);
+        taskTitle = taskRows[0].title;
+      }
+
       await sql`
         INSERT INTO public.user_bingo_progress (user_id, task_id, post_id)
         VALUES (${user.id}::uuid, ${bingoTaskId}::uuid, ${newPostId}::uuid)
@@ -201,8 +214,38 @@ export async function submitStudentPostAction(
       }
     }
 
+    // Record audit log distinguishing Bingo Card vs Drop a Memory
+    const uploadChannel = bingoTaskId ? "bingo_card" : "drop_a_memory";
+    const description = bingoTaskId
+      ? `[Bingo Card] Uploaded photo proof for Slot #${slotIndex !== null ? slotIndex + 1 : "?"} (${taskTitle || "Challenge"})${caption ? ` · "${caption.slice(0, 50)}"` : ""}`
+      : `[Drop a Memory] Dropped a campus memory to the public board${caption ? ` · "${caption.slice(0, 50)}"` : ""}`;
+
+    await recordActivityLog({
+      actionType: "POST_SUBMIT",
+      category: "user",
+      actorId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetId: newPostId,
+      targetType: "post",
+      description,
+      metadata: {
+        postId: newPostId,
+        uploadChannel,
+        isBingoEntry: Boolean(bingoTaskId),
+        bingoTaskId: bingoTaskId || null,
+        slotIndex,
+        taskTitle,
+        isAnonymous,
+        newRaffleCode: newRaffleCode || null,
+      },
+    });
+
     revalidatePath("/");
     revalidatePath("/gallery");
+    revalidatePath("/dev");
+    revalidatePath("/dev/logs");
 
     return {
       success: true,
@@ -257,7 +300,43 @@ export async function removeBingoTaskPhotoAction(
       `;
     }
 
+    // Lookup task title for audit logs
+    let slotIndex: number | null = null;
+    let taskTitle: string | null = null;
+    if (taskId) {
+      const taskRows = await sql`
+        SELECT slot_index, title FROM public.bingo_tasks
+        WHERE id = ${taskId}::uuid LIMIT 1
+      `;
+      if (taskRows.length > 0) {
+        slotIndex = Number(taskRows[0].slot_index);
+        taskTitle = taskRows[0].title;
+      }
+    }
+
+    await recordActivityLog({
+      actionType: "POST_SUBMIT",
+      category: "user",
+      actorId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetId: postId || null,
+      targetType: "post",
+      description: `[Bingo Card] Removed photo proof from Slot #${slotIndex !== null ? slotIndex + 1 : "?"} (${taskTitle || "Challenge"})`,
+      metadata: {
+        action: "remove_bingo_photo",
+        taskId,
+        postId,
+        slotIndex,
+        taskTitle,
+      },
+    });
+
     revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev");
+    revalidatePath("/dev/logs");
     return { success: true };
   } catch (err: unknown) {
     console.error("removeBingoTaskPhotoAction error:", err);

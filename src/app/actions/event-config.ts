@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, isSuperAdmin } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import { recordActivityLog } from "@/lib/activity-logger";
 
 /**
  * Toggle the live raffle system active status.
@@ -24,6 +25,19 @@ export async function toggleRaffleStatusAction(formData: FormData) {
       updated_by = ${caller.id}::uuid
     WHERE key = 'active_event'
   `;
+
+  await recordActivityLog({
+    actionType: "RAFFLE_TOGGLE",
+    category: "system",
+    actorId: caller.id,
+    actorName: caller.name,
+    actorEmail: caller.email,
+    actorRole: caller.role,
+    targetId: "active_event",
+    targetType: "system",
+    description: `SuperAdmin ${caller.name} switched raffle drawings to ${enabled ? "ACTIVE" : "PAUSED"}`,
+    metadata: { enabled },
+  });
 
   revalidatePath("/");
   revalidatePath("/dev");
