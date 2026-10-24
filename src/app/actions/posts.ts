@@ -13,6 +13,7 @@ import {
   generateRaffleCode,
   type ClaimedLine,
 } from "@/lib/bingo-engine";
+import { recordActivityLog } from "@/lib/activity-logger";
 
 export interface SubmitPostResult {
   success: boolean;
@@ -203,6 +204,24 @@ export async function submitStudentPostAction(
 
     revalidatePath("/");
     revalidatePath("/gallery");
+
+    await recordActivityLog({
+      actionType: "POST_SUBMIT",
+      category: "user",
+      actorId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetId: newPostId,
+      targetType: "post",
+      description: `Uploaded photo post${bingoTaskId ? " for Bingo challenge" : ""}${caption ? `: "${caption.slice(0, 60)}"` : ""}`,
+      metadata: {
+        postId: newPostId,
+        bingoTaskId,
+        isAnonymous,
+        newRaffleCode: newRaffleCode || null,
+      },
+    });
 
     return {
       success: true,
