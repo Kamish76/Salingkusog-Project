@@ -218,51 +218,6 @@ export async function submitStudentPostAction(
   }
 }
 
-/**
- * Toggle a reaction (heart, fire, trophy) on a post.
- */
-export async function togglePostReactionAction(
-  postId: string,
-  reactionType: "heart" | "fire" | "trophy"
-): Promise<{ success: boolean; error?: string }> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "Please sign in to react." };
-  }
-
-  try {
-    const existing = await sql`
-      SELECT id FROM public.post_reactions
-      WHERE post_id = ${postId}::uuid
-        AND user_id = ${user.id}::uuid
-        AND reaction_type = ${reactionType}
-      LIMIT 1
-    `;
-
-    if (existing.length > 0) {
-      await sql`
-        DELETE FROM public.post_reactions
-        WHERE id = ${existing[0].id}::uuid
-      `;
-    } else {
-      await sql`
-        INSERT INTO public.post_reactions (post_id, user_id, reaction_type)
-        VALUES (${postId}::uuid, ${user.id}::uuid, ${reactionType})
-        ON CONFLICT (post_id, user_id, reaction_type) DO NOTHING
-      `;
-    }
-
-    revalidatePath("/");
-    revalidatePath("/gallery");
-    return { success: true };
-  } catch (err: unknown) {
-    console.error("togglePostReactionAction error:", err);
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to toggle reaction",
-    };
-  }
-}
 
 /**
  * Remove an uploaded photo from a 3x3 Bingo slot.

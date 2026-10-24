@@ -5,7 +5,7 @@ import { sql } from "@/lib/db";
 import { AuthButton } from "@/components/auth-button";
 import { PersonalGalleryView } from "@/components/gallery/personal-gallery-view";
 import type { PostRecord } from "@/components/landing/memory-board";
-import type { BingoTaskOption } from "@/components/landing/upload-memory-modal";
+import type { BingoTaskItem, UserProgressItem } from "@/components/landing/floating-bingo-modal";
 
 export const instant = false;
 
@@ -30,7 +30,7 @@ export default async function PersonalGalleryPage() {
   `;
   const currentDay = Number(configRows[0]?.current_day || 1);
 
-  // 2. Fetch all published posts by this authenticated student
+  // 2. Fetch all published posts by this authenticated student (without reactions)
   const postRows = await sql`
     SELECT 
       p.id,
@@ -42,10 +42,7 @@ export default async function PersonalGalleryPage() {
       p.is_bingo_entry,
       p.created_at,
       bt.title as task_title,
-      bt.slot_index,
-      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'heart'), 0) as heart_count,
-      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'fire'), 0) as fire_count,
-      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'trophy'), 0) as trophy_count
+      bt.slot_index
     FROM public.posts p
     LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
     WHERE p.user_id = ${user.id}::uuid AND p.status = 'published'
@@ -63,24 +60,47 @@ export default async function PersonalGalleryPage() {
     taskTitle: r.task_title,
     slotIndex: r.slot_index !== null ? Number(r.slot_index) : null,
     createdAt: r.created_at,
-    heartCount: Number(r.heart_count),
-    fireCount: Number(r.fire_count),
-    trophyCount: Number(r.trophy_count),
   }));
 
-  // 3. Fetch Bingo tasks for upload options
+  // 3. Fetch Bingo tasks
   const taskRows = await sql`
-    SELECT id, slot_index, title, description, unlock_day
+    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
     FROM public.bingo_tasks
     ORDER BY slot_index ASC
   `;
 
-  const bingoTasks: BingoTaskOption[] = taskRows.map((r) => ({
+  const tasks: BingoTaskItem[] = taskRows.map((r) => ({
     id: r.id,
     slotIndex: Number(r.slot_index),
     title: r.title,
     description: r.description,
+    category: r.category,
     unlockDay: Number(r.unlock_day),
+    requiresSelfie: Boolean(r.requires_selfie),
+  }));
+
+  // 4. Fetch User Bingo progress for all completed slots
+  const progressRows = await sql`
+    SELECT 
+      bt.slot_index, 
+      ubp.task_id, 
+      ubp.post_id, 
+      ubp.completed_at,
+      p.image_url,
+      p.caption
+    FROM public.user_bingo_progress ubp
+    JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
+    LEFT JOIN public.posts p ON ubp.post_id = p.id
+    WHERE ubp.user_id = ${user.id}::uuid
+  `;
+
+  const userProgress: UserProgressItem[] = progressRows.map((r) => ({
+    slotIndex: Number(r.slot_index),
+    taskId: r.task_id,
+    postId: r.post_id,
+    completedAt: r.completed_at,
+    imageUrl: r.image_url || null,
+    caption: r.caption || null,
   }));
 
   return (
@@ -130,7 +150,8 @@ export default async function PersonalGalleryPage() {
             email: user.email ?? "",
           }}
           currentDay={currentDay}
-          bingoTasks={bingoTasks}
+          tasks={tasks}
+          userProgress={userProgress}
         />
       </main>
 

@@ -247,6 +247,16 @@ export function FloatingBingoModal({
     }
   }, [isOpen, isBingoClosing]);
 
+  // Prevent background scrolling while modal or photo detail is open
+  useEffect(() => {
+    if (!isOpen && !selectedSlotDetail) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, selectedSlotDetail]);
+
   // Close detail view with smooth collapse
   const handleCloseDetail = useCallback(() => {
     if (isClosing) return;
@@ -527,7 +537,7 @@ export function FloatingBingoModal({
             opacity: isBingoExpanded ? 1 : 0,
             transition: "opacity 260ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 select-none"
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6 bg-black/60 select-none"
         >
           {/* Card Container (Zooms up from bottom-right button) */}
           <div
@@ -773,13 +783,13 @@ export function FloatingBingoModal({
             opacity: isExpanded ? 1 : 0,
             transition: "opacity 260ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
-          className="fixed inset-0 z-[60] flex flex-col items-center justify-between p-4 sm:p-7 bg-black/75 select-none overflow-hidden"
+          className="fixed inset-0 z-[90] flex flex-col items-center justify-between p-4 sm:p-7 bg-black/75 select-none overflow-y-auto"
         >
           {/* Top Header */}
           <div
             style={controlsStyle}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md flex items-center justify-between px-4 py-3 rounded-xl bg-[#1e1b19] border border-stone-800 text-white shadow-lg"
+            className="sticky top-0 z-10 w-full max-w-md flex items-center justify-between px-4 py-3 rounded-xl bg-[#1e1b19]/95 backdrop-blur-md border border-stone-800 text-white shadow-lg shrink-0"
           >
             <div className="flex items-center gap-2.5 truncate">
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-stone-800 text-stone-200 border border-stone-700">

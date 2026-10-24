@@ -109,6 +109,16 @@ export function UploadMemoryModal({
     }
   };
 
+  // Prevent background scrolling while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   // Keyboard accessibility: Escape to dismiss
   useEffect(() => {
     if (!isOpen) return;
@@ -285,7 +295,7 @@ export function UploadMemoryModal({
         opacity: isExpanded ? 1 : 0,
         transition: "opacity 260ms cubic-bezier(0.16, 1, 0.3, 1)",
       }}
-      className={`fixed inset-0 z-[60] flex flex-col items-center justify-between p-4 sm:p-7 ${
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-between p-4 sm:p-7 ${
         returnToBingo ? "bg-black/60" : "bg-black/75"
       } select-none overflow-y-auto`}
     >
@@ -293,7 +303,7 @@ export function UploadMemoryModal({
       <div
         style={controlsStyle}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md flex items-center justify-between px-4 py-3 rounded-xl bg-[#1e1b19] border border-stone-800 text-white shadow-lg shrink-0"
+        className="sticky top-0 z-10 w-full max-w-md flex items-center justify-between px-4 py-3 rounded-xl bg-[#1e1b19]/95 backdrop-blur-md border border-stone-800 text-white shadow-lg shrink-0"
       >
         <div className="flex items-center gap-2.5 truncate">
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-stone-800 text-stone-200 border border-stone-700">

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
-import { togglePostReactionAction } from "@/app/actions/posts";
+import { useState, useEffect } from "react";
 
 export interface PostRecord {
   id: string;
@@ -14,10 +13,8 @@ export interface PostRecord {
   taskTitle: string | null;
   slotIndex: number | null;
   createdAt: string | Date;
-  heartCount: number;
-  fireCount: number;
-  trophyCount: number;
 }
+
 
 interface MemoryBoardProps {
   posts: PostRecord[];
@@ -57,8 +54,6 @@ function formatTimeAgo(dateInput: string | Date): string {
 }
 
 export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoardProps) {
-  const [, startTransition] = useTransition();
-
   // Track natural image aspect ratio to adapt polaroid orientation (landscape vs portrait vs square)
   const [imageOrientations, setImageOrientations] = useState<
     Record<string, "portrait" | "landscape" | "square">
@@ -88,37 +83,6 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
     });
   }, [posts]);
 
-  // Optimistic reaction tracker
-  const [localReactions, setLocalReactions] = useState<
-    Record<string, { heart: number; fire: number; trophy: number }>
-  >({});
-
-  const handleReact = (postId: string, type: "heart" | "fire" | "trophy") => {
-    if (!isAuthenticated) {
-      alert("Please sign in with Google to react to student photos!");
-      return;
-    }
-
-    // Optimistic bump
-    setLocalReactions((prev) => {
-      const current = prev[postId] || {
-        heart: posts.find((p) => p.id === postId)?.heartCount || 0,
-        fire: posts.find((p) => p.id === postId)?.fireCount || 0,
-        trophy: posts.find((p) => p.id === postId)?.trophyCount || 0,
-      };
-      return {
-        ...prev,
-        [postId]: {
-          ...current,
-          [type]: current[type] + 1,
-        },
-      };
-    });
-
-    startTransition(async () => {
-      await togglePostReactionAction(postId, type);
-    });
-  };
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
@@ -198,11 +162,6 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
             const rotation = ROTATIONS[idx % ROTATIONS.length];
             const tapeClass = TAPES[idx % TAPES.length];
 
-            const reactions = localReactions[post.id] || {
-              heart: post.heartCount,
-              fire: post.fireCount,
-              trophy: post.trophyCount,
-            };
 
             const orientation = imageOrientations[post.id] || "landscape";
             const photoAspect = isLead ? "aspect-[16/10]" : PHOTO_ASPECTS[orientation];
@@ -267,44 +226,6 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
                   )}
                 </div>
 
-                {/* Reaction Row */}
-                <div className="mt-4 pt-3 border-t border-[#f5ece9] flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => handleReact(post.id, "heart")}
-                    type="button"
-                    aria-label={`Cheer with heart, count ${reactions.heart}`}
-                    className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-[#fbf2ee] hover:bg-[#ffdad5] text-[#b4281e] text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none sm:hover:active:scale-95 cursor-pointer"
-                  >
-                    <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
-                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                    </svg>
-                    <span>{reactions.heart}</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleReact(post.id, "fire")}
-                    type="button"
-                    aria-label={`Cheer with fire, count ${reactions.fire}`}
-                    className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-[#fbf2ee] hover:bg-[#ffdcc4] text-[#8e4e14] text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none sm:hover:active:scale-95 cursor-pointer"
-                  >
-                    <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
-                      <path d="M12 2c-.6 2.3-2 4.4-3.5 6.2-1.8 2.1-3.5 4.5-3.5 7.4 0 4.6 3.8 8.4 8.4 8.4s8.4-3.8 8.4-8.4c0-3.3-1.8-6.1-3.8-8.3-.9 1.4-2.1 2.5-3.4 3.4.1-3-1.1-6.1-2.6-8.7z"/>
-                    </svg>
-                    <span>{reactions.fire}</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleReact(post.id, "trophy")}
-                    type="button"
-                    aria-label={`Cheer with trophy, count ${reactions.trophy}`}
-                    className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-[#fbf2ee] hover:bg-[#c1eebc] text-[#0d3513] text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none sm:hover:active:scale-95 cursor-pointer"
-                  >
-                    <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
-                      <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
-                    </svg>
-                    <span>{reactions.trophy}</span>
-                  </button>
-                </div>
               </div>
             );
           })}

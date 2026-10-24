@@ -49,10 +49,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       p.is_bingo_entry,
       p.created_at,
       bt.title as task_title,
-      bt.slot_index,
-      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'heart'), 0) as heart_count,
-      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'fire'), 0) as fire_count,
-      COALESCE((SELECT count(*) FROM public.post_reactions pr WHERE pr.post_id = p.id AND pr.reaction_type = 'trophy'), 0) as trophy_count
+      bt.slot_index
     FROM public.posts p
     LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
     WHERE p.status = 'published'
@@ -71,9 +68,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     taskTitle: r.task_title,
     slotIndex: r.slot_index !== null ? Number(r.slot_index) : null,
     createdAt: r.created_at,
-    heartCount: Number(r.heart_count),
-    fireCount: Number(r.fire_count),
-    trophyCount: Number(r.trophy_count),
   }));
 
   // 3. Fetch real 9 Bingo challenge tasks
