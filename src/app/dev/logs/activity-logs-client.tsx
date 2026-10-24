@@ -110,7 +110,7 @@ export function ActivityLogsClient() {
   }, [loadInitialLogs]);
 
   // Helper for action badges
-  const renderActionBadge = (action: ActivityActionType) => {
+  const renderActionBadge = (action: ActivityActionType, metadata?: Record<string, unknown>) => {
     switch (action) {
       case "USER_REGISTER":
         return (
@@ -118,12 +118,20 @@ export function ActivityLogsClient() {
             NEW USER
           </span>
         );
-      case "POST_SUBMIT":
-        return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-sky-500/15 text-sky-300 border border-sky-500/30">
-            PHOTO POST
+      case "POST_SUBMIT": {
+        const isBingo = metadata?.isBingoEntry ?? Boolean(metadata?.bingoTaskId);
+        return isBingo ? (
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+            <span>🎯</span>
+            <span>BINGO PROOF</span>
+          </span>
+        ) : (
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-teal-500/15 text-teal-300 border border-teal-500/30 flex items-center gap-1">
+            <span>📸</span>
+            <span>MEMORY DROP</span>
           </span>
         );
+      }
       case "USER_BAN":
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-red-500/15 text-red-300 border border-red-500/30">
@@ -338,7 +346,7 @@ export function ActivityLogsClient() {
 
                     {/* Action Badge */}
                     <td className="py-3 px-4 whitespace-nowrap">
-                      {renderActionBadge(log.actionType)}
+                      {renderActionBadge(log.actionType, log.metadata)}
                     </td>
 
                     {/* Actor */}
@@ -418,7 +426,7 @@ export function ActivityLogsClient() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
               <div className="flex items-center gap-2">
-                {renderActionBadge(selectedLog.actionType)}
+                {renderActionBadge(selectedLog.actionType, selectedLog.metadata)}
                 <span className="text-xs font-mono text-zinc-400">
                   Log Inspection
                 </span>
