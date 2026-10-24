@@ -89,7 +89,11 @@ export default async function HomePage() {
   let userProgress: UserProgressItem[] = [];
   let raffleEntries: RaffleEntryItem[] = [];
 
-  if (user) {
+  const isUuid = Boolean(
+    user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+  );
+
+  if (user && isUuid) {
     const progressRows = await sql`
       SELECT 
         bt.slot_index, 

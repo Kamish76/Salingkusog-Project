@@ -154,9 +154,9 @@ export default async function DevPage() {
       }
     } else {
       const mockUsers: DbUserRecord[] = [
-        { id: "usr_superadmin_1", name: "Root SuperAdmin", email: "superadmin@salingkusog.internal", role: "superadmin", createdAt: "10/23/2026" },
-        { id: "usr_admin_1", name: "Admin (Moderator)", email: "admin@salingkusog.internal", role: "admin", createdAt: "10/23/2026" },
-        { id: "usr_user_1", name: "Standard User", email: "user@salingkusog.internal", role: "user", createdAt: "10/23/2026" },
+        { id: "00000000-0000-4000-a000-000000000001", name: "Root SuperAdmin", email: "superadmin@salingkusog.internal", role: "superadmin", createdAt: "10/23/2026" },
+        { id: "00000000-0000-4000-a000-000000000002", name: "Admin (Moderator)", email: "admin@salingkusog.internal", role: "admin", createdAt: "10/23/2026" },
+        { id: "00000000-0000-4000-a000-000000000003", name: "Standard User", email: "user@salingkusog.internal", role: "user", createdAt: "10/23/2026" },
       ];
       totalRegisteredCount = mockUsers.length;
       registeredUsers = mockUsers.slice(0, 5);
