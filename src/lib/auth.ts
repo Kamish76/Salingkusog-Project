@@ -13,6 +13,14 @@ export interface AuthUser {
   banReason?: string | null;
 }
 
+export const DEV_USER_IDS: Record<UserRole, string> = {
+  superadmin: "00000000-0000-4000-a000-000000000001",
+  admin: "00000000-0000-4000-a000-000000000002",
+  user: "00000000-0000-4000-a000-000000000003",
+};
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function getCurrentUser(): Promise<AuthUser | null> {
   // 1. Live Neon Managed Better Auth session resolution
   try {
@@ -23,11 +31,18 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       let banReason: string | null = null;
 
       if (process.env.DATABASE_URL) {
-        const rows = await sql`
-          SELECT role, COALESCE(banned, false) as banned, "banReason" FROM neon_auth."user" 
-          WHERE id = ${session.user.id}::uuid OR email = ${session.user.email} 
-          LIMIT 1
-        `;
+        const isIdUuid = session.user.id && UUID_REGEX.test(session.user.id);
+        const rows = isIdUuid
+          ? await sql`
+              SELECT role, COALESCE(banned, false) as banned, "banReason" FROM neon_auth."user" 
+              WHERE id = ${session.user.id}::uuid OR email = ${session.user.email} 
+              LIMIT 1
+            `
+          : await sql`
+              SELECT role, COALESCE(banned, false) as banned, "banReason" FROM neon_auth."user" 
+              WHERE email = ${session.user.email} 
+              LIMIT 1
+            `;
         if (rows.length > 0) {
           if (rows[0].role) {
             const dbRole = rows[0].role as string;
@@ -70,7 +85,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   }
 
   return {
-    id: `usr_${devRole}_1`,
+    id: DEV_USER_IDS[devRole] || DEV_USER_IDS.user,
     name:
       devRole === "superadmin"
         ? "Root SuperAdmin"
