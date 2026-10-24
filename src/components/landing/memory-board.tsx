@@ -123,15 +123,22 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
       {/* CLEAN SCRAPBOOK ACTION & TITLE BAR */}
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-1 border-b border-[#e8ded5]/70">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">📸</span>
-          <h2 className="font-display font-extrabold text-lg sm:text-xl text-[#1e1b19] tracking-tight">
-            Campus Memories
-          </h2>
-          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white border border-[#e8ded5] text-[#8e706c] shadow-2xs">
-            {posts.length} {posts.length === 1 ? "snap" : "snaps"}
-          </span>
+      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-[#e8ded5]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-[#f5ece9] text-[#1e1b19] flex items-center justify-center border border-[#e8ded5]">
+            <svg className="w-5 h-5 text-[#ff5e4d]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="font-display font-extrabold text-xl text-[#1e1b19] tracking-tight">
+              Campus Memories
+            </h2>
+            <p className="font-body text-xs text-[#8e706c]">
+              {posts.length} {posts.length === 1 ? "moment shared" : "moments shared"}
+            </p>
+          </div>
         </div>
 
         <button
@@ -140,29 +147,34 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
             onOpenUpload({ top: r.top, left: r.left, width: r.width, height: r.height });
           }}
           type="button"
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer ml-auto"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none sm:hover:active:scale-95 cursor-pointer ml-auto"
         >
-          <span>＋</span>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
           <span>Drop a Memory</span>
         </button>
       </div>
 
       {/* POLAROID MASONRY FEED OR EMPTY STATE */}
       {posts.length === 0 ? (
-        <div className="w-full my-8 p-10 sm:p-16 rounded-3xl bg-white border border-[#e8ded5] shadow-scrapbook text-center flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="w-full my-8 p-10 sm:p-16 rounded-2xl bg-white border border-[#e8ded5] text-center flex flex-col items-center justify-center relative overflow-hidden">
           {/* Top Washi Tape */}
           <div className="washi-tape-butter w-28 h-5 absolute -top-2 left-1/2 -translate-x-1/2 opacity-80"></div>
 
-          <div className="w-16 h-16 rounded-full bg-[#fcf9f5] border border-[#e8ded5] flex items-center justify-center text-3xl mb-3 shadow-xs">
-            📷
+          <div className="w-16 h-16 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-[#8e706c]" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+            </svg>
           </div>
 
           <h3 className="font-display font-extrabold text-xl sm:text-2xl text-[#1e1b19] tracking-tight">
             The memory well is waiting for its first snapshot
           </h3>
 
-          <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-1.5 max-w-md leading-relaxed">
-            No memories have been dropped yet. Be the first student to toss an intramural photo or selfie into the memory well!
+          <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-2 max-w-md leading-relaxed">
+            No memories have been dropped yet. Be the first student to toss an intramural photo or selfie into the memory well.
           </p>
 
           <button
@@ -171,15 +183,18 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
               onOpenUpload({ top: r.top, left: r.left, width: r.width, height: r.height });
             }}
             type="button"
-            className="mt-6 px-6 py-2.5 rounded-full bg-[#1e1b19] hover:bg-stone-800 text-white font-display font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+            className="mt-6 px-6 py-3 rounded-lg bg-[#1e1b19] hover:bg-stone-800 text-white font-display font-bold text-xs transition sm:hover:active:scale-95 focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center gap-2"
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
             <span>Drop the First Memory</span>
-            <span>✨</span>
           </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7 items-start">
           {posts.map((post, idx) => {
+            const isLead = idx === 0 && posts.length > 1;
             const rotation = ROTATIONS[idx % ROTATIONS.length];
             const tapeClass = TAPES[idx % TAPES.length];
 
@@ -190,12 +205,12 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
             };
 
             const orientation = imageOrientations[post.id] || "landscape";
-            const photoAspect = PHOTO_ASPECTS[orientation];
+            const photoAspect = isLead ? "aspect-[16/10]" : PHOTO_ASPECTS[orientation];
 
             return (
               <div
                 key={post.id}
-                className={`scrapbook-card relative bg-white border border-[#e8ded5] rounded-2xl shadow-polaroid p-3 pb-5 sm:p-4 sm:pb-6 flex flex-col justify-between ${rotation}`}
+                className={`scrapbook-card relative bg-white border border-[#e8ded5] rounded-xl p-3.5 pb-5 sm:p-4 sm:pb-6 flex flex-col justify-between ${isLead ? "sm:col-span-2 lg:col-span-2" : "col-span-1"} ${rotation}`}
               >
                 {/* Washi Tape Strip */}
                 <div
@@ -222,10 +237,11 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
                           });
                         }
                       }}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-103"
+                      className="w-full h-full object-cover select-none"
                     />
+
                     {post.taskTitle && (
-                      <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-stone-900/75 backdrop-blur-xs text-white text-[10px] font-display font-bold shadow-xs">
+                      <span className="absolute bottom-2 left-2 px-2.5 py-1 rounded bg-[#1e1b19]/85 text-white text-[11px] font-display font-medium">
                         Slot #{post.slotIndex !== null ? post.slotIndex + 1 : ""} • {post.taskTitle}
                       </span>
                     )}
@@ -237,7 +253,7 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
                       <span className="font-display font-bold text-sm text-[#1e1b19] leading-tight">
                         {post.displayName}
                       </span>
-                      <span className="font-body text-[10px] text-[#8e706c]">
+                      <span className="font-body text-[11px] text-[#8e706c]">
                         {formatTimeAgo(post.createdAt)}
                       </span>
                     </div>
@@ -252,31 +268,40 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
                 </div>
 
                 {/* Reaction Row */}
-                <div className="mt-4 pt-3 border-t border-[#f5ece9] flex items-center gap-2">
+                <div className="mt-4 pt-3 border-t border-[#f5ece9] flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => handleReact(post.id, "heart")}
                     type="button"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#fbf2ee] hover:bg-[#ffdad5] text-[#b4281e] text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
+                    aria-label={`Cheer with heart, count ${reactions.heart}`}
+                    className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-[#fbf2ee] hover:bg-[#ffdad5] text-[#b4281e] text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none sm:hover:active:scale-95 cursor-pointer"
                   >
-                    <span>❤️</span>
+                    <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
                     <span>{reactions.heart}</span>
                   </button>
 
                   <button
                     onClick={() => handleReact(post.id, "fire")}
                     type="button"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#fbf2ee] hover:bg-[#ffdcc4] text-[#8e4e14] text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
+                    aria-label={`Cheer with fire, count ${reactions.fire}`}
+                    className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-[#fbf2ee] hover:bg-[#ffdcc4] text-[#8e4e14] text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none sm:hover:active:scale-95 cursor-pointer"
                   >
-                    <span>🔥</span>
+                    <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                      <path d="M12 2c-.6 2.3-2 4.4-3.5 6.2-1.8 2.1-3.5 4.5-3.5 7.4 0 4.6 3.8 8.4 8.4 8.4s8.4-3.8 8.4-8.4c0-3.3-1.8-6.1-3.8-8.3-.9 1.4-2.1 2.5-3.4 3.4.1-3-1.1-6.1-2.6-8.7z"/>
+                    </svg>
                     <span>{reactions.fire}</span>
                   </button>
 
                   <button
                     onClick={() => handleReact(post.id, "trophy")}
                     type="button"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#fbf2ee] hover:bg-[#c1eebc] text-[#0d3513] text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
+                    aria-label={`Cheer with trophy, count ${reactions.trophy}`}
+                    className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-[#fbf2ee] hover:bg-[#c1eebc] text-[#0d3513] text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none sm:hover:active:scale-95 cursor-pointer"
                   >
-                    <span>🏆</span>
+                    <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                      <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+                    </svg>
                     <span>{reactions.trophy}</span>
                   </button>
                 </div>
