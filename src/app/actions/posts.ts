@@ -202,6 +202,7 @@ export async function submitStudentPostAction(
     }
 
     revalidatePath("/");
+    revalidatePath("/gallery");
 
     return {
       success: true,
@@ -252,6 +253,7 @@ export async function togglePostReactionAction(
     }
 
     revalidatePath("/");
+    revalidatePath("/gallery");
     return { success: true };
   } catch (err: unknown) {
     console.error("togglePostReactionAction error:", err);

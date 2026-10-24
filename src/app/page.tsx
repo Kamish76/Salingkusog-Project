@@ -153,11 +153,22 @@ export default async function HomePage() {
               <span className="font-display font-bold text-[#8e4e14]">Day {currentDay}</span>
             </div>
 
-            {/* Authenticated user indicator */}
+            {/* Authenticated user indicator & My Gallery link */}
             {user && (
-              <span className="text-xs font-display font-semibold text-[#5a413d] hidden md:inline">
-                {user.name?.split(" ")[0] ?? "Student"}
-              </span>
+              <>
+                <Link
+                  href="/gallery"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f5ece9] hover:bg-[#ebdcd3] text-[#1e1b19] border border-[#e8ded5] text-xs font-display font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none"
+                >
+                  <svg className="w-3.5 h-3.5 text-[#ff5e4d]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                  </svg>
+                  <span>My Gallery</span>
+                </Link>
+                <span className="text-xs font-display font-semibold text-[#5a413d] hidden md:inline">
+                  {user.name?.split(" ")[0] ?? "Student"}
+                </span>
+              </>
             )}
 
             {/* Google Auth Button */}
