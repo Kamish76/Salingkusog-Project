@@ -293,12 +293,12 @@ export function UserManagementClient({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by student name or email..."
-            className="w-full bg-zinc-950 border border-zinc-700/80 rounded-lg pl-9 pr-8 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 font-mono transition"
+            className="w-full bg-zinc-950 border border-zinc-700/80 rounded-lg pl-9 pr-8 py-2.5 sm:py-2 text-base sm:text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 font-mono transition"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-500 hover:text-zinc-200 text-xs cursor-pointer"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-500 hover:text-zinc-200 text-xs cursor-pointer min-h-[44px] min-w-[44px] justify-center"
               title="Clear search"
             >
               ✕
@@ -314,7 +314,7 @@ export function UserManagementClient({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-zinc-950 border border-zinc-700/80 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 font-mono transition cursor-pointer"
+              className="bg-zinc-950 border border-zinc-700/80 rounded-lg px-2.5 py-2 sm:py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 font-mono transition cursor-pointer min-h-[38px] sm:min-h-0"
             >
               <option value="all">All Statuses</option>
               <option value="active">Active Only</option>
@@ -328,7 +328,7 @@ export function UserManagementClient({
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="bg-zinc-950 border border-zinc-700/80 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 font-mono transition cursor-pointer"
+              className="bg-zinc-950 border border-zinc-700/80 rounded-lg px-2.5 py-2 sm:py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 font-mono transition cursor-pointer min-h-[38px] sm:min-h-0"
             >
               <option value="all">All Roles</option>
               <option value="superadmin">SuperAdmin</option>
@@ -338,7 +338,7 @@ export function UserManagementClient({
           </div>
 
           {/* Account Count Badge */}
-          <div className="text-xs font-mono px-3 py-1.5 rounded-lg bg-zinc-800/80 text-zinc-300 border border-zinc-700/80 whitespace-nowrap">
+          <div className="text-xs font-mono px-3 py-1.5 rounded-lg bg-zinc-800/80 text-zinc-300 border border-zinc-700/80 whitespace-nowrap ml-auto sm:ml-0">
             {loading ? "Counting..." : `${totalCount} ${totalCount === 1 ? "Account" : "Accounts"}`}
           </div>
         </div>
@@ -584,11 +584,11 @@ export function UserManagementClient({
       {/* 1. USER BINGO SUBMISSIONS INSPECTOR MODAL               */}
       {/* ======================================================== */}
       {inspectingUser && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-3xl w-full max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl animate-fade-in">
             {/* Header */}
-            <div className="p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
-              <div>
+            <div className="p-4 sm:p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
+              <div className="truncate mr-2">
                 <div className="flex items-center gap-2">
                   <span className="text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
                     Bingo Card Photo Proofs
@@ -599,17 +599,17 @@ export function UserManagementClient({
                     </span>
                   )}
                 </div>
-                <h3 className="text-lg font-bold text-white mt-0.5">
+                <h3 className="text-base sm:text-lg font-bold text-white mt-0.5 truncate">
                   {inspectingUser.name} ({inspectingUser.email})
                 </h3>
-                <p className="text-xs text-zinc-400 font-mono">
+                <p className="text-xs text-zinc-400 font-mono hidden sm:block">
                   All image submissions are made strictly through the 3x3 Intramurals Bingo Card.
                 </p>
               </div>
 
               <button
                 onClick={() => setInspectingUser(null)}
-                className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+                className="w-10 h-10 sm:w-8 sm:h-8 min-h-[44px] min-w-[44px] rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0 active:scale-95"
               >
                 ✕
               </button>
@@ -737,23 +737,23 @@ export function UserManagementClient({
       {/* 2. BAN USER CONFIRMATION MODAL                           */}
       {/* ======================================================== */}
       {banningUser && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-red-900/60 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-fade-in space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-zinc-900 border border-red-900/60 rounded-2xl max-w-lg w-full max-h-[90dvh] overflow-y-auto shadow-2xl animate-fade-in space-y-4">
             {/* Header */}
-            <div className="p-5 border-b border-zinc-800 bg-red-950/20">
+            <div className="p-4 sm:p-5 border-b border-zinc-800 bg-red-950/20">
               <div className="flex items-center gap-2 text-rose-400 font-mono text-xs font-bold uppercase">
                 <span>⚠️ Administrator Action</span>
               </div>
-              <h3 className="text-xl font-bold text-white mt-1">
+              <h3 className="text-lg sm:text-xl font-bold text-white mt-1">
                 Ban User: {banningUser.name}
               </h3>
-              <p className="text-xs text-zinc-400 font-mono mt-0.5">
+              <p className="text-xs text-zinc-400 font-mono mt-0.5 truncate">
                 Target Email: {banningUser.email}
               </p>
             </div>
 
             {/* Body */}
-            <div className="px-5 space-y-4 text-xs font-mono">
+            <div className="px-4 sm:px-5 space-y-4 text-xs font-mono">
               <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-900/50 text-rose-300 space-y-1">
                 <div className="font-bold">Impact of Banning:</div>
                 <ul className="list-disc list-inside text-rose-300/90 space-y-0.5">
@@ -772,7 +772,7 @@ export function UserManagementClient({
                   onChange={(e) => setBanReason(e.target.value)}
                   rows={3}
                   placeholder="Specify why this account is being banned..."
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 text-base sm:text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition font-mono"
                 />
               </div>
             </div>
@@ -782,7 +782,7 @@ export function UserManagementClient({
               <button
                 type="button"
                 onClick={() => setBanningUser(null)}
-                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition cursor-pointer"
+                className="px-4 py-2.5 min-h-[44px] rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition cursor-pointer active:scale-95"
               >
                 Cancel
               </button>
@@ -790,7 +790,7 @@ export function UserManagementClient({
                 type="button"
                 onClick={handleConfirmBan}
                 disabled={isPending || !banReason.trim()}
-                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold transition cursor-pointer disabled:opacity-50"
+                className="px-4 py-2.5 min-h-[44px] rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold transition cursor-pointer disabled:opacity-50 active:scale-95"
               >
                 {isPending ? "Banning..." : "Confirm & Ban User"}
               </button>

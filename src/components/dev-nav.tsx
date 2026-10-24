@@ -14,7 +14,7 @@ export function DevNav() {
 
   return (
     <div className="border-b border-zinc-800/80 bg-zinc-900/40">
-      <div className="max-w-6xl mx-auto px-6 flex items-center gap-1 text-xs font-mono">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-6 flex items-center gap-1 text-xs font-mono overflow-x-auto no-scrollbar whitespace-nowrap">
         {navItems.map((item) => {
           const isActive =
             item.href === "/dev"
