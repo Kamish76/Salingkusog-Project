@@ -133,10 +133,10 @@ export async function fetchUsersAction(
 
   if (!process.env.DATABASE_URL) {
     const mockUsers: ManagedUserRecord[] = [
-      { id: "usr_superadmin_1", name: "Root SuperAdmin", email: "superadmin@salingkusog.internal", role: "superadmin", banned: false, banReason: null, submissionCount: 0, createdAt: "10/23/2026" },
-      { id: "usr_admin_1", name: "Admin (Moderator)", email: "admin@salingkusog.internal", role: "admin", banned: false, banReason: null, submissionCount: 2, createdAt: "10/23/2026" },
-      { id: "usr_user_1", name: "Standard User", email: "user@salingkusog.internal", role: "user", banned: false, banReason: null, submissionCount: 4, createdAt: "10/23/2026" },
-      { id: "usr_user_banned", name: "Troublemaker Account", email: "spammer@salingkusog.internal", role: "user", banned: true, banReason: "Inappropriate photo uploaded on Bingo Slot #2", submissionCount: 1, createdAt: "10/23/2026" },
+      { id: "00000000-0000-4000-a000-000000000001", name: "Root SuperAdmin", email: "superadmin@salingkusog.internal", role: "superadmin", banned: false, banReason: null, submissionCount: 0, createdAt: "10/23/2026" },
+      { id: "00000000-0000-4000-a000-000000000002", name: "Admin (Moderator)", email: "admin@salingkusog.internal", role: "admin", banned: false, banReason: null, submissionCount: 2, createdAt: "10/23/2026" },
+      { id: "00000000-0000-4000-a000-000000000003", name: "Standard User", email: "user@salingkusog.internal", role: "user", banned: false, banReason: null, submissionCount: 4, createdAt: "10/23/2026" },
+      { id: "00000000-0000-4000-a000-000000000004", name: "Troublemaker Account", email: "spammer@salingkusog.internal", role: "user", banned: true, banReason: "Inappropriate photo uploaded on Bingo Slot #2", submissionCount: 1, createdAt: "10/23/2026" },
     ];
     const filtered = mockUsers.filter((u) => {
       const matchesSearch =
