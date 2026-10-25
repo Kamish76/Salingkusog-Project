@@ -9,6 +9,7 @@ import {
   validateImageMagicBytes,
   uploadImageToBucket,
   deleteBucketObject,
+  getPublicObjectUrl,
 } from "@/lib/storage";
 
 export interface StorageActionResult {
@@ -118,10 +119,12 @@ export async function deleteStorageObjectAction(
 
     await deleteBucketObject(key);
 
+    const exactUrl = getPublicObjectUrl(key);
+
     // Cascade deletion to public.posts & public.user_bingo_progress so posts are never orphaned without photos
     const matchingPosts = await sql`
       SELECT id, user_id, bingo_task_id FROM public.posts
-      WHERE image_url LIKE ${"%" + key}
+      WHERE image_url = ${exactUrl}
     `;
 
     if (matchingPosts.length > 0) {

@@ -20,7 +20,7 @@ export async function runSchemaMigrationsTest() {
   assert.ok(fs.existsSync(migrationsDir), "Migrations directory must exist");
 
   const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
-  assert.ok(files.length >= 6, `Expected at least 6 migration files, found ${files.length}`);
+  assert.ok(files.length >= 7, `Expected at least 7 migration files, found ${files.length}`);
 
   let combinedSql = "";
   for (const file of files) {
@@ -82,7 +82,11 @@ export async function runSchemaMigrationsTest() {
     combinedSql.includes("line_type IN ('row', 'column', 'diagonal', 'blackout')"),
     "Raffle line_type must be constrained to row, column, diagonal, or blackout"
   );
-  console.log("  ✔ Enum-style domain check constraints verified");
+  assert.ok(
+    combinedSql.includes("idx_posts_status_created"),
+    "Must define composite index idx_posts_status_created on public.posts"
+  );
+  console.log("  ✔ Enum-style domain check constraints and composite indices verified");
 
   // 5. Live DB smoke test when credentials provided
   if (process.env.DATABASE_URL) {

@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { getCurrentUser, isDevAuthorized, isSuperAdmin } from "@/lib/auth";
+import { getCurrentUser, isSuperAdmin } from "@/lib/auth";
 import { updateUserRoleAction } from "@/app/actions/auth-role";
 import { toggleRaffleStatusAction } from "@/app/actions/event-config";
-import { AuthButton } from "@/components/auth-button";
 import { sql } from "@/lib/db";
 
 export const instant = false;
@@ -25,74 +24,10 @@ interface UserRow {
 
 export default async function DevPage() {
   const user = await getCurrentUser();
-  const authorized = isDevAuthorized(user);
   const superAdmin = isSuperAdmin(user);
   const isDbConfigured = Boolean(process.env.DATABASE_URL);
 
-  // 1. Gate: Unauthorized Visitors (Guests and Standard Users)
-  if (!authorized) {
-    return (
-      <div className="max-w-2xl mx-auto py-6 sm:py-12">
-        <div className="p-4 sm:p-8 rounded-2xl border border-red-900/50 bg-red-950/20 text-center space-y-6">
-          <div className="w-12 h-12 rounded-full bg-red-900/30 text-red-400 flex items-center justify-center mx-auto text-xl font-bold">
-            !
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-red-200">
-              Access Restricted to Moderator / Admin Accounts
-            </h1>
-            <p className="text-sm text-zinc-400">
-              The <code>/dev</code> route is locked for management and internal system diagnostics. Your current session does not hold the required elevated role.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs font-mono text-left space-y-1 overflow-x-auto">
-            <div className="text-zinc-500">{"// Authorization Check"}</div>
-            <div>
-              Detected Identity:{" "}
-              <span className="text-zinc-200 font-bold break-all">
-                {user ? user.email : "Unauthenticated"}
-              </span>
-            </div>
-            <div>
-              Detected Role:{" "}
-              <span className="text-amber-400 font-bold">
-                {user ? user.role : "none (guest)"}
-              </span>
-            </div>
-            <div>
-              Required Role:{" "}
-              <span className="text-amber-300 font-bold">superadmin</span> or{" "}
-              <span className="text-purple-300 font-bold">admin (moderator)</span>
-            </div>
-            <div>
-              Status: <span className="text-red-400 font-bold">HTTP 403 Forbidden</span>
-            </div>
-          </div>
-
-          {/* Direct Google Login trigger for real accounts */}
-          <div className="pt-2 flex flex-col items-center gap-3">
-            <p className="text-xs text-zinc-400">
-              Sign in with your registered account:
-            </p>
-            <AuthButton user={user} />
-          </div>
-
-          <div className="pt-4 border-t border-zinc-800/80 flex justify-center">
-            <Link
-              href="/"
-              className="px-3 py-2 min-h-[38px] inline-flex items-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition active:scale-95"
-            >
-              Return Home
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 2. Authorized View: Fetch registered users for Superadmin (max 5, pinned own credential, newest first)
+  // 1. Authorized View: Fetch registered users for Superadmin (max 5, pinned own credential, newest first)
   let registeredUsers: DbUserRecord[] = [];
   let totalRegisteredCount = 0;
 

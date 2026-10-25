@@ -59,8 +59,8 @@ export async function fetchActivityLogsAction(
   const searchPattern = search ? `%${search}%` : null;
 
   try {
-    // 1. Fetch counts / summary
-    const summaryRows = await sql`
+    // Concurrently fetch summary, filtered count, and paginated records
+    const summaryPromise = sql`
       SELECT 
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE category = 'user') as user_count,
@@ -69,15 +69,7 @@ export async function fetchActivityLogsAction(
       FROM public.activity_logs
     `;
 
-    const summary: ActivityLogsSummary = {
-      totalCount: Number(summaryRows[0]?.total || 0),
-      userCount: Number(summaryRows[0]?.user_count || 0),
-      adminCount: Number(summaryRows[0]?.admin_count || 0),
-      banCount: Number(summaryRows[0]?.ban_count || 0),
-    };
-
-    // 2. Fetch filtered total count
-    const countRows = await sql`
+    const countPromise = sql`
       SELECT COUNT(*) as filtered_count
       FROM public.activity_logs
       WHERE (${filterCategory}::text IS NULL OR category = ${filterCategory})
@@ -90,10 +82,8 @@ export async function fetchActivityLogsAction(
           OR target_id ILIKE ${searchPattern}
         )
     `;
-    const filteredTotal = Number(countRows[0]?.filtered_count || 0);
 
-    // 3. Fetch paginated records
-    const rows = await sql`
+    const rowsPromise = sql`
       SELECT 
         id,
         action_type,
@@ -120,6 +110,21 @@ export async function fetchActivityLogsAction(
       ORDER BY created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
+
+    const [summaryRows, countRows, rows] = await Promise.all([
+      summaryPromise,
+      countPromise,
+      rowsPromise,
+    ]);
+
+    const summary: ActivityLogsSummary = {
+      totalCount: Number(summaryRows[0]?.total || 0),
+      userCount: Number(summaryRows[0]?.user_count || 0),
+      adminCount: Number(summaryRows[0]?.admin_count || 0),
+      banCount: Number(summaryRows[0]?.ban_count || 0),
+    };
+
+    const filteredTotal = Number(countRows[0]?.filtered_count || 0);
 
     interface RawLogRow {
       id: string;
