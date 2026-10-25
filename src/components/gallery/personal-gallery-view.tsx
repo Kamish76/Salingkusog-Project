@@ -18,12 +18,12 @@ interface PersonalGalleryViewProps {
 }
 
 const ROTATIONS = [
-  "rotate-[-1.5deg]",
-  "rotate-[1.5deg]",
-  "rotate-[-1deg]",
-  "rotate-[2deg]",
-  "rotate-[-2deg]",
-  "rotate-[1deg]",
+  "rotate-0 sm:rotate-[-1.5deg]",
+  "rotate-0 sm:rotate-[1.5deg]",
+  "rotate-0 sm:rotate-[-1deg]",
+  "rotate-0 sm:rotate-[2deg]",
+  "rotate-0 sm:rotate-[-2deg]",
+  "rotate-0 sm:rotate-[1deg]",
 ];
 
 const TAPES = ["washi-tape-coral", "washi-tape-sage", "washi-tape-butter"];
@@ -449,46 +449,46 @@ export function PersonalGalleryView({
       {/* 1. ALBUM HEADER SECTION */}
       <section
         aria-label="Personal album summary"
-        className="relative bg-white border border-[#e8ded5] rounded-2xl p-6 sm:p-8 overflow-hidden shadow-xs"
+        className="relative bg-white border border-[#e8ded5] rounded-2xl p-4 sm:p-8 overflow-hidden shadow-xs"
       >
         {/* Decorative corner washi tape */}
         <div className="washi-tape-coral w-24 h-4.5 absolute -top-1 right-8 rounded-xs opacity-80 pointer-events-none"></div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#f5ece9] border border-[#e8ded5] flex items-center justify-center text-2xl font-display font-extrabold text-[#ff5e4d] shrink-0 shadow-inner">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
+          <div className="flex items-start gap-3.5 sm:gap-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#f5ece9] border border-[#e8ded5] flex items-center justify-center text-xl sm:text-2xl font-display font-extrabold text-[#ff5e4d] shrink-0 shadow-inner">
               {user.name ? user.name.charAt(0).toUpperCase() : "S"}
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#fbf2ee] text-[#b4281e] text-[11px] font-display font-bold uppercase tracking-wider mb-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#fbf2ee] text-[#b4281e] text-[10px] sm:text-[11px] font-display font-bold uppercase tracking-wider mb-1">
                 Student Keepsake Album
               </div>
-              <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-[#1e1b19] tracking-tight">
+              <h1 className="text-xl sm:text-3xl font-display font-extrabold text-[#1e1b19] tracking-tight">
                 {user.name}&apos;s Memories
               </h1>
-              <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-0.5">
+              <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-0.5 truncate max-w-[240px] sm:max-w-none">
                 {user.email} • Salingkusog 2026
               </p>
             </div>
           </div>
 
           {/* Quick Metrics & Upload CTA */}
-          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-            <div className="flex items-center gap-4 bg-[#fcf9f5] border border-[#e8ded5] rounded-xl px-4 py-2.5">
+          <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-4 flex-wrap">
+            <div className="flex items-center gap-3 sm:gap-4 bg-[#fcf9f5] border border-[#e8ded5] rounded-xl px-3.5 py-2 sm:px-4 sm:py-2.5">
               <div className="text-center">
-                <span className="block font-display font-black text-lg text-[#1e1b19] leading-none">
+                <span className="block font-display font-black text-base sm:text-lg text-[#1e1b19] leading-none">
                   {validPosts.length}
                 </span>
-                <span className="text-[10px] font-display font-bold uppercase tracking-wider text-[#8e706c]">
+                <span className="text-[9px] sm:text-[10px] font-display font-bold uppercase tracking-wider text-[#8e706c]">
                   Snaps
                 </span>
               </div>
               <div className="w-px h-6 bg-[#e8ded5]"></div>
               <div className="text-center">
-                <span className="block font-display font-black text-lg text-[#ff5e4d] leading-none">
+                <span className="block font-display font-black text-base sm:text-lg text-[#ff5e4d] leading-none">
                   {completedCount} / 9
                 </span>
-                <span className="text-[10px] font-display font-bold uppercase tracking-wider text-[#8e706c]">
+                <span className="text-[9px] sm:text-[10px] font-display font-bold uppercase tracking-wider text-[#8e706c]">
                   Bingo
                 </span>
               </div>
@@ -497,9 +497,9 @@ export function PersonalGalleryView({
             <button
               onClick={(e) => handleOpenUpload(undefined, e)}
               type="button"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none sm:hover:active:scale-95 cursor-pointer shadow-xs ml-auto"
+              className="inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 min-h-[40px] rounded-xl bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none active:scale-95 cursor-pointer shadow-xs ml-auto"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               <span>Drop a Memory</span>
@@ -511,23 +511,23 @@ export function PersonalGalleryView({
       {/* 2. INTERACTIVE 3x3 BINGO CARD WITH HIGH-RES PNG EXPORT */}
       <section
         aria-label="My 3x3 Bingo Card"
-        className="relative bg-white border border-[#e8ded5] rounded-2xl p-6 sm:p-8 overflow-hidden shadow-xs"
+        className="relative bg-white border border-[#e8ded5] rounded-2xl p-4 sm:p-8 overflow-hidden shadow-xs"
       >
         {/* Top Washi Tape */}
         <div className="washi-tape-butter w-32 h-5 absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-xs opacity-90 pointer-events-none"></div>
 
         {/* Section Header with Export Action */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e8ded5]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 sm:pb-5 border-b border-[#e8ded5]">
           <div>
-            <div className="flex items-center gap-2.5">
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#fbf2ee] text-[#b4281e] border border-[#ffdcc4]">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#fbf2ee] text-[#b4281e] border border-[#ffdcc4]">
                 Day {currentDay} • Active Rally
               </span>
               <span className="text-xs text-[#8e706c] font-body">
-                {completedCount} of 9 challenges stamped
+                {completedCount} of 9 stamped
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#1e1b19] tracking-tight mt-1">
+            <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#1e1b19] tracking-tight mt-1">
               My 3×3 Bingo Rally Card
             </h2>
           </div>
@@ -540,7 +540,7 @@ export function PersonalGalleryView({
               onClick={handleExportBingoCard}
               disabled={isExporting}
               type="button"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1e1b19] hover:bg-stone-800 disabled:bg-stone-400 text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer shadow-xs active:scale-95 shrink-0"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 min-h-[44px] rounded-xl bg-[#1e1b19] hover:bg-stone-800 disabled:bg-stone-400 text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer shadow-xs active:scale-95 shrink-0 w-full sm:w-auto"
             >
               {isExporting ? (
                 <>
@@ -599,7 +599,8 @@ export function PersonalGalleryView({
                     <button
                       onClick={(e) => handleOpenUpload(task?.id, e)}
                       type="button"
-                      className="text-[11px] font-display font-semibold text-[#8e4e14] hover:text-[#ff5e4d] underline cursor-pointer shrink-0"
+                      aria-label={`Replace photo for ${task?.title || "slot"}`}
+                      className="text-xs font-display font-bold text-[#8e4e14] hover:text-[#ff5e4d] underline cursor-pointer shrink-0 min-h-[44px] min-w-[44px] inline-flex items-center justify-end p-1"
                     >
                       Replace
                     </button>
@@ -611,7 +612,7 @@ export function PersonalGalleryView({
             return (
               <div
                 key={slotIndex}
-                className={`relative rounded-xl p-4 border border-dashed flex flex-col justify-between min-h-[170px] ${
+                className={`relative rounded-xl p-3.5 sm:p-4 border border-dashed flex flex-col justify-between min-h-[170px] ${
                   isUnlocked
                     ? "bg-[#fcf9f5] border-[#ded2c7] hover:border-[#ff5e4d]/60 transition"
                     : "bg-stone-50 border-stone-200 opacity-60"
@@ -641,9 +642,9 @@ export function PersonalGalleryView({
                     <button
                       onClick={(e) => handleOpenUpload(task?.id, e)}
                       type="button"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-[11px] font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none cursor-pointer active:scale-95"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none cursor-pointer active:scale-95"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                       </svg>
                       <span>Drop Photo</span>

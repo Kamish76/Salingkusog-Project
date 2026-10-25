@@ -107,34 +107,35 @@ export default async function PersonalGalleryPage() {
   }));
 
   return (
-    <div className="min-h-screen flex flex-col justify-between selection:bg-[#ffdad5] selection:text-[#b4281e]">
+    <div className="min-h-[100dvh] flex flex-col justify-between selection:bg-[#ffdad5] selection:text-[#b4281e] overflow-x-hidden">
       {/* HEADER NAVIGATION */}
       <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-[#fcf9f5]/90 border-b border-[#e8ded5]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-[#f5ece9] text-[#1e1b19] border border-[#e8ded5] text-xs font-display font-bold transition shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full bg-white hover:bg-[#f5ece9] text-[#1e1b19] border border-[#e8ded5] text-xs font-display font-bold transition shadow-2xs active:scale-95 shrink-0"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
               </svg>
-              <span>Campus Board</span>
+              <span className="hidden sm:inline">Campus Board</span>
+              <span className="sm:hidden">Board</span>
             </Link>
 
-            <span className="text-xs text-[#8e706c] font-body border-l border-[#e8ded5] pl-3 hidden sm:inline">
+            <span className="text-xs text-[#8e706c] font-body border-l border-[#e8ded5] pl-2.5 hidden sm:inline">
               Salingkusog 2026
             </span>
           </div>
 
           {/* Right Status & Controls */}
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 text-xs font-body text-[#5a413d]">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-1.5 text-xs font-body text-[#5a413d] bg-white sm:bg-transparent px-2 py-1 sm:px-0 sm:py-0 rounded-full border border-[#e8ded5] sm:border-none">
               <span className="w-2 h-2 rounded-full bg-[#ff5e4d]"></span>
-              <span className="font-display font-bold text-[#8e4e14]">Day {currentDay}</span>
+              <span className="font-display font-bold text-[#8e4e14] whitespace-nowrap">Day {currentDay}</span>
             </div>
 
-            <span className="text-xs font-display font-semibold text-[#5a413d] hidden md:inline">
+            <span className="text-xs font-display font-semibold text-[#5a413d] hidden md:inline truncate max-w-[100px]">
               {user.name?.split(" ")[0] ?? "Student"}
             </span>
 

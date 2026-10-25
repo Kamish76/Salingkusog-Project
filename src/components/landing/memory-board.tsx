@@ -23,12 +23,12 @@ interface MemoryBoardProps {
 }
 
 const ROTATIONS = [
-  "rotate-[-1.5deg]",
-  "rotate-[1.5deg]",
-  "rotate-[-1deg]",
-  "rotate-[2deg]",
-  "rotate-[-2deg]",
-  "rotate-[1deg]",
+  "rotate-0 sm:rotate-[-1.5deg]",
+  "rotate-0 sm:rotate-[1.5deg]",
+  "rotate-0 sm:rotate-[-1deg]",
+  "rotate-0 sm:rotate-[2deg]",
+  "rotate-0 sm:rotate-[-2deg]",
+  "rotate-0 sm:rotate-[1deg]",
 ];
 
 const TAPES = ["washi-tape-coral", "washi-tape-sage", "washi-tape-butter"];
@@ -127,9 +127,9 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
             onOpenUpload({ top: r.top, left: r.left, width: r.width, height: r.height });
           }}
           type="button"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none sm:hover:active:scale-95 cursor-pointer ml-auto"
+          className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 min-h-[40px] rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none active:scale-95 cursor-pointer ml-auto shrink-0 shadow-2xs"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
           <span>Drop a Memory</span>
@@ -138,22 +138,22 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
 
       {/* POLAROID MASONRY FEED OR EMPTY STATE */}
       {validPosts.length === 0 ? (
-        <div className="w-full my-8 p-10 sm:p-16 rounded-2xl bg-white border border-[#e8ded5] text-center flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="w-full my-6 sm:my-8 p-6 sm:p-16 rounded-2xl bg-white border border-[#e8ded5] text-center flex flex-col items-center justify-center relative overflow-hidden">
           {/* Top Washi Tape */}
           <div className="washi-tape-butter w-28 h-5 absolute -top-2 left-1/2 -translate-x-1/2 opacity-80"></div>
 
-          <div className="w-16 h-16 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-[#8e706c]" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center justify-center mb-4">
+            <svg className="w-7 h-7 sm:w-8 sm:h-8 text-[#8e706c]" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
             </svg>
           </div>
 
-          <h3 className="font-display font-extrabold text-xl sm:text-2xl text-[#1e1b19] tracking-tight">
+          <h3 className="font-display font-extrabold text-lg sm:text-2xl text-[#1e1b19] tracking-tight">
             The memory well is waiting for its first snapshot
           </h3>
 
-          <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-2 max-w-md leading-relaxed">
+          <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-2 max-w-md leading-relaxed px-2">
             No memories have been dropped yet. Be the first student to toss an intramural photo or selfie into the memory well.
           </p>
 
@@ -163,97 +163,266 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
               onOpenUpload({ top: r.top, left: r.left, width: r.width, height: r.height });
             }}
             type="button"
-            className="mt-6 px-6 py-3 rounded-lg bg-[#1e1b19] hover:bg-stone-800 text-white font-display font-bold text-xs transition sm:hover:active:scale-95 focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center gap-2"
+            className="mt-5 sm:mt-6 px-5 py-2.5 sm:px-6 sm:py-3 min-h-[44px] rounded-lg bg-[#1e1b19] hover:bg-stone-800 text-white font-display font-bold text-xs transition active:scale-95 focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
             <span>Drop the First Memory</span>
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7 items-start">
-          {validPosts.map((post, idx) => {
-            const isLead = idx === 0 && validPosts.length > 1;
-            const rotation = ROTATIONS[idx % ROTATIONS.length];
-            const tapeClass = TAPES[idx % TAPES.length];
+        <>
+          {/* MOBILE PINTEREST-STYLE 2-COLUMN MASONRY FEED (< sm) */}
+          <div className="grid grid-cols-2 gap-2.5 items-start sm:hidden">
+            <div className="flex flex-col gap-2.5">
+              {validPosts
+                .filter((_, i) => i % 2 === 0)
+                .map((post, colIdx) => {
+                  const idx = colIdx * 2;
+                  const tapeClass = TAPES[idx % TAPES.length];
+                  const orientation = imageOrientations[post.id] || "landscape";
+                  const photoAspect = PHOTO_ASPECTS[orientation];
 
+                  return (
+                    <div
+                      key={post.id}
+                      className="scrapbook-card relative bg-white border border-[#e8ded5] rounded-xl p-2.5 pb-3.5 flex flex-col justify-between shadow-2xs"
+                    >
+                      {/* Mini Scaled Washi Tape */}
+                      <div
+                        className={`${tapeClass} w-14 h-3.5 absolute -top-1.75 left-1/2 -translate-x-1/2 rounded-xs pointer-events-none z-10 opacity-90`}
+                      ></div>
 
-            const orientation = imageOrientations[post.id] || "landscape";
-            const photoAspect = isLead ? "aspect-[16/10]" : PHOTO_ASPECTS[orientation];
+                      <div>
+                        {/* Photo Thumbnail */}
+                        <div
+                          className={`${photoAspect} bg-stone-100 rounded-md overflow-hidden mb-2 relative transition-[aspect-ratio] duration-300`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={post.imageUrl}
+                            alt={post.caption || "Student memory"}
+                            loading="lazy"
+                            onError={() => {
+                              setFailedPostIds((prev) => {
+                                if (prev.has(post.id)) return prev;
+                                const next = new Set(prev);
+                                next.add(post.id);
+                                return next;
+                              });
+                            }}
+                            onLoad={(e) => {
+                              const target = e.currentTarget;
+                              if (target.naturalWidth && target.naturalHeight) {
+                                const aspect = target.naturalWidth / target.naturalHeight;
+                                const detected: "portrait" | "landscape" | "square" =
+                                  aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
+                                setImageOrientations((prev) => {
+                                  if (prev[post.id] === detected) return prev;
+                                  return { ...prev, [post.id]: detected };
+                                });
+                              }
+                            }}
+                            className="w-full h-full object-cover select-none"
+                          />
 
-            return (
-              <div
-                key={post.id}
-                className={`scrapbook-card relative bg-white border border-[#e8ded5] rounded-xl p-3.5 pb-5 sm:p-4 sm:pb-6 flex flex-col justify-between ${isLead ? "sm:col-span-2 lg:col-span-2" : "col-span-1"} ${rotation}`}
-              >
-                {/* Washi Tape Strip */}
+                          {post.taskTitle && (
+                            <span className="absolute bottom-1.5 left-1.5 max-w-[90%] truncate px-1.5 py-0.5 rounded bg-[#1e1b19]/85 text-white text-[9px] font-display font-medium">
+                              Slot #{post.slotIndex !== null ? post.slotIndex + 1 : ""} • {post.taskTitle}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Author Header */}
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-display font-bold text-xs text-[#1e1b19] leading-tight truncate">
+                            {post.displayName}
+                          </span>
+                          <span className="font-body text-[10px] text-[#8e706c] shrink-0 ml-1">
+                            {formatTimeAgo(post.createdAt)}
+                          </span>
+                        </div>
+
+                        {/* Caption */}
+                        {post.caption && (
+                          <p className="font-body text-[11px] text-[#5a413d] leading-snug line-clamp-3">
+                            {post.caption}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              {validPosts
+                .filter((_, i) => i % 2 === 1)
+                .map((post, colIdx) => {
+                  const idx = colIdx * 2 + 1;
+                  const tapeClass = TAPES[idx % TAPES.length];
+                  const orientation = imageOrientations[post.id] || "landscape";
+                  const photoAspect = PHOTO_ASPECTS[orientation];
+
+                  return (
+                    <div
+                      key={post.id}
+                      className="scrapbook-card relative bg-white border border-[#e8ded5] rounded-xl p-2.5 pb-3.5 flex flex-col justify-between shadow-2xs"
+                    >
+                      {/* Mini Scaled Washi Tape */}
+                      <div
+                        className={`${tapeClass} w-14 h-3.5 absolute -top-1.75 left-1/2 -translate-x-1/2 rounded-xs pointer-events-none z-10 opacity-90`}
+                      ></div>
+
+                      <div>
+                        {/* Photo Thumbnail */}
+                        <div
+                          className={`${photoAspect} bg-stone-100 rounded-md overflow-hidden mb-2 relative transition-[aspect-ratio] duration-300`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={post.imageUrl}
+                            alt={post.caption || "Student memory"}
+                            loading="lazy"
+                            onError={() => {
+                              setFailedPostIds((prev) => {
+                                if (prev.has(post.id)) return prev;
+                                const next = new Set(prev);
+                                next.add(post.id);
+                                return next;
+                              });
+                            }}
+                            onLoad={(e) => {
+                              const target = e.currentTarget;
+                              if (target.naturalWidth && target.naturalHeight) {
+                                const aspect = target.naturalWidth / target.naturalHeight;
+                                const detected: "portrait" | "landscape" | "square" =
+                                  aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
+                                setImageOrientations((prev) => {
+                                  if (prev[post.id] === detected) return prev;
+                                  return { ...prev, [post.id]: detected };
+                                });
+                              }
+                            }}
+                            className="w-full h-full object-cover select-none"
+                          />
+
+                          {post.taskTitle && (
+                            <span className="absolute bottom-1.5 left-1.5 max-w-[90%] truncate px-1.5 py-0.5 rounded bg-[#1e1b19]/85 text-white text-[9px] font-display font-medium">
+                              Slot #{post.slotIndex !== null ? post.slotIndex + 1 : ""} • {post.taskTitle}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Author Header */}
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-display font-bold text-xs text-[#1e1b19] leading-tight truncate">
+                            {post.displayName}
+                          </span>
+                          <span className="font-body text-[10px] text-[#8e706c] shrink-0 ml-1">
+                            {formatTimeAgo(post.createdAt)}
+                          </span>
+                        </div>
+
+                        {/* Caption */}
+                        {post.caption && (
+                          <p className="font-body text-[11px] text-[#5a413d] leading-snug line-clamp-3">
+                            {post.caption}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* TABLET & DESKTOP 3-COLUMN SCRAPBOOK GRID (>= sm) */}
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-7 items-start">
+            {validPosts.map((post, idx) => {
+              const isLead = idx === 0 && validPosts.length > 1;
+              const rotation = ROTATIONS[idx % ROTATIONS.length];
+              const tapeClass = TAPES[idx % TAPES.length];
+              const orientation = imageOrientations[post.id] || "landscape";
+              const photoAspect = isLead ? "aspect-[16/10]" : PHOTO_ASPECTS[orientation];
+
+              return (
                 <div
-                  className={`${tapeClass} w-24 h-5 absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-xs pointer-events-none z-10 opacity-90`}
-                ></div>
+                  key={post.id}
+                  className={`scrapbook-card relative bg-white border border-[#e8ded5] rounded-xl p-3.5 pb-5 sm:p-4 sm:pb-6 flex flex-col justify-between ${
+                    isLead ? "sm:col-span-2 lg:col-span-2" : "col-span-1"
+                  } ${rotation}`}
+                >
+                  {/* Washi Tape Strip */}
+                  <div
+                    className={`${tapeClass} w-24 h-5 absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-xs pointer-events-none z-10 opacity-90`}
+                  ></div>
 
-                <div>
-                  {/* Photo Thumbnail */}
-                  <div className={`${photoAspect} bg-stone-100 rounded-lg overflow-hidden mb-3 relative transition-[aspect-ratio] duration-300`}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={post.imageUrl}
-                      alt={post.caption || "Student memory"}
-                      loading="lazy"
-                      onError={() => {
-                        setFailedPostIds((prev) => {
-                          if (prev.has(post.id)) return prev;
-                          const next = new Set(prev);
-                          next.add(post.id);
-                          return next;
-                        });
-                      }}
-                      onLoad={(e) => {
-                        const target = e.currentTarget;
-                        if (target.naturalWidth && target.naturalHeight) {
-                          const aspect = target.naturalWidth / target.naturalHeight;
-                          const detected: "portrait" | "landscape" | "square" =
-                            aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
-                          setImageOrientations((prev) => {
-                            if (prev[post.id] === detected) return prev;
-                            return { ...prev, [post.id]: detected };
+                  <div>
+                    {/* Photo Thumbnail */}
+                    <div
+                      className={`${photoAspect} bg-stone-100 rounded-lg overflow-hidden mb-3 relative transition-[aspect-ratio] duration-300`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={post.imageUrl}
+                        alt={post.caption || "Student memory"}
+                        loading="lazy"
+                        onError={() => {
+                          setFailedPostIds((prev) => {
+                            if (prev.has(post.id)) return prev;
+                            const next = new Set(prev);
+                            next.add(post.id);
+                            return next;
                           });
-                        }
-                      }}
-                      className="w-full h-full object-cover select-none"
-                    />
+                        }}
+                        onLoad={(e) => {
+                          const target = e.currentTarget;
+                          if (target.naturalWidth && target.naturalHeight) {
+                            const aspect = target.naturalWidth / target.naturalHeight;
+                            const detected: "portrait" | "landscape" | "square" =
+                              aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square";
+                            setImageOrientations((prev) => {
+                              if (prev[post.id] === detected) return prev;
+                              return { ...prev, [post.id]: detected };
+                            });
+                          }
+                        }}
+                        className="w-full h-full object-cover select-none"
+                      />
 
-                    {post.taskTitle && (
-                      <span className="absolute bottom-2 left-2 px-2.5 py-1 rounded bg-[#1e1b19]/85 text-white text-[11px] font-display font-medium">
-                        Slot #{post.slotIndex !== null ? post.slotIndex + 1 : ""} • {post.taskTitle}
-                      </span>
+                      {post.taskTitle && (
+                        <span className="absolute bottom-2 left-2 px-2.5 py-1 rounded bg-[#1e1b19]/85 text-white text-[11px] font-display font-medium">
+                          Slot #{post.slotIndex !== null ? post.slotIndex + 1 : ""} • {post.taskTitle}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Author Header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex flex-col">
+                        <span className="font-display font-bold text-sm text-[#1e1b19] leading-tight">
+                          {post.displayName}
+                        </span>
+                        <span className="font-body text-[11px] text-[#8e706c]">
+                          {formatTimeAgo(post.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Caption */}
+                    {post.caption && (
+                      <p className="font-body text-xs sm:text-[13px] text-[#5a413d] leading-relaxed">
+                        {post.caption}
+                      </p>
                     )}
                   </div>
-
-                  {/* Author Header */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex flex-col">
-                      <span className="font-display font-bold text-sm text-[#1e1b19] leading-tight">
-                        {post.displayName}
-                      </span>
-                      <span className="font-body text-[11px] text-[#8e706c]">
-                        {formatTimeAgo(post.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Caption */}
-                  {post.caption && (
-                    <p className="font-body text-xs sm:text-[13px] text-[#5a413d] leading-relaxed">
-                      {post.caption}
-                    </p>
-                  )}
                 </div>
-
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
