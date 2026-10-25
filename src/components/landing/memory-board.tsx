@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 export interface PostRecord {
   id: string;
@@ -58,8 +58,10 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
   const [failedPostIds, setFailedPostIds] = useState<Set<string>>(new Set());
 
   // Only display posts that have a valid non-empty photo and have not failed to load
-  const validPosts = posts.filter(
-    (p) => Boolean(p.imageUrl && p.imageUrl.trim()) && !failedPostIds.has(p.id)
+  // Memoized so the effect below doesn't re-run (and loop) on every render
+  const validPosts = useMemo(
+    () => posts.filter((p) => Boolean(p.imageUrl && p.imageUrl.trim()) && !failedPostIds.has(p.id)),
+    [posts, failedPostIds]
   );
 
   // Track natural image aspect ratio to adapt polaroid orientation (landscape vs portrait vs square)
