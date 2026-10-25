@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { PostRecord } from "@/components/landing/memory-board";
 import { UploadMemoryModal, type OriginRect } from "@/components/landing/upload-memory-modal";
 import type { BingoTaskItem, UserProgressItem } from "@/components/landing/floating-bingo-modal";
@@ -65,18 +65,24 @@ export function PersonalGalleryView({
   const [failedPostIds, setFailedPostIds] = useState<Set<string>>(new Set());
 
   // Only display posts that have a valid non-empty photo and have not failed to load
-  const validPosts = posts.filter(
-    (p) => Boolean(p.imageUrl && p.imageUrl.trim()) && !failedPostIds.has(p.id)
+  const validPosts = useMemo(
+    () =>
+      posts.filter(
+        (p) => Boolean(p.imageUrl && p.imageUrl.trim()) && !failedPostIds.has(p.id)
+      ),
+    [posts, failedPostIds]
   );
 
   // Dynamic aspect ratio calculation matching memory board
   const [imageOrientations, setImageOrientations] = useState<
     Record<string, "portrait" | "landscape" | "square">
   >({});
+  const probedImageIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     validPosts.forEach((p) => {
-      if (p.imageUrl) {
+      if (p.imageUrl && !probedImageIds.current.has(p.id)) {
+        probedImageIds.current.add(p.id);
         const img = new Image();
         const updateOrientation = () => {
           if (img.naturalWidth && img.naturalHeight) {

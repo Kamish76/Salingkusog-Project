@@ -84,40 +84,6 @@ export async function updateUserRoleAction(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function elevateToSuperAdminAction() {
-  const caller = await getCurrentUser();
-  if (!caller) {
-    throw new Error("Unauthorized: Unauthenticated.");
-  }
-
-  // Only accounts with Admin role (or root account) can elevate to SuperAdmin
-  if (caller.role !== "admin") {
-    throw new Error("Forbidden: Only accounts with Admin role can elevate to SuperAdmin.");
-  }
-
-  await sql`
-    UPDATE neon_auth."user"
-    SET role = 'superadmin', "updatedAt" = NOW()
-    WHERE email = ${caller.email}
-  `;
-
-  await recordActivityLog({
-    actionType: "ROLE_UPDATE",
-    category: "admin",
-    actorId: caller.id,
-    actorName: caller.name,
-    actorEmail: caller.email,
-    actorRole: "superadmin",
-    targetId: caller.id,
-    targetType: "user",
-    description: `Admin ${caller.name} (${caller.email}) elevated to SuperAdmin`,
-    metadata: { newRole: "superadmin" },
-  });
-
-  revalidatePath("/dev");
-  revalidatePath("/dev/users");
-  revalidatePath("/");
-}
 
 export interface FetchUsersParams {
   search?: string;

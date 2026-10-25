@@ -3,7 +3,6 @@ import { getCurrentUser, isDevAuthorized, isSuperAdmin } from "@/lib/auth";
 import {
   setDevRoleAction,
   updateUserRoleAction,
-  elevateToSuperAdminAction,
 } from "@/app/actions/auth-role";
 import { toggleRaffleStatusAction } from "@/app/actions/event-config";
 import { AuthButton } from "@/components/auth-button";
@@ -595,14 +594,6 @@ export default async function DevPage() {
             >
               View User Directory →
             </Link>
-            <form action={elevateToSuperAdminAction} className="flex-1 sm:flex-initial">
-              <button
-                type="submit"
-                className="w-full px-4 py-2 min-h-[38px] rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition cursor-pointer whitespace-nowrap active:scale-95 flex items-center justify-center"
-              >
-                ★ Elevate to SuperAdmin
-              </button>
-            </form>
           </div>
         </div>
       ) : (

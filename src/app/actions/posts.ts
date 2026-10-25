@@ -9,9 +9,7 @@ import {
   uploadImageToBucket,
 } from "@/lib/storage";
 import {
-  evaluateBingoLines,
   generateRaffleCode,
-  type ClaimedLine,
   evaluateRaffleRules,
   type RaffleRuleRecord,
   type RaffleRuleCategory,
@@ -240,6 +238,14 @@ export async function submitStudentPostAction(
           const claimIndex = i === 0 ? reward.lineIndex : 100 * i + reward.lineIndex;
 
           const insertRes = await sql`
+            WITH user_lock AS (
+              SELECT pg_advisory_xact_lock(hashtext('raffle_' || ${user.id}::text))
+            ),
+            user_ticket_count AS (
+              SELECT count(*)::int AS total
+              FROM public.raffle_entries, user_lock
+              WHERE user_id = ${user.id}::uuid
+            )
             INSERT INTO public.raffle_entries (
               raffle_code,
               user_id,
@@ -250,7 +256,7 @@ export async function submitStudentPostAction(
               rule_key,
               status
             )
-            VALUES (
+            SELECT
               ${generatedCode},
               ${user.id}::uuid,
               ${reward.lineType},
@@ -259,7 +265,8 @@ export async function submitStudentPostAction(
               ${postIds}::uuid[],
               ${reward.ruleKey},
               'valid'
-            )
+            FROM user_ticket_count
+            WHERE (${maxTicketsPerUser}::int <= 0 OR user_ticket_count.total < ${maxTicketsPerUser}::int)
             ON CONFLICT (user_id, line_type, line_index) DO NOTHING
             RETURNING id
           `;
