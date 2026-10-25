@@ -177,12 +177,9 @@ export async function fetchUsersAction(
         COALESCE(u.banned, false) as banned,
         u."banReason" as "banReason",
         u."createdAt",
-        COALESCE((
-          SELECT COUNT(*) 
-          FROM public.posts p 
-          WHERE p.user_id = u.id AND p.is_bingo_entry = true
-        ), 0) as "submissionCount"
+        COUNT(p.id)::int as "submissionCount"
       FROM neon_auth."user" u
+      LEFT JOIN public.posts p ON p.user_id = u.id AND p.is_bingo_entry = true
       WHERE (${searchPattern}::text IS NULL OR u.name ILIKE ${searchPattern} OR u.email ILIKE ${searchPattern})
         AND (${filterRole}::text IS NULL OR COALESCE(u.role, 'user') = ${filterRole})
         AND (
@@ -190,6 +187,7 @@ export async function fetchUsersAction(
           OR (${filterStatus} = 'banned' AND u.banned = true) 
           OR (${filterStatus} = 'active' AND (u.banned IS NULL OR u.banned = false))
         )
+      GROUP BY u.id, u.name, u.email, u.role, u.banned, u."banReason", u."createdAt"
       ORDER BY 
         CASE WHEN u.email = ${callerEmail} THEN 0 ELSE 1 END,
         u."createdAt" DESC

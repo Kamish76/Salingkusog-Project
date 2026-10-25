@@ -21,17 +21,15 @@ export default async function PersonalGalleryPage() {
     redirect("/?auth=invalid");
   }
 
-  // 1. Fetch event config
-  const configRows = await sql`
+  // Fetch initial gallery data concurrently to eliminate sequential waterfall latency
+  const configPromise = sql`
     SELECT COALESCE(current_day, 1) as current_day
     FROM public.event_config
     WHERE key = 'active_event'
     LIMIT 1
   `;
-  const currentDay = Number(configRows[0]?.current_day || 1);
 
-  // 2. Fetch all published posts by this authenticated student (must have valid non-empty photo)
-  const postRows = await sql`
+  const postRowsPromise = sql`
     SELECT 
       p.id,
       p.user_id,
@@ -52,6 +50,35 @@ export default async function PersonalGalleryPage() {
     ORDER BY p.created_at DESC
   `;
 
+  const taskRowsPromise = sql`
+    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
+    FROM public.bingo_tasks
+    ORDER BY slot_index ASC
+  `;
+
+  const progressRowsPromise = sql`
+    SELECT 
+      bt.slot_index, 
+      ubp.task_id, 
+      ubp.post_id, 
+      ubp.completed_at,
+      p.image_url,
+      p.caption
+    FROM public.user_bingo_progress ubp
+    JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
+    LEFT JOIN public.posts p ON ubp.post_id = p.id
+    WHERE ubp.user_id = ${user.id}::uuid
+  `;
+
+  const [configRows, postRows, taskRows, progressRows] = await Promise.all([
+    configPromise,
+    postRowsPromise,
+    taskRowsPromise,
+    progressRowsPromise,
+  ]);
+
+  const currentDay = Number(configRows[0]?.current_day || 1);
+
   const posts: PostRecord[] = postRows.map((r) => ({
     id: r.id,
     userId: r.user_id,
@@ -65,13 +92,6 @@ export default async function PersonalGalleryPage() {
     createdAt: r.created_at,
   }));
 
-  // 3. Fetch Bingo tasks
-  const taskRows = await sql`
-    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
-    FROM public.bingo_tasks
-    ORDER BY slot_index ASC
-  `;
-
   const tasks: BingoTaskItem[] = taskRows.map((r) => ({
     id: r.id,
     slotIndex: Number(r.slot_index),
@@ -81,21 +101,6 @@ export default async function PersonalGalleryPage() {
     unlockDay: Number(r.unlock_day),
     requiresSelfie: Boolean(r.requires_selfie),
   }));
-
-  // 4. Fetch User Bingo progress for all completed slots
-  const progressRows = await sql`
-    SELECT 
-      bt.slot_index, 
-      ubp.task_id, 
-      ubp.post_id, 
-      ubp.completed_at,
-      p.image_url,
-      p.caption
-    FROM public.user_bingo_progress ubp
-    JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
-    LEFT JOIN public.posts p ON ubp.post_id = p.id
-    WHERE ubp.user_id = ${user.id}::uuid
-  `;
 
   const userProgress: UserProgressItem[] = progressRows.map((r) => ({
     slotIndex: Number(r.slot_index),
