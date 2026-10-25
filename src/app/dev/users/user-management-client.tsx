@@ -293,12 +293,12 @@ export function UserManagementClient({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by student name or email..."
-            className="w-full bg-zinc-950 border border-zinc-700/80 rounded-lg pl-9 pr-8 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 font-mono transition"
+            className="w-full bg-zinc-950 border border-zinc-700/80 rounded-lg pl-9 pr-8 py-2.5 sm:py-2 text-base sm:text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 font-mono transition min-h-[44px] sm:min-h-0"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-500 hover:text-zinc-200 text-xs cursor-pointer"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-500 hover:text-zinc-200 text-xs cursor-pointer min-h-[44px] min-w-[44px] justify-center"
               title="Clear search"
             >
               ✕
@@ -307,14 +307,14 @@ export function UserManagementClient({
         </div>
 
         {/* Filter Controls: Role and Ban Status */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5 sm:gap-3">
           {/* Status Filter */}
-          <div className="flex items-center gap-1.5">
-            <label className="text-xs text-zinc-400 font-mono">Status:</label>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-1.5">
+            <label className="text-[11px] sm:text-xs text-zinc-400 font-mono">Status:</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-zinc-950 border border-zinc-700/80 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 font-mono transition cursor-pointer"
+              className="w-full sm:w-auto bg-zinc-950 border border-zinc-700/80 rounded-lg px-2.5 py-2 sm:py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 font-mono transition cursor-pointer min-h-[44px] sm:min-h-0"
             >
               <option value="all">All Statuses</option>
               <option value="active">Active Only</option>
@@ -323,12 +323,12 @@ export function UserManagementClient({
           </div>
 
           {/* Role Filter */}
-          <div className="flex items-center gap-1.5">
-            <label className="text-xs text-zinc-400 font-mono">Role:</label>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-1.5">
+            <label className="text-[11px] sm:text-xs text-zinc-400 font-mono">Role:</label>
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="bg-zinc-950 border border-zinc-700/80 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 font-mono transition cursor-pointer"
+              className="w-full sm:w-auto bg-zinc-950 border border-zinc-700/80 rounded-lg px-2.5 py-2 sm:py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 font-mono transition cursor-pointer min-h-[44px] sm:min-h-0"
             >
               <option value="all">All Roles</option>
               <option value="superadmin">SuperAdmin</option>
@@ -338,15 +338,215 @@ export function UserManagementClient({
           </div>
 
           {/* Account Count Badge */}
-          <div className="text-xs font-mono px-3 py-1.5 rounded-lg bg-zinc-800/80 text-zinc-300 border border-zinc-700/80 whitespace-nowrap">
+          <div className="col-span-2 sm:col-span-1 text-center sm:text-left text-xs font-mono px-3 py-2.5 sm:py-1.5 rounded-lg bg-zinc-800/80 text-zinc-300 border border-zinc-700/80 whitespace-nowrap ml-auto sm:ml-0 w-full sm:w-auto flex items-center justify-center min-h-[44px] sm:min-h-0">
             {loading ? "Counting..." : `${totalCount} ${totalCount === 1 ? "Account" : "Accounts"}`}
           </div>
         </div>
       </div>
 
-      {/* Main User Directory Table */}
+      {/* Main User Directory (Cards on Mobile, Table on Desktop) */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
+        {/* ======================================================== */}
+        {/* MOBILE CARDS VIEW (< md / 768px)                         */}
+        {/* ======================================================== */}
+        <div className="md:hidden divide-y divide-zinc-800/80">
+          {loading && users.length === 0 ? (
+            Array.from({ length: 3 }).map((_, idx) => (
+              <div key={`skel-card-${idx}`} className="p-4 space-y-3 animate-pulse">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-zinc-800"></div>
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 w-28 bg-zinc-800 rounded"></div>
+                      <div className="h-3 w-40 bg-zinc-800 rounded"></div>
+                    </div>
+                  </div>
+                  <div className="h-5 w-16 bg-zinc-800 rounded"></div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="h-4 w-24 bg-zinc-800 rounded"></div>
+                  <div className="h-4 w-24 bg-zinc-800 rounded"></div>
+                </div>
+                <div className="h-10 bg-zinc-800/60 rounded-lg"></div>
+                <div className="h-10 bg-zinc-800/60 rounded-lg"></div>
+              </div>
+            ))
+          ) : users.length > 0 ? (
+            users.map((u) => {
+              const isRootSuperAdmin = u.role === "superadmin";
+              const isAdminRole = u.role === "admin";
+              const isCurrentSessionUser = currentUserId === u.id;
+              const isProtectedAccount = isRootSuperAdmin || isAdminRole;
+
+              return (
+                <div
+                  key={`card-${u.id}`}
+                  className={`p-4 transition space-y-3.5 ${
+                    u.banned ? "bg-rose-950/15" : "hover:bg-zinc-900/30"
+                  }`}
+                >
+                  {/* 1. Header: Avatar, Name, Email, Status */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className={`w-9 h-9 rounded-full border flex items-center justify-center text-xs font-bold shrink-0 ${
+                          u.banned
+                            ? "bg-rose-950/50 border-rose-800 text-rose-300"
+                            : "bg-zinc-800 border-zinc-700 text-zinc-300"
+                        }`}
+                      >
+                        {u.name.charAt(0).toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-white text-sm truncate">
+                            {u.name}
+                          </span>
+                          {isCurrentSessionUser && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                              YOU
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-zinc-400 font-mono truncate">
+                          {u.email}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="shrink-0">
+                      {u.banned ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold border bg-rose-500/20 text-rose-300 border-rose-500/40 inline-flex items-center gap-1">
+                          <span>⛔ Banned</span>
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold border bg-emerald-500/10 text-emerald-300 border-emerald-500/30 inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                          Active
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 2. Body Info Grid: Role & Registered Date */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-0.5">
+                    <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                      <span className="text-zinc-500 text-[10px] uppercase block mb-1">
+                        Role
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border inline-block ${
+                          u.role === "superadmin"
+                            ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                            : u.role === "admin"
+                            ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                            : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                        }`}
+                      >
+                        {u.role === "admin" ? "admin (moderator)" : u.role}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                      <span className="text-zinc-500 text-[10px] uppercase block mb-1">
+                        Registered
+                      </span>
+                      <span className="text-zinc-300 text-[11px] truncate block">
+                        {u.createdAt}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 3. Bingo Submissions Counter & Inspector Button */}
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                    <span className="text-xs font-mono text-zinc-300">
+                      📷 {u.submissionCount} / 9 Submissions
+                    </span>
+                    <button
+                      onClick={() => handleInspectSubmissions(u)}
+                      className="px-3 py-1.5 min-h-[38px] rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-amber-300 hover:text-amber-200 text-xs font-medium font-mono transition cursor-pointer flex items-center gap-1 active:scale-95"
+                      title="Inspect user's submitted bingo proofs"
+                    >
+                      <span>Inspect Proofs →</span>
+                    </button>
+                  </div>
+
+                  {/* Ban Reason Callout if Banned */}
+                  {u.banned && u.banReason && (
+                    <div className="p-2.5 rounded-lg bg-rose-950/30 border border-rose-900/50 text-rose-300 text-xs font-mono">
+                      <span className="font-bold text-rose-200">Reason: </span>
+                      <span>{u.banReason}</span>
+                    </div>
+                  )}
+
+                  {/* 4. Action Row: Role Selector & Moderation Buttons */}
+                  {((canManageRoles && !isRootSuperAdmin) || canModerate) && (
+                    <div className="pt-2 border-t border-zinc-800/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                      {/* SuperAdmin Role Assignment */}
+                      {canManageRoles && !isRootSuperAdmin && (
+                        <div className="flex items-center gap-2 flex-1">
+                          <label className="text-[11px] text-zinc-400 font-mono shrink-0">
+                            Role:
+                          </label>
+                          <select
+                            value={u.role}
+                            disabled={isPending}
+                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 cursor-pointer disabled:opacity-50 min-h-[44px] font-mono"
+                            title="Assign user role"
+                          >
+                            <option value="user">user</option>
+                            <option value="admin">admin</option>
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Ban / Unban Actions */}
+                      {canModerate && (
+                        <div className="flex items-center justify-end">
+                          {isProtectedAccount ? (
+                            <span className="text-xs text-zinc-500 italic font-mono py-1">
+                              Protected Account
+                            </span>
+                          ) : u.banned ? (
+                            <button
+                              onClick={() => handleUnban(u)}
+                              disabled={isPending}
+                              className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-lg border border-emerald-700/60 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/60 text-xs font-bold font-mono transition cursor-pointer disabled:opacity-50 active:scale-95 flex items-center justify-center"
+                            >
+                              Unban Account
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openBanModal(u)}
+                              disabled={isPending || isCurrentSessionUser}
+                              className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-lg border border-rose-800/80 bg-rose-950/40 text-rose-300 hover:bg-rose-900/60 text-xs font-bold font-mono transition cursor-pointer disabled:opacity-50 active:scale-95 flex items-center justify-center"
+                            >
+                              Ban User
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-12 text-center text-zinc-500 space-y-2 p-4">
+              <p className="text-sm text-zinc-400">No user accounts found.</p>
+              <p className="text-xs font-mono">
+                Try adjusting your search query, role filter, or status filter.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ======================================================== */}
+        {/* DESKTOP TABLE VIEW (>= md / 768px)                       */}
+        {/* ======================================================== */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
             <thead>
               <tr className="border-b border-zinc-800 text-zinc-400 bg-zinc-900/80">
@@ -361,7 +561,7 @@ export function UserManagementClient({
             <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
               {loading && users.length === 0 ? (
                 Array.from({ length: 4 }).map((_, idx) => (
-                  <tr key={`skel-${idx}`} className="animate-pulse">
+                  <tr key={`skel-table-${idx}`} className="animate-pulse">
                     <td className="py-4 px-4">
                       <div className="h-3 w-32 bg-zinc-800 rounded"></div>
                     </td>
@@ -548,13 +748,13 @@ export function UserManagementClient({
 
         {/* Footer with Lazy Load Controls */}
         <div className="p-4 border-t border-zinc-800/80 bg-zinc-900/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-zinc-400">
-          <div>
+          <div className="text-center sm:text-left">
             Showing <span className="text-zinc-200 font-bold">{users.length}</span> of{" "}
             <span className="text-zinc-200 font-bold">{totalCount}</span> registered{" "}
             {totalCount === 1 ? "account" : "accounts"}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-center">
             <div ref={sentinelRef} className="h-1 w-1 pointer-events-none" />
 
             {loadingMore && (
@@ -567,7 +767,7 @@ export function UserManagementClient({
             {!loading && hasMore && !loadingMore && (
               <button
                 onClick={loadMoreUsers}
-                className="px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition cursor-pointer font-medium active:scale-95 text-center flex items-center justify-center"
               >
                 Load More Accounts ↓
               </button>
@@ -584,11 +784,11 @@ export function UserManagementClient({
       {/* 1. USER BINGO SUBMISSIONS INSPECTOR MODAL               */}
       {/* ======================================================== */}
       {inspectingUser && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-3xl w-full max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl animate-fade-in">
             {/* Header */}
-            <div className="p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
-              <div>
+            <div className="p-4 sm:p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
+              <div className="truncate mr-2">
                 <div className="flex items-center gap-2">
                   <span className="text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
                     Bingo Card Photo Proofs
@@ -599,17 +799,17 @@ export function UserManagementClient({
                     </span>
                   )}
                 </div>
-                <h3 className="text-lg font-bold text-white mt-0.5">
+                <h3 className="text-base sm:text-lg font-bold text-white mt-0.5 truncate">
                   {inspectingUser.name} ({inspectingUser.email})
                 </h3>
-                <p className="text-xs text-zinc-400 font-mono">
+                <p className="text-xs text-zinc-400 font-mono hidden sm:block">
                   All image submissions are made strictly through the 3x3 Intramurals Bingo Card.
                 </p>
               </div>
 
               <button
                 onClick={() => setInspectingUser(null)}
-                className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+                className="w-10 h-10 sm:w-8 sm:h-8 min-h-[44px] min-w-[44px] rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0 active:scale-95"
               >
                 ✕
               </button>
@@ -737,23 +937,23 @@ export function UserManagementClient({
       {/* 2. BAN USER CONFIRMATION MODAL                           */}
       {/* ======================================================== */}
       {banningUser && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-red-900/60 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-fade-in space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-zinc-900 border border-red-900/60 rounded-2xl max-w-lg w-full max-h-[90dvh] overflow-y-auto shadow-2xl animate-fade-in space-y-4">
             {/* Header */}
-            <div className="p-5 border-b border-zinc-800 bg-red-950/20">
+            <div className="p-4 sm:p-5 border-b border-zinc-800 bg-red-950/20">
               <div className="flex items-center gap-2 text-rose-400 font-mono text-xs font-bold uppercase">
                 <span>⚠️ Administrator Action</span>
               </div>
-              <h3 className="text-xl font-bold text-white mt-1">
+              <h3 className="text-lg sm:text-xl font-bold text-white mt-1">
                 Ban User: {banningUser.name}
               </h3>
-              <p className="text-xs text-zinc-400 font-mono mt-0.5">
+              <p className="text-xs text-zinc-400 font-mono mt-0.5 truncate">
                 Target Email: {banningUser.email}
               </p>
             </div>
 
             {/* Body */}
-            <div className="px-5 space-y-4 text-xs font-mono">
+            <div className="px-4 sm:px-5 space-y-4 text-xs font-mono">
               <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-900/50 text-rose-300 space-y-1">
                 <div className="font-bold">Impact of Banning:</div>
                 <ul className="list-disc list-inside text-rose-300/90 space-y-0.5">
@@ -772,7 +972,7 @@ export function UserManagementClient({
                   onChange={(e) => setBanReason(e.target.value)}
                   rows={3}
                   placeholder="Specify why this account is being banned..."
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 text-base sm:text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition font-mono"
                 />
               </div>
             </div>
@@ -782,7 +982,7 @@ export function UserManagementClient({
               <button
                 type="button"
                 onClick={() => setBanningUser(null)}
-                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition cursor-pointer"
+                className="px-4 py-2.5 min-h-[44px] rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition cursor-pointer active:scale-95"
               >
                 Cancel
               </button>
@@ -790,7 +990,7 @@ export function UserManagementClient({
                 type="button"
                 onClick={handleConfirmBan}
                 disabled={isPending || !banReason.trim()}
-                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold transition cursor-pointer disabled:opacity-50"
+                className="px-4 py-2.5 min-h-[44px] rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold transition cursor-pointer disabled:opacity-50 active:scale-95"
               >
                 {isPending ? "Banning..." : "Confirm & Ban User"}
               </button>
