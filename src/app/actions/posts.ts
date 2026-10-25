@@ -12,6 +12,10 @@ import {
   evaluateBingoLines,
   generateRaffleCode,
   type ClaimedLine,
+  evaluateRaffleRules,
+  type RaffleRuleRecord,
+  type RaffleRuleCategory,
+  type ExistingRaffleClaim,
 } from "@/lib/bingo-engine";
 import { recordActivityLog } from "@/lib/activity-logger";
 
@@ -148,73 +152,122 @@ export async function submitStudentPostAction(
           completed_at = now()
       `;
 
-      // Check for newly completed lines
-      const userProgressRows = await sql`
-        SELECT bt.slot_index, ubp.task_id, ubp.post_id
-        FROM public.user_bingo_progress ubp
-        JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
-        WHERE ubp.user_id = ${user.id}::uuid
-      `;
+    }
 
-      const existingRaffles = await sql`
-        SELECT line_type, line_index
-        FROM public.raffle_entries
-        WHERE user_id = ${user.id}::uuid
-      `;
+    // Evaluate dynamic raffle rules (Bingo lines, Milestones, and Memory Drops)
+    const userProgressRows = await sql`
+      SELECT bt.slot_index, ubp.task_id, ubp.post_id
+      FROM public.user_bingo_progress ubp
+      JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
+      WHERE ubp.user_id = ${user.id}::uuid
+    `;
 
-      const completedSlots = userProgressRows.map((r) => Number(r.slot_index));
-      const claimedLines: ClaimedLine[] = existingRaffles.map((r) => ({
-        lineType: r.line_type as ClaimedLine["lineType"],
-        lineIndex: Number(r.line_index),
-      }));
+    const memoryDropCountRows = await sql`
+      SELECT count(*)::int as count
+      FROM public.posts p
+      WHERE p.user_id = ${user.id}::uuid
+        AND p.status = 'published'
+        AND p.id NOT IN (
+          SELECT post_id FROM public.user_bingo_progress WHERE post_id IS NOT NULL AND user_id = ${user.id}::uuid
+        )
+    `;
+    const memoryDropCount = Number(memoryDropCountRows[0]?.count || 0);
 
-      const evaluation = evaluateBingoLines(completedSlots, claimedLines);
+    const existingRaffles = await sql`
+      SELECT rule_key, line_type, line_index
+      FROM public.raffle_entries
+      WHERE user_id = ${user.id}::uuid
+    `;
 
-      // Check if raffle system is active before claiming raffle entries
-      const configRows = await sql`
-        SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1
-      `;
-      const isRaffleActive = configRows[0]?.is_raffle_active ?? true;
+    const completedSlots = userProgressRows.map((r) => Number(r.slot_index));
+    const existingClaims: ExistingRaffleClaim[] = existingRaffles.map((r) => ({
+      ruleKey: r.rule_key,
+      lineType: r.line_type,
+      lineIndex: Number(r.line_index),
+    }));
 
-      // If raffle is active and there's an unclaimed completed line, claim the first one
-      if (isRaffleActive && evaluation.claimableLines.length > 0) {
-        const lineToClaim = evaluation.claimableLines[0].line;
-        const generatedCode = generateRaffleCode();
+    // Check if raffle system is active and student ticket cap
+    const configRows = await sql`
+      SELECT is_raffle_active, max_tickets_per_user FROM public.event_config WHERE key = 'active_event' LIMIT 1
+    `;
+    const isRaffleActive = configRows[0]?.is_raffle_active ?? true;
+    const maxTicketsPerUser = Number(configRows[0]?.max_tickets_per_user || 0);
 
-        // Get task and post IDs for this line
-        const lineTaskIds = lineToClaim.slots.map((slot: number) => {
-          const match = userProgressRows.find((r) => Number(r.slot_index) === slot);
-          return match?.task_id;
-        }).filter(Boolean);
+    // Fetch active rules from database
+    const ruleRows = await sql`
+      SELECT id, rule_key, name, category, description, tickets_awarded, is_active
+      FROM public.raffle_rules
+      WHERE is_active = true
+    `;
+    const rules: RaffleRuleRecord[] = ruleRows.map((r) => ({
+      id: r.id,
+      ruleKey: r.rule_key,
+      name: r.name,
+      category: r.category as RaffleRuleCategory,
+      description: r.description,
+      ticketsAwarded: Number(r.tickets_awarded),
+      isActive: Boolean(r.is_active),
+    }));
 
-        const linePostIds = lineToClaim.slots.map((slot: number) => {
-          const match = userProgressRows.find((r) => Number(r.slot_index) === slot);
-          return match?.post_id;
-        }).filter(Boolean);
+    if (isRaffleActive && rules.length > 0) {
+      const evaluation = evaluateRaffleRules(rules, {
+        completedSlotIndexes: completedSlots,
+        memoryDropCount,
+        existingClaims,
+        maxTicketsPerUser,
+      });
 
-        await sql`
-          INSERT INTO public.raffle_entries (
-            raffle_code,
-            user_id,
-            line_type,
-            line_index,
-            task_ids,
-            post_ids,
-            status
-          )
-          VALUES (
-            ${generatedCode},
-            ${user.id}::uuid,
-            ${lineToClaim.type},
-            ${lineToClaim.index},
-            ${lineTaskIds}::uuid[],
-            ${linePostIds}::uuid[],
-            'valid'
-          )
-          ON CONFLICT (user_id, line_type, line_index) DO NOTHING
-        `;
+      for (const reward of evaluation.eligibleRewards) {
+        let taskIds: string[] = [];
+        let postIds: string[] = [];
 
-        newRaffleCode = generatedCode;
+        if (reward.category === "bingo_line" && reward.taskSlotIndexes) {
+          taskIds = reward.taskSlotIndexes
+            .map((slot) => userProgressRows.find((r) => Number(r.slot_index) === slot)?.task_id)
+            .filter(Boolean);
+          postIds = reward.taskSlotIndexes
+            .map((slot) => userProgressRows.find((r) => Number(r.slot_index) === slot)?.post_id)
+            .filter(Boolean);
+        } else if (reward.category === "milestone") {
+          taskIds = userProgressRows.map((r) => r.task_id).filter(Boolean);
+          postIds = userProgressRows.map((r) => r.post_id).filter(Boolean);
+        } else if (reward.category === "memory_drop") {
+          postIds = [newPostId];
+        }
+
+        for (let i = 0; i < reward.ticketsAwarded; i++) {
+          const generatedCode = generateRaffleCode();
+          const claimIndex = reward.lineIndex * 10 + i;
+
+          const insertRes = await sql`
+            INSERT INTO public.raffle_entries (
+              raffle_code,
+              user_id,
+              line_type,
+              line_index,
+              task_ids,
+              post_ids,
+              rule_key,
+              status
+            )
+            VALUES (
+              ${generatedCode},
+              ${user.id}::uuid,
+              ${reward.lineType},
+              ${claimIndex},
+              ${taskIds}::uuid[],
+              ${postIds}::uuid[],
+              ${reward.ruleKey},
+              'valid'
+            )
+            ON CONFLICT (user_id, line_type, line_index) DO NOTHING
+            RETURNING id
+          `;
+
+          if (insertRes.length > 0) {
+            newRaffleCode = generatedCode;
+          }
+        }
       }
     }
 

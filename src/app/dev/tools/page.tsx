@@ -92,6 +92,21 @@ export default async function DevToolsPage() {
 
   const tools = [
     {
+      title: "Raffle System & Ticket Rules Manager",
+      href: "/dev/tools/raffle",
+      badge: "TICKET ENGINE",
+      badgeColor: "amber",
+      description:
+        "Manage what counts as a raffle ticket across bingo lines, challenge milestones, and memory drops. Configure per-rule rewards, student caps, and test in the sandbox.",
+      status: "7 Rules Configured",
+      features: [
+        "Configurable line, milestone & photo rules",
+        "Per-rule tickets counter & live enable/disable",
+        "Max ticket limits per student enforcement",
+        "Interactive 3x3 sandbox for real-time simulation",
+      ],
+    },
+    {
       title: "3x3 Bingo Card & Challenge Manager",
       href: "/dev/tools/bingo",
       badge: "GAME ENGINE",
