@@ -5,6 +5,7 @@ export type ActivityCategory = "user" | "admin" | "system";
 export type ActivityActionType =
   | "USER_REGISTER"
   | "POST_SUBMIT"
+  | "POST_DELETE"
   | "USER_BAN"
   | "USER_UNBAN"
   | "ROLE_UPDATE"
