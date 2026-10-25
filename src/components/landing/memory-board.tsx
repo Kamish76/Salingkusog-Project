@@ -54,13 +54,21 @@ function formatTimeAgo(dateInput: string | Date): string {
 }
 
 export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoardProps) {
+  // Track failed / missing images to exclude them from the memory board
+  const [failedPostIds, setFailedPostIds] = useState<Set<string>>(new Set());
+
+  // Only display posts that have a valid non-empty photo and have not failed to load
+  const validPosts = posts.filter(
+    (p) => Boolean(p.imageUrl && p.imageUrl.trim()) && !failedPostIds.has(p.id)
+  );
+
   // Track natural image aspect ratio to adapt polaroid orientation (landscape vs portrait vs square)
   const [imageOrientations, setImageOrientations] = useState<
     Record<string, "portrait" | "landscape" | "square">
   >({});
 
   useEffect(() => {
-    posts.forEach((p) => {
+    validPosts.forEach((p) => {
       if (p.imageUrl) {
         const img = new Image();
         const updateOrientation = () => {
@@ -75,13 +83,21 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
           }
         };
         img.onload = updateOrientation;
+        img.onerror = () => {
+          setFailedPostIds((prev) => {
+            if (prev.has(p.id)) return prev;
+            const next = new Set(prev);
+            next.add(p.id);
+            return next;
+          });
+        };
         img.src = p.imageUrl;
         if (img.complete) {
           updateOrientation();
         }
       }
     });
-  }, [posts]);
+  }, [validPosts]);
 
 
   return (
@@ -100,7 +116,7 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
               Campus Memories
             </h2>
             <p className="font-body text-xs text-[#8e706c]">
-              {posts.length} {posts.length === 1 ? "moment shared" : "moments shared"}
+              {validPosts.length} {validPosts.length === 1 ? "moment shared" : "moments shared"}
             </p>
           </div>
         </div>
@@ -121,7 +137,7 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
       </div>
 
       {/* POLAROID MASONRY FEED OR EMPTY STATE */}
-      {posts.length === 0 ? (
+      {validPosts.length === 0 ? (
         <div className="w-full my-8 p-10 sm:p-16 rounded-2xl bg-white border border-[#e8ded5] text-center flex flex-col items-center justify-center relative overflow-hidden">
           {/* Top Washi Tape */}
           <div className="washi-tape-butter w-28 h-5 absolute -top-2 left-1/2 -translate-x-1/2 opacity-80"></div>
@@ -157,8 +173,8 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7 items-start">
-          {posts.map((post, idx) => {
-            const isLead = idx === 0 && posts.length > 1;
+          {validPosts.map((post, idx) => {
+            const isLead = idx === 0 && validPosts.length > 1;
             const rotation = ROTATIONS[idx % ROTATIONS.length];
             const tapeClass = TAPES[idx % TAPES.length];
 
@@ -184,6 +200,14 @@ export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoar
                       src={post.imageUrl}
                       alt={post.caption || "Student memory"}
                       loading="lazy"
+                      onError={() => {
+                        setFailedPostIds((prev) => {
+                          if (prev.has(post.id)) return prev;
+                          const next = new Set(prev);
+                          next.add(post.id);
+                          return next;
+                        });
+                      }}
                       onLoad={(e) => {
                         const target = e.currentTarget;
                         if (target.naturalWidth && target.naturalHeight) {

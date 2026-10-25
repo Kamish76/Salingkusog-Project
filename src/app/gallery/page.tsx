@@ -30,7 +30,7 @@ export default async function PersonalGalleryPage() {
   `;
   const currentDay = Number(configRows[0]?.current_day || 1);
 
-  // 2. Fetch all published posts by this authenticated student (without reactions)
+  // 2. Fetch all published posts by this authenticated student (must have valid non-empty photo)
   const postRows = await sql`
     SELECT 
       p.id,
@@ -45,7 +45,10 @@ export default async function PersonalGalleryPage() {
       bt.slot_index
     FROM public.posts p
     LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
-    WHERE p.user_id = ${user.id}::uuid AND p.status = 'published'
+    WHERE p.user_id = ${user.id}::uuid 
+      AND p.status = 'published'
+      AND p.image_url IS NOT NULL 
+      AND TRIM(p.image_url) != ''
     ORDER BY p.created_at DESC
   `;
 
