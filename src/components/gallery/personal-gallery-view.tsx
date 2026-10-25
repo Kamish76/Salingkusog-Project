@@ -61,13 +61,21 @@ export function PersonalGalleryView({
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
+  // Track failed / missing images to exclude them from the album
+  const [failedPostIds, setFailedPostIds] = useState<Set<string>>(new Set());
+
+  // Only display posts that have a valid non-empty photo and have not failed to load
+  const validPosts = posts.filter(
+    (p) => Boolean(p.imageUrl && p.imageUrl.trim()) && !failedPostIds.has(p.id)
+  );
+
   // Dynamic aspect ratio calculation matching memory board
   const [imageOrientations, setImageOrientations] = useState<
     Record<string, "portrait" | "landscape" | "square">
   >({});
 
   useEffect(() => {
-    posts.forEach((p) => {
+    validPosts.forEach((p) => {
       if (p.imageUrl) {
         const img = new Image();
         const updateOrientation = () => {
@@ -82,13 +90,21 @@ export function PersonalGalleryView({
           }
         };
         img.onload = updateOrientation;
+        img.onerror = () => {
+          setFailedPostIds((prev) => {
+            if (prev.has(p.id)) return prev;
+            const next = new Set(prev);
+            next.add(p.id);
+            return next;
+          });
+        };
         img.src = p.imageUrl;
         if (img.complete) {
           updateOrientation();
         }
       }
     });
-  }, [posts]);
+  }, [validPosts]);
 
   const handleOpenUpload = (taskId?: string, e?: React.MouseEvent<HTMLElement>) => {
     setPreselectedTaskId(taskId);
@@ -461,7 +477,7 @@ export function PersonalGalleryView({
             <div className="flex items-center gap-3 sm:gap-4 bg-[#fcf9f5] border border-[#e8ded5] rounded-xl px-3.5 py-2 sm:px-4 sm:py-2.5">
               <div className="text-center">
                 <span className="block font-display font-black text-base sm:text-lg text-[#1e1b19] leading-none">
-                  {posts.length}
+                  {validPosts.length}
                 </span>
                 <span className="text-[9px] sm:text-[10px] font-display font-bold uppercase tracking-wider text-[#8e706c]">
                   Snaps
@@ -656,12 +672,12 @@ export function PersonalGalleryView({
               Individual Keepsake Snaps
             </h2>
             <p className="font-body text-xs text-[#8e706c]">
-              {posts.length} {posts.length === 1 ? "polaroid pinned" : "polaroids pinned"}
+              {validPosts.length} {validPosts.length === 1 ? "polaroid pinned" : "polaroids pinned"}
             </p>
           </div>
         </div>
 
-        {posts.length === 0 ? (
+        {validPosts.length === 0 ? (
           <div className="w-full my-4 p-10 sm:p-14 rounded-2xl bg-white border border-[#e8ded5] text-center flex flex-col items-center justify-center relative overflow-hidden">
             <div className="w-14 h-14 rounded-2xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center justify-center mb-3">
               <svg className="w-7 h-7 text-[#8e706c]" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
@@ -686,7 +702,7 @@ export function PersonalGalleryView({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7 items-start">
-            {posts.map((post, index) => {
+            {validPosts.map((post, index) => {
               const rotation = ROTATIONS[index % ROTATIONS.length];
               const tapeClass = TAPES[index % TAPES.length];
               const orientation = imageOrientations[post.id] || "landscape";
@@ -710,6 +726,14 @@ export function PersonalGalleryView({
                         src={post.imageUrl}
                         alt={post.caption || "Student memory"}
                         loading="lazy"
+                        onError={() => {
+                          setFailedPostIds((prev) => {
+                            if (prev.has(post.id)) return prev;
+                            const next = new Set(prev);
+                            next.add(post.id);
+                            return next;
+                          });
+                        }}
                         onLoad={(e) => {
                           const target = e.currentTarget;
                           if (target.naturalWidth && target.naturalHeight) {

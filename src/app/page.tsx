@@ -26,7 +26,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   // 1. Fetch live event stats from Neon database
   const statsRows = await sql`
     SELECT 
-      (SELECT count(*) FROM public.posts WHERE status = 'published') as total_snaps,
+      (SELECT count(*) FROM public.posts WHERE status = 'published' AND image_url IS NOT NULL AND TRIM(image_url) != '') as total_snaps,
       (SELECT count(*) FROM public.raffle_entries WHERE status IN ('valid', 'verified')) as total_raffles,
       COALESCE((SELECT current_day FROM public.event_config WHERE key = 'active_event' LIMIT 1), 1) as current_day,
       COALESCE((SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), true) as is_raffle_active
@@ -37,7 +37,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const currentDay = Number(statsRows[0]?.current_day || 1);
   const isRaffleActive = Boolean(statsRows[0]?.is_raffle_active ?? true);
 
-  // 2. Fetch real published posts from Neon database
+  // 2. Fetch real published posts from Neon database (must have valid non-empty photo)
   const postRows = await sql`
     SELECT 
       p.id,
@@ -53,6 +53,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     FROM public.posts p
     LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
     WHERE p.status = 'published'
+      AND p.image_url IS NOT NULL
+      AND TRIM(p.image_url) != ''
     ORDER BY p.created_at DESC
     LIMIT 60
   `;

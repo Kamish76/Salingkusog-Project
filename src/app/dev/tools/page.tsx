@@ -92,6 +92,36 @@ export default async function DevToolsPage() {
 
   const tools = [
     {
+      title: "Raffle System & Ticket Rules Manager",
+      href: "/dev/tools/raffle",
+      badge: "TICKET ENGINE",
+      badgeColor: "amber",
+      description:
+        "Manage what counts as a raffle ticket across bingo lines, challenge milestones, and memory drops. Configure per-rule rewards, student caps, and test in the sandbox.",
+      status: "7 Rules Configured",
+      features: [
+        "Configurable line, milestone & photo rules",
+        "Per-rule tickets counter & live enable/disable",
+        "Max ticket limits per student enforcement",
+        "Interactive 3x3 sandbox for real-time simulation",
+      ],
+    },
+    {
+      title: "3x3 Bingo Card & Challenge Manager",
+      href: "/dev/tools/bingo",
+      badge: "GAME ENGINE",
+      badgeColor: "emerald",
+      description:
+        "Preview the live 3x3 student bingo card across event days, update challenge tasks, categories, and unlock schedules in real time.",
+      status: "9 Tasks Configured",
+      features: [
+        "Live 3x3 card preview with Day 1–3 lock simulation",
+        "Instant task editor (titles, descriptions, categories)",
+        "Selfie requirement & active challenge controls",
+        "Audit logged modifications with instant path revalidation",
+      ],
+    },
+    {
       title: "Neon Object Storage & Image Lab",
       href: "/dev/tools/storage",
       badge: "ACTIVE",

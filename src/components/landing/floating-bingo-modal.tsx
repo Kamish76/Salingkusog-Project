@@ -728,7 +728,21 @@ export function FloatingBingoModal({
                       Raffle Ticket Earned
                     </span>
                     <span className="font-mono text-[10px] text-stone-600 block">
-                      Code: {raffleEntries[0].raffleCode} ({raffleEntries[0].lineType})
+                      Code: {raffleEntries[0].raffleCode} ({
+                        raffleEntries[0].lineType === "row"
+                          ? "Row Line"
+                          : raffleEntries[0].lineType === "column"
+                          ? "Column Line"
+                          : raffleEntries[0].lineType === "diagonal"
+                          ? "Diagonal Line"
+                          : raffleEntries[0].lineType === "blackout"
+                          ? "Full Blackout"
+                          : raffleEntries[0].lineType === "milestone"
+                          ? "Milestone"
+                          : raffleEntries[0].lineType === "memory_drop"
+                          ? "Campus Memory"
+                          : raffleEntries[0].lineType
+                      })
                     </span>
                   </div>
                 </div>

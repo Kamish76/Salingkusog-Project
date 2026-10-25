@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { getCurrentUser, isSuperAdmin, isDevAuthorized, isModerator } from "@/lib/auth";
+import { recordActivityLog } from "@/lib/activity-logger";
 
 export async function signOutAction() {
   const cookieStore = await cookies();
@@ -55,12 +56,28 @@ export async function updateUserRoleAction(formData: FormData) {
     throw new Error("Forbidden: Root superadmin cannot be modified or demoted.");
   }
 
+  const oldRole = targetUsers[0].role || "user";
+  const targetEmail = targetUsers[0].email;
+
   // 4. Update role in neon_auth.user
   await sql`
     UPDATE neon_auth."user"
     SET role = ${newRole}, "updatedAt" = NOW()
     WHERE id = ${targetUserId}
   `;
+
+  await recordActivityLog({
+    actionType: "ROLE_UPDATE",
+    category: "admin",
+    actorId: caller.id,
+    actorName: caller.name,
+    actorEmail: caller.email,
+    actorRole: caller.role,
+    targetId: targetUserId,
+    targetType: "user",
+    description: `SuperAdmin ${caller.name} updated role of user ${targetEmail} from ${oldRole} to ${newRole}`,
+    metadata: { oldRole, newRole, targetEmail },
+  });
 
   revalidatePath("/dev");
   revalidatePath("/dev/users");
@@ -83,6 +100,19 @@ export async function elevateToSuperAdminAction() {
     SET role = 'superadmin', "updatedAt" = NOW()
     WHERE email = ${caller.email}
   `;
+
+  await recordActivityLog({
+    actionType: "ROLE_UPDATE",
+    category: "admin",
+    actorId: caller.id,
+    actorName: caller.name,
+    actorEmail: caller.email,
+    actorRole: "superadmin",
+    targetId: caller.id,
+    targetType: "user",
+    description: `Admin ${caller.name} (${caller.email}) elevated to SuperAdmin`,
+    metadata: { newRole: "superadmin" },
+  });
 
   revalidatePath("/dev");
   revalidatePath("/dev/users");
@@ -264,7 +294,7 @@ export async function banUserAction(formData: FormData) {
   // 3. Prevent banning root superadmin or active admin accounts
   if (process.env.DATABASE_URL) {
     const targetUsers = await sql`
-      SELECT id, email, role FROM neon_auth."user" WHERE id = ${targetUserId}::uuid LIMIT 1
+      SELECT id, name, email, role FROM neon_auth."user" WHERE id = ${targetUserId}::uuid LIMIT 1
     `;
     if (targetUsers.length === 0) {
       throw new Error("Target user does not exist.");
@@ -273,6 +303,9 @@ export async function banUserAction(formData: FormData) {
     if (targetRole === "superadmin" || targetRole === "admin") {
       throw new Error("Forbidden: SuperAdmin and Admin accounts cannot be banned.");
     }
+
+    const targetEmail = targetUsers[0].email;
+    const targetName = targetUsers[0].name || "User";
 
     // 4. Update user to banned and record ban reason
     await sql`
@@ -286,6 +319,19 @@ export async function banUserAction(formData: FormData) {
       DELETE FROM neon_auth."session"
       WHERE "userId" = ${targetUserId}::uuid
     `;
+
+    await recordActivityLog({
+      actionType: "USER_BAN",
+      category: "admin",
+      actorId: caller.id,
+      actorName: caller.name,
+      actorEmail: caller.email,
+      actorRole: caller.role,
+      targetId: targetUserId,
+      targetType: "user",
+      description: `Banned user ${targetEmail} (${targetName}). Reason: ${reason}`,
+      metadata: { reason, targetEmail, targetName },
+    });
   }
 
   revalidatePath("/dev/users");
@@ -306,11 +352,30 @@ export async function unbanUserAction(formData: FormData) {
   }
 
   if (process.env.DATABASE_URL) {
+    const targetUsers = await sql`
+      SELECT id, name, email FROM neon_auth."user" WHERE id = ${targetUserId}::uuid LIMIT 1
+    `;
+    const targetEmail = targetUsers[0]?.email || targetUserId;
+    const targetName = targetUsers[0]?.name || "User";
+
     await sql`
       UPDATE neon_auth."user"
       SET banned = false, "banReason" = NULL, "updatedAt" = NOW()
       WHERE id = ${targetUserId}::uuid
     `;
+
+    await recordActivityLog({
+      actionType: "USER_UNBAN",
+      category: "admin",
+      actorId: caller.id,
+      actorName: caller.name,
+      actorEmail: caller.email,
+      actorRole: caller.role,
+      targetId: targetUserId,
+      targetType: "user",
+      description: `Unbanned user ${targetEmail} (${targetName})`,
+      metadata: { targetEmail, targetName },
+    });
   }
 
   revalidatePath("/dev/users");
@@ -421,6 +486,19 @@ export async function moderateSubmissionAction(
       SET status = ${newStatus}, updated_at = NOW()
       WHERE id = ${postId}::uuid
     `;
+
+    await recordActivityLog({
+      actionType: "POST_MODERATE",
+      category: "admin",
+      actorId: caller.id,
+      actorName: caller.name,
+      actorEmail: caller.email,
+      actorRole: caller.role,
+      targetId: postId,
+      targetType: "post",
+      description: `Moderator ${caller.name} set post status to "${newStatus}"`,
+      metadata: { postId, newStatus },
+    });
   }
 
   revalidatePath("/dev/users");

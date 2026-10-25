@@ -305,6 +305,33 @@ export default async function DevPage() {
         </div>
       </div>
 
+      {/* Audit & Activity Logs Quick Banner */}
+      <div className="p-5 rounded-2xl border border-indigo-500/30 bg-indigo-950/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase font-bold font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              AUDIT TRAIL
+            </span>
+            <span className="text-xs text-zinc-400 font-mono">Live Activity Monitoring</span>
+          </div>
+          <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+            <span>📋</span>
+            <span>SuperAdmin Activity & System Logs</span>
+          </h2>
+          <p className="text-xs text-zinc-400 max-w-xl">
+            Track new users, photo submissions, user bans, and admin actions across the entire platform in real time.
+          </p>
+        </div>
+
+        <Link
+          href="/dev/logs"
+          className="self-start sm:self-center px-4 py-2.5 rounded-xl font-mono text-xs font-bold tracking-wide bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition flex items-center gap-2 cursor-pointer"
+        >
+          <span>Open Activity Logs Console</span>
+          <span>→</span>
+        </Link>
+      </div>
+
       {/* Grid of Diagnostics & Management Panels */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Active Session Card */}
