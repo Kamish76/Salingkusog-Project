@@ -11,7 +11,10 @@ export type ActivityActionType =
   | "POST_MODERATE"
   | "RAFFLE_TOGGLE"
   | "BINGO_TASK_UPDATE"
-  | "BINGO_TASKS_RESET";
+  | "BINGO_TASKS_RESET"
+  | "RAFFLE_RULE_UPDATE"
+  | "RAFFLE_GLOBAL_CONFIG_UPDATE"
+  | "RAFFLE_RULES_RESET";
 
 export interface LogActivityParams {
   actionType: ActivityActionType;

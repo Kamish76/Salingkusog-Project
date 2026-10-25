@@ -227,3 +227,208 @@ export function isValidRaffleCodeFormat(code: string): boolean {
   if (typeof code !== 'string') return false;
   return RAFFLE_CODE_REGEX.test(code);
 }
+
+// -----------------------------------------------------------------------------
+// Dynamic Raffle Rules Configuration & Multi-Rule Evaluation
+// -----------------------------------------------------------------------------
+
+export type RaffleRuleCategory = 'bingo_line' | 'milestone' | 'memory_drop' | 'general';
+
+export interface RaffleRuleRecord {
+  id: string;
+  ruleKey: string;
+  name: string;
+  category: RaffleRuleCategory;
+  description: string;
+  ticketsAwarded: number;
+  isActive: boolean;
+}
+
+export interface ExistingRaffleClaim {
+  ruleKey?: string | null;
+  lineType: string;
+  lineIndex: number;
+}
+
+export interface RaffleEvaluationInput {
+  completedSlotIndexes: number[];
+  memoryDropCount: number;
+  existingClaims: ExistingRaffleClaim[];
+  maxTicketsPerUser?: number; // 0 = unlimited
+}
+
+export interface EligibleRaffleReward {
+  ruleKey: string;
+  ruleName: string;
+  category: RaffleRuleCategory;
+  lineType: 'row' | 'column' | 'diagonal' | 'blackout' | 'milestone' | 'memory_drop';
+  lineIndex: number;
+  ticketsAwarded: number;
+  taskSlotIndexes?: number[];
+  reason: string;
+}
+
+export interface RaffleRulesEvaluationResult {
+  eligibleRewards: EligibleRaffleReward[];
+  totalNewTickets: number;
+  isCapped: boolean;
+  activeRuleCount: number;
+}
+
+/**
+ * Pure domain evaluator checking user progress (completed slots & memory drops)
+ * against active raffle rules, filtering out previous claims, and enforcing user ticket limits.
+ */
+export function evaluateRaffleRules(
+  rules: RaffleRuleRecord[],
+  input: RaffleEvaluationInput
+): RaffleRulesEvaluationResult {
+  const activeRules = rules.filter((r) => r.isActive);
+  const activeRuleKeys = new Set(activeRules.map((r) => r.ruleKey));
+
+  // Build lookup sets for existing claims
+  const claimedKeys = new Set<string>();
+  for (const claim of input.existingClaims) {
+    if (claim.ruleKey) {
+      claimedKeys.add(`rule_${claim.ruleKey}`);
+    }
+    claimedKeys.add(`${claim.lineType}_${claim.lineIndex}`);
+    if (claim.lineIndex >= 100) {
+      claimedKeys.add(`${claim.lineType}_${claim.lineIndex % 100}`);
+    }
+  }
+
+  // Sanitize valid completed slot indexes (0..8)
+  const validSlots = new Set<number>();
+  for (const s of input.completedSlotIndexes) {
+    if (Number.isInteger(s) && s >= 0 && s <= 8) {
+      validSlots.add(s);
+    }
+  }
+
+  const eligibleRewards: EligibleRaffleReward[] = [];
+
+  // Helper to check if a line is completed
+  const hasCompletedSlots = (requiredSlots: readonly number[]): boolean => {
+    return requiredSlots.every((slot) => validSlots.has(slot));
+  };
+
+  // 1. Evaluate Bingo Lines (row, col, diag, blackout)
+  for (const line of BINGO_LINES) {
+    const ruleKey =
+      line.type === 'row'
+        ? 'line_row'
+        : line.type === 'column'
+        ? 'line_column'
+        : line.type === 'diagonal'
+        ? 'line_diagonal'
+        : 'line_blackout';
+
+    if (!activeRuleKeys.has(ruleKey)) continue;
+
+    const rule = activeRules.find((r) => r.ruleKey === ruleKey);
+    if (!rule) continue;
+
+    const isClaimed =
+      claimedKeys.has(`${line.type}_${line.index}`) ||
+      (line.type === 'blackout' && claimedKeys.has('rule_line_blackout'));
+
+    if (!isClaimed && hasCompletedSlots(line.slots)) {
+      eligibleRewards.push({
+        ruleKey: rule.ruleKey,
+        ruleName: `${rule.name} (${line.name})`,
+        category: 'bingo_line',
+        lineType: line.type,
+        lineIndex: line.index,
+        ticketsAwarded: rule.ticketsAwarded,
+        taskSlotIndexes: [...line.slots],
+        reason: `Completed ${line.name}`,
+      });
+    }
+  }
+
+  // 2. Evaluate Milestones (Bronze: 3 slots, Silver: 6 slots)
+  if (activeRuleKeys.has('milestone_3')) {
+    const rule = activeRules.find((r) => r.ruleKey === 'milestone_3')!;
+    const isClaimed = claimedKeys.has('milestone_0') || claimedKeys.has('rule_milestone_3');
+    if (!isClaimed && validSlots.size >= 3) {
+      eligibleRewards.push({
+        ruleKey: 'milestone_3',
+        ruleName: rule.name,
+        category: 'milestone',
+        lineType: 'milestone',
+        lineIndex: 0,
+        ticketsAwarded: rule.ticketsAwarded,
+        reason: `Completed ${validSlots.size} challenge slots (Milestone 3)`,
+      });
+    }
+  }
+
+  if (activeRuleKeys.has('milestone_6')) {
+    const rule = activeRules.find((r) => r.ruleKey === 'milestone_6')!;
+    const isClaimed = claimedKeys.has('milestone_1') || claimedKeys.has('rule_milestone_6');
+    if (!isClaimed && validSlots.size >= 6) {
+      eligibleRewards.push({
+        ruleKey: 'milestone_6',
+        ruleName: rule.name,
+        category: 'milestone',
+        lineType: 'milestone',
+        lineIndex: 1,
+        ticketsAwarded: rule.ticketsAwarded,
+        reason: `Completed ${validSlots.size} challenge slots (Milestone 6)`,
+      });
+    }
+  }
+
+  // 3. Evaluate Memory Drops
+  if (activeRuleKeys.has('memory_drop')) {
+    const rule = activeRules.find((r) => r.ruleKey === 'memory_drop')!;
+    const isClaimed = claimedKeys.has('memory_drop_0') || claimedKeys.has('rule_memory_drop');
+    if (!isClaimed && input.memoryDropCount >= 1) {
+      eligibleRewards.push({
+        ruleKey: 'memory_drop',
+        ruleName: rule.name,
+        category: 'memory_drop',
+        lineType: 'memory_drop',
+        lineIndex: 0,
+        ticketsAwarded: rule.ticketsAwarded,
+        reason: `Uploaded ${input.memoryDropCount} campus scrapbook photo(s)`,
+      });
+    }
+  }
+
+  // 4. Enforce User Ticket Cap (maxTicketsPerUser)
+  const currentClaimCount = input.existingClaims.length;
+  const maxLimit = input.maxTicketsPerUser && input.maxTicketsPerUser > 0 ? input.maxTicketsPerUser : 0;
+
+  let totalNewTickets = 0;
+  let isCapped = false;
+  const finalRewards: EligibleRaffleReward[] = [];
+
+  for (const reward of eligibleRewards) {
+    if (maxLimit > 0 && currentClaimCount + totalNewTickets + reward.ticketsAwarded > maxLimit) {
+      isCapped = true;
+      // If we can partially award up to the limit
+      const remainingAllowed = maxLimit - (currentClaimCount + totalNewTickets);
+      if (remainingAllowed > 0) {
+        finalRewards.push({
+          ...reward,
+          ticketsAwarded: remainingAllowed,
+          reason: `${reward.reason} (capped by max limit)`,
+        });
+        totalNewTickets += remainingAllowed;
+      }
+      break;
+    } else {
+      finalRewards.push(reward);
+      totalNewTickets += reward.ticketsAwarded;
+    }
+  }
+
+  return {
+    eligibleRewards: finalRewards,
+    totalNewTickets,
+    isCapped,
+    activeRuleCount: activeRules.length,
+  };
+}
