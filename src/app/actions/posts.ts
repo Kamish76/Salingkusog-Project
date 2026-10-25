@@ -237,7 +237,7 @@ export async function submitStudentPostAction(
 
         for (let i = 0; i < reward.ticketsAwarded; i++) {
           const generatedCode = generateRaffleCode();
-          const claimIndex = reward.lineIndex * 10 + i;
+          const claimIndex = i === 0 ? reward.lineIndex : 100 * i + reward.lineIndex;
 
           const insertRes = await sql`
             INSERT INTO public.raffle_entries (

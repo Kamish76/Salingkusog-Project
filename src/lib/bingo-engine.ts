@@ -293,6 +293,9 @@ export function evaluateRaffleRules(
       claimedKeys.add(`rule_${claim.ruleKey}`);
     }
     claimedKeys.add(`${claim.lineType}_${claim.lineIndex}`);
+    if (claim.lineIndex >= 100) {
+      claimedKeys.add(`${claim.lineType}_${claim.lineIndex % 100}`);
+    }
   }
 
   // Sanitize valid completed slot indexes (0..8)
