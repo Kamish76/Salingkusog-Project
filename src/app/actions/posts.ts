@@ -457,3 +457,103 @@ export async function removeBingoTaskPhotoAction(
     };
   }
 }
+
+/**
+ * Permanently delete a student post owned by the active user.
+ * Cleans up linked bingo slot progress, invalidates dependent raffle tickets,
+ * removes the image from storage, and writes an audit log.
+ */
+export async function deleteStudentPostAction(
+  postId: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "Please sign in to delete this memory." };
+  }
+  if (user.banned) {
+    return { success: false, error: "Your account is suspended." };
+  }
+
+  try {
+    // 1. Verify ownership
+    const existing = await sql`
+      SELECT p.id, p.user_id, p.image_url, p.caption, bt.slot_index, bt.title as task_title
+      FROM public.posts p
+      LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
+      WHERE p.id = ${postId}::uuid
+      LIMIT 1
+    `;
+
+    if (existing.length === 0) {
+      return { success: false, error: "Memory not found." };
+    }
+
+    if (existing[0].user_id !== user.id) {
+      return { success: false, error: "You can only delete memories that you own." };
+    }
+
+    const post = existing[0];
+
+    // 2. Clear any bingo progress linked to this post
+    await sql`
+      DELETE FROM public.user_bingo_progress
+      WHERE user_id = ${user.id}::uuid AND post_id = ${postId}::uuid
+    `;
+
+    // 3. Invalidate/delete any raffle tickets earned using this post
+    await sql`
+      DELETE FROM public.raffle_entries
+      WHERE user_id = ${user.id}::uuid
+        AND ${postId}::uuid = ANY(post_ids)
+    `;
+
+    // 4. Delete the post row
+    await sql`
+      DELETE FROM public.posts
+      WHERE id = ${postId}::uuid AND user_id = ${user.id}::uuid
+    `;
+
+    // 5. Delete storage blob if present
+    if (post.image_url) {
+      const key = extractStorageKey(post.image_url);
+      if (key) {
+        deleteBucketObject(key).catch((err) =>
+          console.error("Failed to delete removed memory blob:", err)
+        );
+      }
+    }
+
+    // 6. Record audit log
+    await recordActivityLog({
+      actionType: "POST_DELETE",
+      category: "user",
+      actorId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetId: postId,
+      targetType: "post",
+      description: `[Memory Board] Deleted memory${post.caption ? ` · "${post.caption.slice(0, 50)}"` : ""}`,
+      metadata: {
+        action: "delete_memory",
+        postId,
+        slotIndex: post.slot_index,
+        taskTitle: post.task_title,
+      },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev");
+    revalidatePath("/dev/logs");
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("deleteStudentPostAction error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to delete memory",
+    };
+  }
+}
+
