@@ -10,7 +10,7 @@ export function DevNav() {
     { label: "System Overview", href: "/dev" },
     { label: "User & Role Management", href: "/dev/users" },
     { label: "Audit & Activity Logs", href: "/dev/logs", badge: "SUPERADMIN" },
-    { label: "Developer Tools", href: "/dev/tools", badge: "STORAGE" },
+    { label: "Developer Tools", href: "/dev/tools", badge: "SUITE" },
   ];
 
   return (
