@@ -9,7 +9,9 @@ export type ActivityActionType =
   | "USER_UNBAN"
   | "ROLE_UPDATE"
   | "POST_MODERATE"
-  | "RAFFLE_TOGGLE";
+  | "RAFFLE_TOGGLE"
+  | "BINGO_TASK_UPDATE"
+  | "BINGO_TASKS_RESET";
 
 export interface LogActivityParams {
   actionType: ActivityActionType;

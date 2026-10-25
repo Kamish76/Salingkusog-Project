@@ -92,6 +92,21 @@ export default async function DevToolsPage() {
 
   const tools = [
     {
+      title: "3x3 Bingo Card & Challenge Manager",
+      href: "/dev/tools/bingo",
+      badge: "GAME ENGINE",
+      badgeColor: "emerald",
+      description:
+        "Preview the live 3x3 student bingo card across event days, update challenge tasks, categories, and unlock schedules in real time.",
+      status: "9 Tasks Configured",
+      features: [
+        "Live 3x3 card preview with Day 1–3 lock simulation",
+        "Instant task editor (titles, descriptions, categories)",
+        "Selfie requirement & active challenge controls",
+        "Audit logged modifications with instant path revalidation",
+      ],
+    },
+    {
       title: "Neon Object Storage & Image Lab",
       href: "/dev/tools/storage",
       badge: "ACTIVE",

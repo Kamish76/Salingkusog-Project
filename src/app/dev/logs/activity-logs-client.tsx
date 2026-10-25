@@ -190,6 +190,20 @@ export function ActivityLogsClient() {
             RAFFLE TOGGLE
           </span>
         );
+      case "BINGO_TASK_UPDATE":
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+            <span>🎯</span>
+            <span>TASK EDIT</span>
+          </span>
+        );
+      case "BINGO_TASKS_RESET":
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+            <span>↺</span>
+            <span>TASKS RESET</span>
+          </span>
+        );
       default:
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-zinc-800 text-zinc-400 border border-zinc-700">
