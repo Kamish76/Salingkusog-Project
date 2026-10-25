@@ -21,9 +21,10 @@ interface MemoryBoardProps {
   posts: PostRecord[];
   isAuthenticated: boolean;
   onOpenUpload: (originRect?: { top: number; left: number; width: number; height: number }) => void;
+  onOpenBingo?: () => void;
 }
 
-export function MemoryBoard({ posts, onOpenUpload }: MemoryBoardProps) {
+export function MemoryBoard({ posts, onOpenUpload, onOpenBingo }: MemoryBoardProps) {
   // Track failed / missing images to exclude them from the memory board
   const [failedPostIds, setFailedPostIds] = useState<Set<string>>(new Set());
 
@@ -92,24 +93,40 @@ export function MemoryBoard({ posts, onOpenUpload }: MemoryBoardProps) {
               Campus Memories
             </h2>
             <p className="font-body text-xs text-[#8e706c]">
-              {validPosts.length} {validPosts.length === 1 ? "moment shared" : "moments shared"}
+              {validPosts.length} {validPosts.length === 1 ? "moment shared" : "moments shared"} from the rally
             </p>
           </div>
         </div>
 
-        <button
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            onOpenUpload({ top: r.top, left: r.left, width: r.width, height: r.height });
-          }}
-          type="button"
-          className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 min-h-[40px] rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none active:scale-95 cursor-pointer ml-auto shrink-0 shadow-2xs"
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          <span>Drop a Memory</span>
-        </button>
+        <div className="flex items-center gap-2 ml-auto shrink-0">
+          {onOpenBingo && (
+            <button
+              onClick={onOpenBingo}
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2.5 min-h-[40px] rounded-lg bg-white hover:bg-[#fdfbf9] text-[#1e1b19] border border-[#e8ded5] font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none active:scale-95 cursor-pointer shadow-2xs"
+            >
+              <svg className="w-4 h-4 text-[#ff5e4d] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+              </svg>
+              <span>View 3×3 Tasks</span>
+            </button>
+          )}
+
+          <button
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              onOpenUpload({ top: r.top, left: r.left, width: r.width, height: r.height });
+            }}
+            type="button"
+            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 min-h-[40px] rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#1e1b19] focus-visible:outline-none active:scale-95 cursor-pointer shrink-0 shadow-2xs"
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            <span>Upload Rally Photo</span>
+          </button>
+        </div>
       </div>
 
       {/* POLAROID MASONRY FEED OR EMPTY STATE */}
@@ -126,11 +143,11 @@ export function MemoryBoard({ posts, onOpenUpload }: MemoryBoardProps) {
           </div>
 
           <h3 className="font-display font-extrabold text-lg sm:text-2xl text-[#1e1b19] tracking-tight">
-            The memory well is waiting for its first snapshot
+            The rally board is waiting for its first snapshot
           </h3>
 
           <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-2 max-w-md leading-relaxed px-2">
-            No memories have been dropped yet. Be the first student to toss an intramural photo or selfie into the memory well.
+            No memories have been dropped yet. Be the first student to complete an intramural challenge and stamp your photo on the board!
           </p>
 
           <button
@@ -139,12 +156,12 @@ export function MemoryBoard({ posts, onOpenUpload }: MemoryBoardProps) {
               onOpenUpload({ top: r.top, left: r.left, width: r.width, height: r.height });
             }}
             type="button"
-            className="mt-5 sm:mt-6 px-5 py-2.5 sm:px-6 sm:py-3 min-h-[44px] rounded-lg bg-[#1e1b19] hover:bg-stone-800 text-white font-display font-bold text-xs transition active:scale-95 focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center gap-2"
+            className="mt-5 sm:mt-6 px-5 py-2.5 sm:px-6 sm:py-3 min-h-[44px] rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display font-bold text-xs transition active:scale-95 focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center gap-2"
           >
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            <span>Drop the First Memory</span>
+            <span>Upload the First Rally Photo</span>
           </button>
         </div>
       ) : (

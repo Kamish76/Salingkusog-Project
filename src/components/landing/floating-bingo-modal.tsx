@@ -488,8 +488,8 @@ export function FloatingBingoModal({
 
   return (
     <>
-      {/* PERSISTENT BINGO STAMP TRIGGER BUTTON */}
-      <aside aria-label="3x3 Bingo Challenge" className="fixed bottom-safe right-3 sm:right-8 z-40">
+      {/* PERSISTENT BINGO STAMP TRIGGER DOCK (Mobile-First Sticky Dock & Desktop Quick-Access) */}
+      <aside aria-label="3x3 Bingo Challenge" className="fixed bottom-3 inset-x-3 sm:inset-x-auto sm:right-8 sm:bottom-6 z-40 flex justify-center pointer-events-none">
         <button
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -506,29 +506,39 @@ export function FloatingBingoModal({
           }}
           type="button"
           aria-label="Open 3x3 Bingo Card"
-          className="group relative flex items-center gap-2.5 sm:gap-3 px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] rounded-xl bg-white text-[#1e1b19] border border-[#e8ded5] hover:border-stone-400 focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none transition-all cursor-pointer shadow-md sm:shadow-xs active:scale-95"
+          className="pointer-events-auto group relative w-full sm:w-auto max-w-sm sm:max-w-none flex items-center justify-between sm:justify-start gap-3 px-4 py-2.5 sm:px-4 sm:py-3 min-h-[48px] sm:min-h-[44px] rounded-2xl sm:rounded-xl bg-white text-[#1e1b19] border-2 border-[#ffdad5] sm:border-[#e8ded5] hover:border-[#ff5e4d] focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none transition-all cursor-pointer shadow-lg sm:shadow-xs active:scale-[0.98]"
         >
-          {/* Status Indicator */}
-          <span className="relative flex h-2.5 w-2.5">
-            {completedCount > 0 ? (
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#588157]"></span>
-            ) : (
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#ff5e4d]"></span>
-            )}
-          </span>
-
-          <svg className="w-5 h-5 text-[#ff5e4d] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
-          </svg>
-
-          <div className="flex flex-col text-left">
-            <span className="font-display font-bold text-xs sm:text-sm tracking-tight text-[#1e1b19] leading-tight">
-              3×3 Bingo Rally
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Status Indicator */}
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              {completedCount >= 9 ? (
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#2b6127]"></span>
+              ) : completedCount > 0 ? (
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#588157]"></span>
+              ) : (
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#ff5e4d] animate-pulse"></span>
+              )}
             </span>
-            <span className="font-body text-[10px] sm:text-[11px] text-[#8e706c] font-normal leading-tight">
-              {completedCount} of 9 completed
-            </span>
+
+            <svg className="w-5 h-5 text-[#ff5e4d] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+            </svg>
+
+            <div className="flex flex-col text-left">
+              <span className="font-display font-bold text-xs sm:text-sm tracking-tight text-[#1e1b19] leading-tight">
+                3×3 Bingo Rally
+              </span>
+              <span className="font-body text-[11px] text-[#8e706c] font-normal leading-tight">
+                {completedCount >= 9 ? "🎉 Card completed!" : `${completedCount} of 9 stamped`}
+              </span>
+            </div>
+          </div>
+
+          {/* Quick-Action CTA Pill on Mobile */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#ff5e4d] text-white text-xs font-display font-bold shrink-0 sm:hidden">
+            <span>Open Card</span>
+            <span>→</span>
           </div>
         </button>
       </aside>
@@ -565,7 +575,7 @@ export function FloatingBingoModal({
                   </span>
                 </div>
                 <p className="font-body text-xs text-[#5a413d] mt-1">
-                  Complete challenges to earn verified raffle tickets
+                  Complete all 9 challenges to enter the official stage raffle draw
                 </p>
               </div>
 
