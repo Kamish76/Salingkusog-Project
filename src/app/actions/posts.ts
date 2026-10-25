@@ -36,6 +36,9 @@ export async function submitStudentPostAction(
   if (!user) {
     return { success: false, error: "Please sign in with Google to post." };
   }
+  if (user.banned) {
+    return { success: false, error: "Your account is suspended." };
+  }
 
   if (!isStorageConfigured()) {
     return {
@@ -193,6 +196,7 @@ export async function submitStudentPostAction(
       SELECT rule_key, line_type, line_index
       FROM public.raffle_entries
       WHERE user_id = ${user.id}::uuid
+        AND status != 'disqualified'
     `;
 
     const completedSlots = userProgressRows.map((r) => Number(r.slot_index));
@@ -255,6 +259,14 @@ export async function submitStudentPostAction(
           const generatedCode = generateRaffleCode();
           const claimIndex = i === 0 ? reward.lineIndex : 100 * i + reward.lineIndex;
 
+          await sql`
+            DELETE FROM public.raffle_entries
+            WHERE user_id = ${user.id}::uuid
+              AND line_type = ${reward.lineType}
+              AND line_index = ${claimIndex}
+              AND status = 'disqualified'
+          `;
+
           const insertRes = await sql`
             WITH user_lock AS (
               SELECT pg_advisory_xact_lock(hashtext('raffle_' || ${user.id}::text))
@@ -263,6 +275,7 @@ export async function submitStudentPostAction(
               SELECT count(*)::int AS total
               FROM public.raffle_entries, user_lock
               WHERE user_id = ${user.id}::uuid
+                AND status != 'disqualified'
             )
             INSERT INTO public.raffle_entries (
               raffle_code,
@@ -354,6 +367,9 @@ export async function removeBingoTaskPhotoAction(
   if (!user) {
     return { success: false, error: "Please sign in to modify your bingo card." };
   }
+  if (user.banned) {
+    return { success: false, error: "Your account is suspended." };
+  }
 
   try {
     const existing = await sql`
@@ -389,12 +405,9 @@ export async function removeBingoTaskPhotoAction(
       }
 
       await sql`
-        UPDATE public.raffle_entries
-        SET status = 'disqualified',
-            disqualification_reason = 'Photo proof removed by user'
+        DELETE FROM public.raffle_entries
         WHERE user_id = ${user.id}::uuid
           AND ${postId}::uuid = ANY(post_ids)
-          AND status = 'valid'
       `;
     }
 

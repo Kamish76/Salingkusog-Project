@@ -277,6 +277,20 @@ export async function banUserAction(formData: FormData) {
       WHERE "userId" = ${targetUserId}::uuid
     `;
 
+    // 6. Cascade ban: hide all user posts and disqualify active raffle tickets
+    await sql`
+      UPDATE public.posts
+      SET status = 'hidden', updated_at = NOW()
+      WHERE user_id = ${targetUserId}::uuid
+    `;
+
+    await sql`
+      UPDATE public.raffle_entries
+      SET status = 'disqualified',
+          disqualification_reason = 'User account suspended by administrator'
+      WHERE user_id = ${targetUserId}::uuid AND status = 'valid'
+    `;
+
     await recordActivityLog({
       actionType: "USER_BAN",
       category: "admin",
@@ -294,6 +308,7 @@ export async function banUserAction(formData: FormData) {
   revalidatePath("/dev/users");
   revalidatePath("/dev");
   revalidatePath("/");
+  revalidatePath("/gallery");
 }
 
 export async function unbanUserAction(formData: FormData) {
@@ -338,6 +353,7 @@ export async function unbanUserAction(formData: FormData) {
   revalidatePath("/dev/users");
   revalidatePath("/dev");
   revalidatePath("/");
+  revalidatePath("/gallery");
 }
 
 export interface UserBingoSubmission {
@@ -444,6 +460,16 @@ export async function moderateSubmissionAction(
       WHERE id = ${postId}::uuid
     `;
 
+    if (newStatus === "hidden") {
+      await sql`
+        UPDATE public.raffle_entries
+        SET status = 'disqualified',
+            disqualification_reason = 'Post hidden by moderator'
+        WHERE ${postId}::uuid = ANY(post_ids)
+          AND status = 'valid'
+      `;
+    }
+
     await recordActivityLog({
       actionType: "POST_MODERATE",
       category: "admin",
@@ -459,4 +485,6 @@ export async function moderateSubmissionAction(
   }
 
   revalidatePath("/dev/users");
+  revalidatePath("/");
+  revalidatePath("/gallery");
 }

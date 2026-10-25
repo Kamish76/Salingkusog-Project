@@ -86,6 +86,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           SELECT raffle_code, line_type, line_index
           FROM public.raffle_entries
           WHERE user_id = ${user.id}::uuid
+            AND status != 'disqualified'
           ORDER BY created_at DESC
         `
       : Promise.resolve([]);

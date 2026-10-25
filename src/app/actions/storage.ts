@@ -140,6 +140,15 @@ export async function deleteStorageObjectAction(
         WHERE id = ANY(${postIds}::uuid[])
       `;
 
+      // Invalidate linked raffle entries
+      await sql`
+        UPDATE public.raffle_entries
+        SET status = 'disqualified',
+            disqualification_reason = 'Photo deleted by administrator'
+        WHERE post_ids && ${postIds}::uuid[]
+          AND status = 'valid'
+      `;
+
       await recordActivityLog({
         actionType: "POST_MODERATE",
         category: "admin",
