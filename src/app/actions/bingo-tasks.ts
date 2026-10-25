@@ -161,28 +161,30 @@ export async function resetBingoTasksToDefaultsAction(): Promise<{
   }
 
   try {
-    for (const seed of CANONICAL_BINGO_SEED_TASKS) {
-      await sql`
-        INSERT INTO public.bingo_tasks (slot_index, title, description, category, unlock_day, requires_selfie, is_active)
-        VALUES (
-          ${seed.slotIndex},
-          ${seed.title},
-          ${seed.description},
-          ${seed.category},
-          ${seed.unlockDay},
-          ${seed.requiresSelfie},
-          ${seed.isActive}
-        )
-        ON CONFLICT (slot_index) DO UPDATE
-        SET 
-          title = EXCLUDED.title,
-          description = EXCLUDED.description,
-          category = EXCLUDED.category,
-          unlock_day = EXCLUDED.unlock_day,
-          requires_selfie = EXCLUDED.requires_selfie,
-          is_active = EXCLUDED.is_active
-      `;
-    }
+    await sql.transaction(
+      CANONICAL_BINGO_SEED_TASKS.map(
+        (seed) => sql`
+          INSERT INTO public.bingo_tasks (slot_index, title, description, category, unlock_day, requires_selfie, is_active)
+          VALUES (
+            ${seed.slotIndex},
+            ${seed.title},
+            ${seed.description},
+            ${seed.category},
+            ${seed.unlockDay},
+            ${seed.requiresSelfie},
+            ${seed.isActive}
+          )
+          ON CONFLICT (slot_index) DO UPDATE
+          SET 
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            category = EXCLUDED.category,
+            unlock_day = EXCLUDED.unlock_day,
+            requires_selfie = EXCLUDED.requires_selfie,
+            is_active = EXCLUDED.is_active
+        `
+      )
+    );
 
     await recordActivityLog({
       actionType: "BINGO_TASKS_RESET",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
 import { signOutAction } from "@/app/actions/auth-role";
 
@@ -15,6 +16,7 @@ interface AuthButtonProps {
 }
 
 export function AuthButton({ user, callbackURL, className }: AuthButtonProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
@@ -44,7 +46,8 @@ export function AuthButton({ user, callbackURL, className }: AuthButtonProps) {
         console.warn("Neon authClient signOut warning:", err);
       }
       await signOutAction();
-      window.location.href = "/";
+      router.push("/");
+      router.refresh();
     } catch (err) {
       console.error("Sign out failed:", err);
       setLoading(false);

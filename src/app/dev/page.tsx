@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser, isDevAuthorized, isSuperAdmin } from "@/lib/auth";
-import {
-  setDevRoleAction,
-  updateUserRoleAction,
-  elevateToSuperAdminAction,
-} from "@/app/actions/auth-role";
+import { updateUserRoleAction } from "@/app/actions/auth-role";
 import { toggleRaffleStatusAction } from "@/app/actions/event-config";
 import { AuthButton } from "@/components/auth-button";
 import { sql } from "@/lib/db";
@@ -83,39 +79,13 @@ export default async function DevPage() {
             <AuthButton user={user} />
           </div>
 
-          {/* Dev testing role simulator */}
-          <div className="pt-4 border-t border-zinc-800/80 space-y-3">
-            <p className="text-xs text-zinc-500 font-mono">
-              [Dev Simulator] Test authorization states:
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <form action={setDevRoleAction}>
-                <input type="hidden" name="role" value="superadmin" />
-                <button
-                  type="submit"
-                  className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition cursor-pointer active:scale-95"
-                >
-                  Simulate SuperAdmin
-                </button>
-              </form>
-
-              <form action={setDevRoleAction}>
-                <input type="hidden" name="role" value="admin" />
-                <button
-                  type="submit"
-                  className="px-3 py-2 min-h-[38px] rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition cursor-pointer active:scale-95"
-                >
-                  Simulate Admin (Moderator)
-                </button>
-              </form>
-
-              <Link
-                href="/"
-                className="px-3 py-2 min-h-[38px] inline-flex items-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition active:scale-95"
-              >
-                Return Home
-              </Link>
-            </div>
+          <div className="pt-4 border-t border-zinc-800/80 flex justify-center">
+            <Link
+              href="/"
+              className="px-3 py-2 min-h-[38px] inline-flex items-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition active:scale-95"
+            >
+              Return Home
+            </Link>
           </div>
         </div>
       </div>
@@ -205,28 +175,6 @@ export default async function DevPage() {
           <p className="text-xs sm:text-sm text-zinc-400">
             System health, database configuration, and management controls for Salingkusog.
           </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <form action={setDevRoleAction}>
-            <input type="hidden" name="role" value="user" />
-            <button
-              type="submit"
-              className="px-3 py-2 min-h-[38px] rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs border border-zinc-700 transition cursor-pointer font-mono active:scale-95"
-            >
-              Simulate User
-            </button>
-          </form>
-
-          <form action={setDevRoleAction}>
-            <input type="hidden" name="role" value="guest" />
-            <button
-              type="submit"
-              className="px-3 py-2 min-h-[38px] rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs border border-zinc-700 transition cursor-pointer font-mono active:scale-95"
-            >
-              Simulate Guest
-            </button>
-          </form>
         </div>
       </div>
 
@@ -595,14 +543,6 @@ export default async function DevPage() {
             >
               View User Directory →
             </Link>
-            <form action={elevateToSuperAdminAction} className="flex-1 sm:flex-initial">
-              <button
-                type="submit"
-                className="w-full px-4 py-2 min-h-[38px] rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition cursor-pointer whitespace-nowrap active:scale-95 flex items-center justify-center"
-              >
-                ★ Elevate to SuperAdmin
-              </button>
-            </form>
           </div>
         </div>
       ) : (

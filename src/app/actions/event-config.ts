@@ -41,4 +41,5 @@ export async function toggleRaffleStatusAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/dev");
+  revalidatePath("/dev/tools/raffle");
 }

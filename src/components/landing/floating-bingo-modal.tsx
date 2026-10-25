@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { authClient } from "@/lib/auth/client";
 import { removeBingoTaskPhotoAction } from "@/app/actions/posts";
 
@@ -185,10 +185,15 @@ export function FloatingBingoModal({
   const [imageOrientations, setImageOrientations] = useState<
     Record<number, "portrait" | "landscape" | "square">
   >({});
+  const probedImagesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     userProgress.forEach((p) => {
       if (p.imageUrl && p.slotIndex !== undefined) {
+        const cacheKey = `${p.slotIndex}:${p.imageUrl}`;
+        if (probedImagesRef.current.has(cacheKey)) return;
+        probedImagesRef.current.add(cacheKey);
+
         const img = new Image();
         const updateOrientation = () => {
           if (img.naturalWidth && img.naturalHeight) {

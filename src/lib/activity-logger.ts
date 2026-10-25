@@ -46,56 +46,6 @@ export interface ActivityLogRecord {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// In-memory fallback buffer for mock/offline testing
-const mockLogsStore: ActivityLogRecord[] = [
-  {
-    id: "mock_log_1",
-    actionType: "USER_REGISTER",
-    category: "user",
-    actorId: "00000000-0000-4000-a000-000000000003",
-    actorName: "Standard User",
-    actorEmail: "user@salingkusog.internal",
-    actorRole: "user",
-    targetId: "00000000-0000-4000-a000-000000000003",
-    targetType: "user",
-    description: "New user registered via Google OAuth: Standard User (user@salingkusog.internal)",
-    metadata: { provider: "google" },
-    createdAt: new Date(Date.now() - 3600 * 1000 * 2).toISOString(),
-  },
-  {
-    id: "mock_log_2",
-    actionType: "POST_SUBMIT",
-    category: "user",
-    actorId: "00000000-0000-4000-a000-000000000003",
-    actorName: "Standard User",
-    actorEmail: "user@salingkusog.internal",
-    actorRole: "user",
-    targetId: "mock_post_1",
-    targetType: "post",
-    description: "Uploaded photo submission for Bingo Slot #0 (Opening Ceremony Cheer)",
-    metadata: { slotIndex: 0, taskTitle: "Opening Ceremony Cheer" },
-    createdAt: new Date(Date.now() - 3600 * 1000).toISOString(),
-  },
-  {
-    id: "mock_log_3",
-    actionType: "USER_BAN",
-    category: "admin",
-    actorId: "00000000-0000-4000-a000-000000000001",
-    actorName: "Root SuperAdmin",
-    actorEmail: "superadmin@salingkusog.internal",
-    actorRole: "superadmin",
-    targetId: "00000000-0000-4000-a000-000000000004",
-    targetType: "user",
-    description: "Banned user: spammer@salingkusog.internal. Reason: Inappropriate photo uploaded on Bingo Slot #2",
-    metadata: { reason: "Inappropriate photo uploaded on Bingo Slot #2", targetEmail: "spammer@salingkusog.internal" },
-    createdAt: new Date(Date.now() - 1800 * 1000).toISOString(),
-  },
-];
-
-export function getMockLogsStore(): ActivityLogRecord[] {
-  return mockLogsStore;
-}
-
 /**
  * Record an activity or audit log.
  * Resilient & non-blocking: Never throws, ensuring core operations remain stable.
@@ -158,23 +108,7 @@ export async function recordActivityLog(params: LogActivityParams): Promise<void
         `;
       }
     } else {
-      mockLogsStore.unshift({
-        id: `mock_log_${Date.now()}`,
-        actionType: params.actionType,
-        category: params.category,
-        actorId: actorIdValid,
-        actorName: params.actorName || null,
-        actorEmail: params.actorEmail || null,
-        actorRole: params.actorRole || null,
-        targetId: params.targetId || null,
-        targetType: params.targetType || null,
-        description: params.description,
-        metadata: params.metadata || {},
-        createdAt: new Date().toISOString(),
-      });
-      if (mockLogsStore.length > 100) {
-        mockLogsStore.pop();
-      }
+      console.log("[ActivityLog Offline]", params.actionType, params.description);
     }
   } catch (err) {
     // Non-blocking error handling

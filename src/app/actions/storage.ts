@@ -10,7 +10,6 @@ import {
   uploadImageToBucket,
   deleteBucketObject,
 } from "@/lib/storage";
-import { moderateImageBuffer } from "@/lib/moderation";
 
 export interface StorageActionResult {
   success: boolean;
@@ -79,21 +78,6 @@ export async function uploadStorageImageAction(
 
     const contentType = inspection.detectedType || file.type || "image/webp";
 
-    // Pre-upload OpenAI Multimodal Safety Moderation
-    const moderation = await moderateImageBuffer(buffer, contentType);
-    if (!moderation.approved) {
-      if (moderation.flagged) {
-        return {
-          success: false,
-          error: "Image rejected: Content flagged by safety policy.",
-        };
-      }
-      return {
-        success: false,
-        error: moderation.error || "Safety review failed. Please try again.",
-      };
-    }
-
     const result = await uploadImageToBucket(buffer, file.name, contentType);
 
     revalidatePath("/dev/tools/storage");
@@ -154,6 +138,15 @@ export async function deleteStorageObjectAction(
         UPDATE public.posts
         SET status = 'hidden', updated_at = NOW()
         WHERE id = ANY(${postIds}::uuid[])
+      `;
+
+      // Invalidate linked raffle entries
+      await sql`
+        UPDATE public.raffle_entries
+        SET status = 'disqualified',
+            disqualification_reason = 'Photo deleted by administrator'
+        WHERE post_ids && ${postIds}::uuid[]
+          AND status = 'valid'
       `;
 
       await recordActivityLog({

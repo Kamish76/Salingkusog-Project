@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { ROTATIONS, TAPES, PHOTO_ASPECTS, formatTimeAgo } from "@/lib/polaroid";
 
 export interface PostRecord {
   id: string;
@@ -22,54 +23,29 @@ interface MemoryBoardProps {
   onOpenUpload: (originRect?: { top: number; left: number; width: number; height: number }) => void;
 }
 
-const ROTATIONS = [
-  "rotate-0 sm:rotate-[-1.5deg]",
-  "rotate-0 sm:rotate-[1.5deg]",
-  "rotate-0 sm:rotate-[-1deg]",
-  "rotate-0 sm:rotate-[2deg]",
-  "rotate-0 sm:rotate-[-2deg]",
-  "rotate-0 sm:rotate-[1deg]",
-];
-
-const TAPES = ["washi-tape-coral", "washi-tape-sage", "washi-tape-butter"];
-
-const PHOTO_ASPECTS: Record<"portrait" | "landscape" | "square", string> = {
-  portrait: "aspect-[3/4]",
-  landscape: "aspect-[4/3]",
-  square: "aspect-square",
-};
-
-function formatTimeAgo(dateInput: string | Date): string {
-  const date = new Date(dateInput);
-  const now = new Date();
-  const diffSec = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
-
-  if (diffSec < 60) return "just now";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}h ago`;
-  const diffDays = Math.floor(diffHour / 24);
-  return `${diffDays}d ago`;
-}
-
-export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoardProps) {
+export function MemoryBoard({ posts, onOpenUpload }: MemoryBoardProps) {
   // Track failed / missing images to exclude them from the memory board
   const [failedPostIds, setFailedPostIds] = useState<Set<string>>(new Set());
 
   // Only display posts that have a valid non-empty photo and have not failed to load
-  const validPosts = posts.filter(
-    (p) => Boolean(p.imageUrl && p.imageUrl.trim()) && !failedPostIds.has(p.id)
+  const validPosts = useMemo(
+    () =>
+      posts.filter(
+        (p) => Boolean(p.imageUrl && p.imageUrl.trim()) && !failedPostIds.has(p.id)
+      ),
+    [posts, failedPostIds]
   );
 
   // Track natural image aspect ratio to adapt polaroid orientation (landscape vs portrait vs square)
   const [imageOrientations, setImageOrientations] = useState<
     Record<string, "portrait" | "landscape" | "square">
   >({});
+  const probedImageIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     validPosts.forEach((p) => {
-      if (p.imageUrl) {
+      if (p.imageUrl && !probedImageIds.current.has(p.id)) {
+        probedImageIds.current.add(p.id);
         const img = new Image();
         const updateOrientation = () => {
           if (img.naturalWidth && img.naturalHeight) {

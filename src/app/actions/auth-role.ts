@@ -1,35 +1,23 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { getCurrentUser, isSuperAdmin, isDevAuthorized, isModerator } from "@/lib/auth";
 import { recordActivityLog } from "@/lib/activity-logger";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function signOutAction() {
-  const cookieStore = await cookies();
-  cookieStore.delete("dev_role");
   revalidatePath("/");
   revalidatePath("/gallery");
-}
-
-export async function setDevRole(_role?: string) {
-  const cookieStore = await cookies();
-  cookieStore.delete("dev_role");
-  revalidatePath("/");
-  revalidatePath("/dev");
-}
-
-export async function setDevRoleAction(_formData?: FormData) {
-  await setDevRole();
 }
 
 export async function updateUserRoleAction(formData: FormData) {
   const targetUserId = formData.get("targetUserId")?.toString();
   const newRole = formData.get("newRole")?.toString();
 
-  if (!targetUserId || !newRole) {
-    throw new Error("Missing target user ID or new role.");
+  if (!targetUserId || !UUID_REGEX.test(targetUserId) || !newRole) {
+    throw new Error("Invalid or missing target user ID or new role.");
   }
 
   // 1. Authorize caller: strictly superadmin
@@ -45,7 +33,7 @@ export async function updateUserRoleAction(formData: FormData) {
 
   // 3. Guardrail: Protect root superadmin from alteration or demotion
   const targetUsers = await sql`
-    SELECT id, email, role FROM neon_auth."user" WHERE id = ${targetUserId} LIMIT 1
+    SELECT id, email, role FROM neon_auth."user" WHERE id = ${targetUserId}::uuid LIMIT 1
   `;
 
   if (targetUsers.length === 0) {
@@ -63,7 +51,7 @@ export async function updateUserRoleAction(formData: FormData) {
   await sql`
     UPDATE neon_auth."user"
     SET role = ${newRole}, "updatedAt" = NOW()
-    WHERE id = ${targetUserId}
+    WHERE id = ${targetUserId}::uuid
   `;
 
   await recordActivityLog({
@@ -84,40 +72,6 @@ export async function updateUserRoleAction(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function elevateToSuperAdminAction() {
-  const caller = await getCurrentUser();
-  if (!caller) {
-    throw new Error("Unauthorized: Unauthenticated.");
-  }
-
-  // Only accounts with Admin role (or root account) can elevate to SuperAdmin
-  if (caller.role !== "admin") {
-    throw new Error("Forbidden: Only accounts with Admin role can elevate to SuperAdmin.");
-  }
-
-  await sql`
-    UPDATE neon_auth."user"
-    SET role = 'superadmin', "updatedAt" = NOW()
-    WHERE email = ${caller.email}
-  `;
-
-  await recordActivityLog({
-    actionType: "ROLE_UPDATE",
-    category: "admin",
-    actorId: caller.id,
-    actorName: caller.name,
-    actorEmail: caller.email,
-    actorRole: "superadmin",
-    targetId: caller.id,
-    targetType: "user",
-    description: `Admin ${caller.name} (${caller.email}) elevated to SuperAdmin`,
-    metadata: { newRole: "superadmin" },
-  });
-
-  revalidatePath("/dev");
-  revalidatePath("/dev/users");
-  revalidatePath("/");
-}
 
 export interface FetchUsersParams {
   search?: string;
@@ -220,12 +174,9 @@ export async function fetchUsersAction(
         COALESCE(u.banned, false) as banned,
         u."banReason" as "banReason",
         u."createdAt",
-        COALESCE((
-          SELECT COUNT(*) 
-          FROM public.posts p 
-          WHERE p.user_id = u.id AND p.is_bingo_entry = true
-        ), 0) as "submissionCount"
+        COUNT(p.id)::int as "submissionCount"
       FROM neon_auth."user" u
+      LEFT JOIN public.posts p ON p.user_id = u.id AND p.is_bingo_entry = true
       WHERE (${searchPattern}::text IS NULL OR u.name ILIKE ${searchPattern} OR u.email ILIKE ${searchPattern})
         AND (${filterRole}::text IS NULL OR COALESCE(u.role, 'user') = ${filterRole})
         AND (
@@ -233,6 +184,7 @@ export async function fetchUsersAction(
           OR (${filterStatus} = 'banned' AND u.banned = true) 
           OR (${filterStatus} = 'active' AND (u.banned IS NULL OR u.banned = false))
         )
+      GROUP BY u.id, u.name, u.email, u.role, u.banned, u."banReason", u."createdAt"
       ORDER BY 
         CASE WHEN u.email = ${callerEmail} THEN 0 ELSE 1 END,
         u."createdAt" DESC
@@ -276,8 +228,8 @@ export async function banUserAction(formData: FormData) {
   const targetUserId = formData.get("targetUserId")?.toString();
   const reason = formData.get("reason")?.toString()?.trim();
 
-  if (!targetUserId || !reason) {
-    throw new Error("Missing target user ID or ban reason.");
+  if (!targetUserId || !UUID_REGEX.test(targetUserId) || !reason) {
+    throw new Error("Invalid or missing target user ID or ban reason.");
   }
 
   // 1. Authorize caller: Admins and SuperAdmins can moderate
@@ -320,6 +272,20 @@ export async function banUserAction(formData: FormData) {
       WHERE "userId" = ${targetUserId}::uuid
     `;
 
+    // 6. Cascade ban: hide all user posts and disqualify active raffle tickets
+    await sql`
+      UPDATE public.posts
+      SET status = 'hidden', updated_at = NOW()
+      WHERE user_id = ${targetUserId}::uuid
+    `;
+
+    await sql`
+      UPDATE public.raffle_entries
+      SET status = 'disqualified',
+          disqualification_reason = 'User account suspended by administrator'
+      WHERE user_id = ${targetUserId}::uuid AND status = 'valid'
+    `;
+
     await recordActivityLog({
       actionType: "USER_BAN",
       category: "admin",
@@ -337,13 +303,14 @@ export async function banUserAction(formData: FormData) {
   revalidatePath("/dev/users");
   revalidatePath("/dev");
   revalidatePath("/");
+  revalidatePath("/gallery");
 }
 
 export async function unbanUserAction(formData: FormData) {
   const targetUserId = formData.get("targetUserId")?.toString();
 
-  if (!targetUserId) {
-    throw new Error("Missing target user ID.");
+  if (!targetUserId || !UUID_REGEX.test(targetUserId)) {
+    throw new Error("Invalid or missing target user ID.");
   }
 
   const caller = await getCurrentUser();
@@ -381,6 +348,7 @@ export async function unbanUserAction(formData: FormData) {
   revalidatePath("/dev/users");
   revalidatePath("/dev");
   revalidatePath("/");
+  revalidatePath("/gallery");
 }
 
 export interface UserBingoSubmission {
@@ -487,6 +455,16 @@ export async function moderateSubmissionAction(
       WHERE id = ${postId}::uuid
     `;
 
+    if (newStatus === "hidden") {
+      await sql`
+        UPDATE public.raffle_entries
+        SET status = 'disqualified',
+            disqualification_reason = 'Post hidden by moderator'
+        WHERE ${postId}::uuid = ANY(post_ids)
+          AND status = 'valid'
+      `;
+    }
+
     await recordActivityLog({
       actionType: "POST_MODERATE",
       category: "admin",
@@ -502,4 +480,6 @@ export async function moderateSubmissionAction(
   }
 
   revalidatePath("/dev/users");
+  revalidatePath("/");
+  revalidatePath("/gallery");
 }
