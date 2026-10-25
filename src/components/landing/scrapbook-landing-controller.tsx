@@ -244,6 +244,7 @@ export function ScrapbookLandingController({
         onOpenChange={setIsBingoOpen}
         isUploadOpen={isUploadOpen}
         onSelectTaskToUpload={(taskId, rect) => handleOpenUpload(taskId, rect, "bingo")}
+        user={user}
       />
 
       {/* 5. PHOTO UPLOAD / DROP MEMORY MODAL */}

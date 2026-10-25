@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { authClient } from "@/lib/auth/client";
 import { removeBingoTaskPhotoAction } from "@/app/actions/posts";
+import { exportRecaptchaBingoCard } from "@/lib/export-recaptcha-card";
 
 export interface BingoTaskItem {
   id: string;
@@ -47,6 +48,7 @@ interface FloatingBingoModalProps {
   onOpenChange?: (open: boolean) => void;
   onSelectTaskToUpload?: (taskId: string, originRect?: OriginRect) => void;
   isUploadOpen?: boolean;
+  user?: { name?: string | null; email?: string | null } | null;
 }
 
 function getCategoryIcon(category: string) {
@@ -130,7 +132,28 @@ export function FloatingBingoModal({
   onOpenChange,
   onSelectTaskToUpload,
   isUploadOpen = false,
+  user,
 }: FloatingBingoModalProps) {
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleExportBingoCard = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      await exportRecaptchaBingoCard({
+        user,
+        tasks,
+        userProgress,
+      });
+    } catch (err) {
+      console.error("Export error:", err);
+      setExportError(err instanceof Error ? err.message : "Failed to export card image");
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isControlled = externalIsOpen !== undefined;
   const isOpen = isControlled ? externalIsOpen : internalIsOpen;
@@ -579,15 +602,58 @@ export function FloatingBingoModal({
                 </p>
               </div>
 
-              <button
-                onClick={handleCloseBingo}
-                type="button"
-                aria-label="Close modal"
-                className="w-10 h-10 sm:w-9 sm:h-9 min-h-[44px] min-w-[44px] rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center text-sm font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer -mr-1 -mt-1 active:scale-95 shrink-0"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2 -mr-1 -mt-1">
+                {userProgress.some((p) => p.imageUrl) && (
+                  <button
+                    onClick={handleExportBingoCard}
+                    disabled={isExporting}
+                    type="button"
+                    title="Export 3x3 Bingo Card as PNG"
+                    aria-label="Export 3x3 Bingo Card as PNG"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-stone-900 hover:bg-stone-800 disabled:bg-stone-400 text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer shadow-xs active:scale-95 shrink-0"
+                  >
+                    {isExporting ? (
+                      <>
+                        <svg className="w-3.5 h-3.5 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                        <span className="hidden sm:inline">Exporting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5 text-[#ff5e4d]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        <span>Export PNG</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  onClick={handleCloseBingo}
+                  type="button"
+                  aria-label="Close modal"
+                  className="w-10 h-10 sm:w-9 sm:h-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center text-sm font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer active:scale-95 shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
+
+            {exportError && (
+              <div className="mb-2 text-xs text-rose-600 font-body px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between">
+                <span>{exportError}</span>
+                <button
+                  type="button"
+                  onClick={() => setExportError(null)}
+                  className="text-rose-500 hover:text-rose-700 font-bold ml-2"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* 3x3 Challenge Grid & Polaroid Collage */}
             <div className="my-2 bg-[#fcf9f5] p-3.5 sm:p-4.5 rounded-2xl border border-[#e8ded5] overflow-visible">
