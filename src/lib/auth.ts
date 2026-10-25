@@ -1,16 +1,22 @@
 import { sql } from "@/lib/db";
 import { auth } from "@/lib/auth/server";
+import {
+  type UserRole,
+  type AuthUser,
+  isModerator,
+  isDevAuthorized,
+  isSuperAdmin,
+  isUserBanned,
+} from "./auth-predicates";
 
-export type UserRole = "superadmin" | "admin" | "user";
-
-export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  banned?: boolean;
-  banReason?: string | null;
-}
+export {
+  type UserRole,
+  type AuthUser,
+  isModerator,
+  isDevAuthorized,
+  isSuperAdmin,
+  isUserBanned,
+};
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -70,20 +76,4 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   }
 
   return null;
-}
-
-export function isModerator(user: AuthUser | null): boolean {
-  return user?.role === "superadmin" || user?.role === "admin";
-}
-
-export function isDevAuthorized(user: AuthUser | null): boolean {
-  return isModerator(user);
-}
-
-export function isSuperAdmin(user: AuthUser | null): boolean {
-  return user?.role === "superadmin";
-}
-
-export function isUserBanned(user: AuthUser | null): boolean {
-  return Boolean(user?.banned);
 }

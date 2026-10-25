@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { getCurrentUser, isSuperAdmin, isDevAuthorized, isModerator } from "@/lib/auth";
@@ -9,8 +8,6 @@ import { recordActivityLog } from "@/lib/activity-logger";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function signOutAction() {
-  const cookieStore = await cookies();
-  cookieStore.delete("dev_role");
   revalidatePath("/");
   revalidatePath("/gallery");
 }

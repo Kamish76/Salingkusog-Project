@@ -102,7 +102,6 @@ export function PersonalGalleryView({
   // Map progress by slot index
   const progressBySlot = new Map(userProgress.map((p) => [p.slotIndex, p]));
   const completedCount = progressBySlot.size;
-  const bingoSnapsCount = posts.filter((p) => p.isBingoEntry).length;
 
   /**
    * Helper to load an image onto canvas cleanly with CORS or Blob fallback.

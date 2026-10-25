@@ -4,9 +4,7 @@ import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import {
   type RaffleRuleRecord,
-  type RaffleRuleCategory,
   evaluateRaffleRules,
-  BINGO_LINES,
 } from "@/lib/bingo-engine";
 import {
   updateRaffleRuleAction,
@@ -35,7 +33,6 @@ export function RaffleManagerClient({
   initialIsRaffleActive,
   initialMaxTicketsPerUser,
   stats,
-  userRole,
 }: RaffleManagerClientProps) {
   const [rules, setRules] = useState<RaffleRuleRecord[]>(initialRules);
   const [isRaffleActive, setIsRaffleActive] = useState<boolean>(initialIsRaffleActive);

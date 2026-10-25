@@ -23,7 +23,7 @@ interface MemoryBoardProps {
   onOpenUpload: (originRect?: { top: number; left: number; width: number; height: number }) => void;
 }
 
-export function MemoryBoard({ posts, isAuthenticated, onOpenUpload }: MemoryBoardProps) {
+export function MemoryBoard({ posts, onOpenUpload }: MemoryBoardProps) {
   // Track failed / missing images to exclude them from the memory board
   const [failedPostIds, setFailedPostIds] = useState<Set<string>>(new Set());
 
