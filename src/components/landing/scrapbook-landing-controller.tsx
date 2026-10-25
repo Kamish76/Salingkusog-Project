@@ -227,6 +227,7 @@ export function ScrapbookLandingController({
       <MemoryBoard
         posts={posts}
         isAuthenticated={Boolean(user)}
+        currentUserId={user?.id}
         onOpenUpload={(rect) => handleOpenUpload(undefined, rect, "board")}
         onOpenBingo={() => setIsBingoOpen(true)}
       />
