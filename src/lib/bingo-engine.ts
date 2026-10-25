@@ -8,6 +8,101 @@
  * - Zero external npm dependencies and zero UI imports.
  */
 
+export interface BingoTaskRecord {
+  id: string;
+  slotIndex: number;
+  title: string;
+  description: string;
+  category: string;
+  unlockDay: number;
+  requiresSelfie: boolean;
+  isActive: boolean;
+}
+
+export const CANONICAL_BINGO_SEED_TASKS: Omit<BingoTaskRecord, "id">[] = [
+  {
+    slotIndex: 0,
+    title: "Opening Ceremony Cheer",
+    description: "Snap a selfie cheering at the intramurals parade or opening ceremony.",
+    category: "spirit",
+    unlockDay: 1,
+    requiresSelfie: true,
+    isActive: true,
+  },
+  {
+    slotIndex: 1,
+    title: "College Booth Selfie",
+    description: "Visit your college or department booth and take a selfie with the booth crew.",
+    category: "booth",
+    unlockDay: 1,
+    requiresSelfie: true,
+    isActive: true,
+  },
+  {
+    slotIndex: 2,
+    title: "Team Mascot High-Five",
+    description: "Find the university or college mascot and snap a selfie or photo high-fiving them.",
+    category: "spirit",
+    unlockDay: 1,
+    requiresSelfie: true,
+    isActive: true,
+  },
+  {
+    slotIndex: 3,
+    title: "Ball Games Sideline Cheer",
+    description: "Watch any basketball, volleyball, or soccer match and snap a courtside selfie.",
+    category: "sports",
+    unlockDay: 2,
+    requiresSelfie: true,
+    isActive: true,
+  },
+  {
+    slotIndex: 4,
+    title: "University Color Swag",
+    description: "Wear your college department colors or university shirt and snap a selfie.",
+    category: "culture",
+    unlockDay: 2,
+    requiresSelfie: true,
+    isActive: true,
+  },
+  {
+    slotIndex: 5,
+    title: "Campus Snack Break",
+    description: "Buy a snack or drink from a student-run booth and snap a foodie selfie.",
+    category: "booth",
+    unlockDay: 2,
+    requiresSelfie: true,
+    isActive: true,
+  },
+  {
+    slotIndex: 6,
+    title: "Athletic Action Moment",
+    description: "Catch a live sports action moment or cheer on your department athletes.",
+    category: "sports",
+    unlockDay: 3,
+    requiresSelfie: true,
+    isActive: true,
+  },
+  {
+    slotIndex: 7,
+    title: "Friendship / Squad Photo",
+    description: "Take a selfie with at least two friends or teammates at the sports complex.",
+    category: "spirit",
+    unlockDay: 3,
+    requiresSelfie: true,
+    isActive: true,
+  },
+  {
+    slotIndex: 8,
+    title: "Championship Trophy / Stage",
+    description: "Snap a selfie in front of the main stage, awards podium, or trophy table.",
+    category: "culture",
+    unlockDay: 3,
+    requiresSelfie: true,
+    isActive: true,
+  },
+];
+
 export type LineType = 'row' | 'column' | 'diagonal' | 'blackout';
 
 export interface BingoLineDefinition {
