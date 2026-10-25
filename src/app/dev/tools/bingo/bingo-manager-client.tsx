@@ -4,9 +4,11 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   type BingoTaskRecord,
+  CANONICAL_BINGO_SEED_TASKS,
+} from "@/lib/bingo-engine";
+import {
   updateBingoTaskAction,
   resetBingoTasksToDefaultsAction,
-  CANONICAL_BINGO_SEED_TASKS,
 } from "@/app/actions/bingo-tasks";
 
 interface BingoManagerClientProps {

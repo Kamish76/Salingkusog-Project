@@ -17,7 +17,7 @@ export interface UpdateRaffleGlobalConfigResult {
   error?: string;
 }
 
-export const CANONICAL_RAFFLE_RULES: Omit<RaffleRuleRecord, "id">[] = [
+const CANONICAL_RAFFLE_RULES: Omit<RaffleRuleRecord, "id">[] = [
   {
     ruleKey: "line_row",
     name: "Horizontal Row Completion",
