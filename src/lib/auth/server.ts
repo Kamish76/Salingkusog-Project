@@ -8,7 +8,7 @@ const secret =
   "placeholder_build_cookie_secret_minimum_32_characters_long";
 
 if (!process.env.NEON_AUTH_COOKIE_SECRET && process.env.NODE_ENV === "production" && !process.env.CI) {
-  console.warn("⚠️ NEON_AUTH_COOKIE_SECRET is not set in production.");
+  throw new Error("FATAL: NEON_AUTH_COOKIE_SECRET must be configured in production environments.");
 }
 
 export const auth = createNeonAuth({

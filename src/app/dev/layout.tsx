@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
 import { AuthButton } from "@/components/auth-button";
 import { DevNav } from "@/components/dev-nav";
 
@@ -11,6 +12,10 @@ export default async function DevLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
+
+  if (!isDevAuthorized(user)) {
+    redirect("/?auth=required");
+  }
 
   return (
     <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col font-sans overflow-x-hidden">
