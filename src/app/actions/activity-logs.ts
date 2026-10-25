@@ -2,10 +2,7 @@
 
 import { getCurrentUser, isSuperAdmin } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import {
-  ActivityLogRecord,
-  getMockLogsStore,
-} from "@/lib/activity-logger";
+import { ActivityLogRecord } from "@/lib/activity-logger";
 
 export interface FetchActivityLogsParams {
   category?: string;
@@ -44,33 +41,15 @@ export async function fetchActivityLogsAction(
   const limit = Math.max(1, Math.min(100, Number(params.limit) || 20));
 
   if (!process.env.DATABASE_URL) {
-    let mockList = [...getMockLogsStore()];
-    if (category && category !== "all") {
-      mockList = mockList.filter((l) => l.category === category);
-    }
-    if (actionType && actionType !== "all") {
-      mockList = mockList.filter((l) => l.actionType === actionType);
-    }
-    if (search) {
-      const s = search.toLowerCase();
-      mockList = mockList.filter(
-        (l) =>
-          (l.actorName && l.actorName.toLowerCase().includes(s)) ||
-          (l.actorEmail && l.actorEmail.toLowerCase().includes(s)) ||
-          l.description.toLowerCase().includes(s) ||
-          (l.targetId && l.targetId.toLowerCase().includes(s))
-      );
-    }
-    const paged = mockList.slice(offset, offset + limit);
     return {
-      logs: paged,
-      totalCount: mockList.length,
-      hasMore: offset + paged.length < mockList.length,
+      logs: [],
+      totalCount: 0,
+      hasMore: false,
       summary: {
-        totalCount: mockList.length,
-        userCount: mockList.filter((l) => l.category === "user").length,
-        adminCount: mockList.filter((l) => l.category === "admin").length,
-        banCount: mockList.filter((l) => l.actionType === "USER_BAN").length,
+        totalCount: 0,
+        userCount: 0,
+        adminCount: 0,
+        banCount: 0,
       },
     };
   }

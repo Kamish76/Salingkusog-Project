@@ -6,6 +6,8 @@ import { sql } from "@/lib/db";
 import { getCurrentUser, isSuperAdmin, isDevAuthorized, isModerator } from "@/lib/auth";
 import { recordActivityLog } from "@/lib/activity-logger";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function signOutAction() {
   const cookieStore = await cookies();
   cookieStore.delete("dev_role");
@@ -17,8 +19,8 @@ export async function updateUserRoleAction(formData: FormData) {
   const targetUserId = formData.get("targetUserId")?.toString();
   const newRole = formData.get("newRole")?.toString();
 
-  if (!targetUserId || !newRole) {
-    throw new Error("Missing target user ID or new role.");
+  if (!targetUserId || !UUID_REGEX.test(targetUserId) || !newRole) {
+    throw new Error("Invalid or missing target user ID or new role.");
   }
 
   // 1. Authorize caller: strictly superadmin
@@ -34,7 +36,7 @@ export async function updateUserRoleAction(formData: FormData) {
 
   // 3. Guardrail: Protect root superadmin from alteration or demotion
   const targetUsers = await sql`
-    SELECT id, email, role FROM neon_auth."user" WHERE id = ${targetUserId} LIMIT 1
+    SELECT id, email, role FROM neon_auth."user" WHERE id = ${targetUserId}::uuid LIMIT 1
   `;
 
   if (targetUsers.length === 0) {
@@ -52,7 +54,7 @@ export async function updateUserRoleAction(formData: FormData) {
   await sql`
     UPDATE neon_auth."user"
     SET role = ${newRole}, "updatedAt" = NOW()
-    WHERE id = ${targetUserId}
+    WHERE id = ${targetUserId}::uuid
   `;
 
   await recordActivityLog({
@@ -231,8 +233,8 @@ export async function banUserAction(formData: FormData) {
   const targetUserId = formData.get("targetUserId")?.toString();
   const reason = formData.get("reason")?.toString()?.trim();
 
-  if (!targetUserId || !reason) {
-    throw new Error("Missing target user ID or ban reason.");
+  if (!targetUserId || !UUID_REGEX.test(targetUserId) || !reason) {
+    throw new Error("Invalid or missing target user ID or ban reason.");
   }
 
   // 1. Authorize caller: Admins and SuperAdmins can moderate
@@ -297,8 +299,8 @@ export async function banUserAction(formData: FormData) {
 export async function unbanUserAction(formData: FormData) {
   const targetUserId = formData.get("targetUserId")?.toString();
 
-  if (!targetUserId) {
-    throw new Error("Missing target user ID.");
+  if (!targetUserId || !UUID_REGEX.test(targetUserId)) {
+    throw new Error("Invalid or missing target user ID.");
   }
 
   const caller = await getCurrentUser();

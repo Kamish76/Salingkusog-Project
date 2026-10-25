@@ -153,7 +153,15 @@ export async function uploadImageToBucket(
     .replace(/[^a-z0-9._-]/g, "_")
     .replace(/\.[^/.]+$/, "");
   
-  const ext = contentType === "image/webp" ? "webp" : "jpg";
+  const EXTENSION_MAP: Record<string, string> = {
+    "image/webp": "webp",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/avif": "avif",
+  };
+  const ext = EXTENSION_MAP[contentType] || "jpg";
   const key = `uploads/${Date.now()}-${cleanBase}.${ext}`;
 
   await s3.send(
