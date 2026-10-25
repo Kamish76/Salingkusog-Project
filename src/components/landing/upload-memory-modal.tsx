@@ -79,16 +79,13 @@ export function UploadMemoryModal({
     }
   }
 
-  // Manage Apple fluid zoom entrance state
+  // Manage fluid zoom entrance state
   useEffect(() => {
     if (isOpen && !isClosing) {
-      const raf1 = requestAnimationFrame(() => {
-        const raf2 = requestAnimationFrame(() => {
-          setIsExpanded(true);
-        });
-        return () => cancelAnimationFrame(raf2);
+      const raf = requestAnimationFrame(() => {
+        setIsExpanded(true);
       });
-      return () => cancelAnimationFrame(raf1);
+      return () => cancelAnimationFrame(raf);
     }
   }, [isOpen, isClosing]);
 
@@ -97,7 +94,10 @@ export function UploadMemoryModal({
     if (isClosing) return;
     setIsClosing(true);
     setIsExpanded(false);
-    setTimeout(() => {
+  }, [isClosing]);
+
+  const handleModalTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && isClosing) {
       onClose();
       setIsClosing(false);
       setSelectedFile(null);
@@ -106,8 +106,18 @@ export function UploadMemoryModal({
       setCaption("");
       setErrorMessage(null);
       setSuccessInfo(null);
-    }, 380);
-  }, [isClosing, onClose]);
+    }
+  };
+
+  // Prevent background scrolling while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
 
   // Keyboard accessibility: Escape to dismiss
   useEffect(() => {
@@ -280,23 +290,24 @@ export function UploadMemoryModal({
       aria-modal="true"
       aria-label={activeTask ? `Upload Slot #${activeTask.slotIndex + 1}` : "Drop a Memory"}
       onClick={handleClose}
+      onTransitionEnd={handleModalTransitionEnd}
       style={{
         opacity: isExpanded ? 1 : 0,
-        transition: "opacity 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+        transition: "opacity 260ms cubic-bezier(0.16, 1, 0.3, 1)",
       }}
-      className={`fixed inset-0 z-[60] flex flex-col items-center justify-between p-4 sm:p-7 ${
-        returnToBingo ? "bg-black/50" : "bg-black/65"
-      } backdrop-blur-xs select-none overflow-y-auto`}
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-between p-4 sm:p-7 ${
+        returnToBingo ? "bg-black/60" : "bg-black/75"
+      } select-none overflow-y-auto`}
     >
-      {/* Top Floating Glass Header Pill */}
+      {/* Top Header */}
       <div
         style={controlsStyle}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md flex items-center justify-between px-4 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white shadow-2xl shrink-0"
+        className="sticky top-0 z-10 w-full max-w-md flex items-center justify-between px-4 py-3 rounded-xl bg-[#1e1b19]/95 backdrop-blur-md border border-stone-800 text-white shadow-lg shrink-0"
       >
-        <div className="flex items-center gap-2 truncate">
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 uppercase tracking-wider">
-            Day {currentDay} • {activeTask ? `Slot #${activeTask.slotIndex + 1}` : "Photo Well"}
+        <div className="flex items-center gap-2.5 truncate">
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-stone-800 text-stone-200 border border-stone-700">
+            Day {currentDay} • {activeTask ? `Slot #${activeTask.slotIndex + 1}` : "Memory Well"}
           </span>
           <span className="font-display font-bold text-xs sm:text-sm text-white truncate">
             {activeTask ? activeTask.title : "Drop a Memory"}
@@ -307,7 +318,7 @@ export function UploadMemoryModal({
           onClick={handleClose}
           type="button"
           aria-label="Close upload modal"
-          className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 active:scale-90 text-white flex items-center justify-center text-xs font-bold transition cursor-pointer shrink-0 ml-2"
+          className="w-10 h-10 sm:w-8 sm:h-8 min-h-[44px] min-w-[44px] rounded-lg bg-stone-800 hover:bg-stone-700 text-white flex items-center justify-center text-sm font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer shrink-0 ml-2 active:scale-95"
         >
           ✕
         </button>
@@ -321,19 +332,23 @@ export function UploadMemoryModal({
         {!isAuthenticated ? (
           <div
             style={controlsStyle}
-            className="p-7 rounded-3xl bg-white/10 backdrop-blur-md border border-white/15 text-center flex flex-col items-center gap-3 text-white shadow-2xl"
+            className="p-7 rounded-2xl bg-[#1e1b19] border border-stone-800 text-center flex flex-col items-center gap-3 text-white shadow-xl"
           >
-            <span className="text-3xl">🔒</span>
+            <div className="w-12 h-12 rounded-xl bg-stone-800 border border-stone-700 flex items-center justify-center">
+              <svg className="w-6 h-6 text-[#ff5e4d]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+              </svg>
+            </div>
             <h4 className="font-display font-bold text-base text-white">
               Sign in to Drop Memories
             </h4>
-            <p className="font-body text-xs text-white/70 max-w-xs">
-              Sign in with your student Google account to upload photos, earn bingo stamps, and enter stage raffle drawings!
+            <p className="font-body text-xs text-stone-300 max-w-xs">
+              Sign in with your student Google account to upload photos, earn bingo stamps, and enter stage raffle drawings.
             </p>
             <button
               onClick={handleSignIn}
               type="button"
-              className="mt-2 px-6 py-2.5 rounded-full bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display font-bold text-xs shadow-lg transition active:scale-95 cursor-pointer"
+              className="mt-2 px-6 py-2.5 rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display font-bold text-xs transition focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none cursor-pointer"
             >
               Sign in with Google →
             </button>
@@ -344,15 +359,21 @@ export function UploadMemoryModal({
             {activeTask && (
               <div
                 style={controlsStyle}
-                className="px-4 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-center gap-2.5 text-white/90 shadow-lg"
+                className="px-4 py-2.5 rounded-xl bg-[#1e1b19] border border-stone-800 flex items-center gap-3 text-white shadow-md"
               >
-                <span className="text-xl">🎯</span>
+                <div className="w-8 h-8 rounded-lg bg-stone-800 border border-stone-700 flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-[#ff5e4d]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <circle cx="12" cy="12" r="5" />
+                    <circle cx="12" cy="12" r="1" />
+                  </svg>
+                </div>
                 <div className="flex-1 min-w-0">
                   <span className="font-display font-bold text-xs text-emerald-300 block leading-tight truncate">
                     Target: Slot #{activeTask.slotIndex + 1} - {activeTask.title}
                   </span>
                   {activeTask.description && (
-                    <span className="font-body text-[11px] text-white/70 block leading-snug line-clamp-1">
+                    <span className="font-body text-[11px] text-stone-300 block leading-snug line-clamp-1">
                       {activeTask.description}
                     </span>
                   )}
@@ -360,7 +381,7 @@ export function UploadMemoryModal({
               </div>
             )}
 
-            {/* Photo Dropzone / Hero Camera Picker Frame (Zooms from clicked slot or button) */}
+            {/* Photo Dropzone */}
             <div
               onClick={() => fileInputRef.current?.click()}
               onDragOver={handleDragOver}
@@ -369,12 +390,12 @@ export function UploadMemoryModal({
               style={getCardAnimationStyles()}
               className={`relative w-full ${
                 previewUrl ? PREVIEW_ASPECTS[previewOrientation] : "aspect-[4/3] sm:aspect-square max-h-[50vh]"
-              } overflow-hidden shadow-2xl ring-1 ring-white/20 flex items-center justify-center cursor-pointer transition-all duration-300 group will-change-transform ${
+              } overflow-hidden shadow-2xl rounded-xl ring-1 ring-white/10 flex items-center justify-center cursor-pointer transition-colors group will-change-transform ${
                 previewUrl
                   ? "bg-stone-950"
                   : isDragging
-                  ? "bg-white/15 ring-2 ring-[#ff5e4d]"
-                  : "bg-white/10 hover:bg-white/15 border border-dashed border-white/25"
+                  ? "bg-stone-800 ring-2 ring-[#ff5e4d]"
+                  : "bg-[#1e1b19] hover:bg-stone-900 border border-dashed border-stone-700"
               }`}
             >
               {previewUrl ? (
@@ -383,26 +404,32 @@ export function UploadMemoryModal({
                   <img
                     src={previewUrl}
                     alt="Preview"
-                    className="w-full h-full object-cover select-none transition-transform duration-300 group-hover:scale-102 pointer-events-none"
+                    className="w-full h-full object-cover select-none pointer-events-none"
                   />
-                  <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-[10px] font-display font-bold shadow-md">
-                    🔄 Tap to change
+                  <div className="absolute top-3 right-3 px-3 py-1 rounded-md bg-black/80 border border-white/20 text-white text-[11px] font-display font-medium flex items-center gap-1.5 shadow-md">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    <span>Tap to change</span>
                   </div>
-                  <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-emerald-500/25 backdrop-blur-md border border-emerald-400/30 text-emerald-300 text-[10px] font-display font-bold shadow-md flex items-center gap-1">
-                    <span>✓</span>
+                  <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-emerald-950/90 border border-emerald-700 text-emerald-300 text-[11px] font-display font-bold shadow-md flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                     <span>Photo Selected</span>
                   </div>
                 </>
               ) : (
                 <div className="flex flex-col items-center text-center p-6 text-white">
-                  <div className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-2xl mb-2.5 shadow-lg group-hover:scale-105 transition-transform">
-                    📷
+                  <div className="w-14 h-14 rounded-xl bg-stone-800 border border-stone-700 flex items-center justify-center mb-3 shadow-md">
+                    <svg className="w-7 h-7 text-[#ff5e4d]" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+                    </svg>
                   </div>
                   <span className="font-display font-bold text-sm text-white">
                     Tap to snap or upload photo
                   </span>
-                  <span className="font-body text-[11px] text-white/60 mt-0.5 max-w-xs">
-                    Intramurals selfie, cheering snapshot, or booth moment (auto-optimized to 1080p)
+                  <span className="font-body text-xs text-stone-400 mt-1 max-w-xs leading-relaxed">
+                    Intramurals selfie, cheering snapshot, or booth moment (auto-optimized)
                   </span>
                 </div>
               )}
@@ -424,20 +451,20 @@ export function UploadMemoryModal({
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 maxLength={200}
-                className="w-full px-4 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-white placeholder:text-white/40 text-xs font-body focus:outline-none focus:border-white/35 shadow-lg"
+                className="w-full px-4 py-3 sm:py-2.5 rounded-lg bg-[#1e1b19] border border-stone-800 text-white placeholder:text-stone-500 text-base sm:text-xs font-body focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5e4d] shadow-sm"
               />
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] text-white/40 font-mono">
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] text-stone-500 font-mono">
                 {caption.length}/200
               </span>
             </div>
 
-            {/* Bingo Task Selector (All 9 tasks unlocked for testing) */}
+            {/* Bingo Task Selector */}
             {!preselectedTaskId && (
               <div style={controlsStyle}>
                 <select
                   value={selectedTaskId}
                   onChange={(e) => setSelectedTaskId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-white text-xs font-body focus:outline-none focus:border-white/35 shadow-lg"
+                  className="w-full px-3.5 py-3 sm:py-2.5 rounded-lg bg-[#1e1b19] border border-stone-800 text-white text-base sm:text-xs font-body focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5e4d] shadow-sm"
                 >
                   <option value="" className="bg-stone-900 text-white">
                     General Memory (No bingo slot)
@@ -452,14 +479,14 @@ export function UploadMemoryModal({
             )}
 
             {/* Anonymous Toggle */}
-            <label style={controlsStyle} className="flex items-center gap-2 cursor-pointer select-none px-1">
+            <label style={controlsStyle} className="flex items-center gap-2 cursor-pointer select-none px-1 py-1">
               <input
                 type="checkbox"
                 checked={isAnonymous}
                 onChange={(e) => setIsAnonymous(e.target.checked)}
-                className="rounded border-white/30 text-[#ff5e4d] focus:ring-0 bg-white/10"
+                className="rounded border-stone-700 text-[#ff5e4d] focus:ring-0 bg-stone-900 h-4 w-4 cursor-pointer"
               />
-              <span className="font-body text-xs text-white/70">
+              <span className="font-body text-xs text-stone-400">
                 Post anonymously (hides your name on the public board)
               </span>
             </label>
@@ -467,21 +494,27 @@ export function UploadMemoryModal({
         )}
       </div>
 
-      {/* Bottom Floating Glass Action Bar */}
+      {/* Bottom Action Bar */}
       <div
         style={controlsStyle}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md flex flex-col gap-2 shrink-0 pt-1"
+        className="w-full max-w-md flex flex-col gap-2 shrink-0 pt-1 pb-safe"
       >
         {errorMessage && (
-          <div className="p-2.5 rounded-2xl bg-red-500/25 border border-red-500/40 text-red-100 text-xs text-center backdrop-blur-md font-body">
-            ⚠️ {errorMessage}
+          <div className="p-2.5 rounded-lg bg-red-950/80 border border-red-800 text-red-200 text-xs text-center font-body flex items-center justify-center gap-2">
+            <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+            <span>{errorMessage}</span>
           </div>
         )}
 
         {successInfo && (
-          <div className="p-2.5 rounded-2xl bg-emerald-500/25 border border-emerald-500/40 text-emerald-100 text-xs text-center backdrop-blur-md font-body font-bold">
-            🎉 {successInfo}
+          <div className="p-2.5 rounded-lg bg-emerald-950/80 border border-emerald-800 text-emerald-200 text-xs text-center font-body font-bold flex items-center justify-center gap-2">
+            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+            <span>{successInfo}</span>
           </div>
         )}
 
@@ -491,17 +524,16 @@ export function UploadMemoryModal({
               onClick={handleSubmit}
               type="button"
               disabled={submitting || !selectedFile}
-              className="py-3 px-4 rounded-full bg-[#ff5e4d] hover:bg-[#b4281e] disabled:opacity-40 text-white font-display font-bold text-xs shadow-lg backdrop-blur-md border border-white/20 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+              className="py-3 px-4 min-h-[44px] rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] disabled:opacity-40 text-white font-display font-bold text-xs shadow-md transition focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
             >
               <span>{submitting ? "Dropping..." : "Drop Into Well"}</span>
-              <span>✨</span>
             </button>
 
             <button
               onClick={handleClose}
               type="button"
               aria-label={returnToBingo ? "Back to Bingo Card" : "Cancel"}
-              className="py-3 px-4 rounded-full bg-white/10 hover:bg-white/15 active:scale-98 text-white/80 hover:text-white font-display font-medium text-xs backdrop-blur-md border border-white/10 transition cursor-pointer flex items-center justify-center"
+              className="py-3 px-4 min-h-[44px] rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white font-display font-medium text-xs border border-stone-800 transition focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none cursor-pointer flex items-center justify-center active:scale-95"
             >
               {returnToBingo ? "← Back to Bingo" : "Cancel"}
             </button>

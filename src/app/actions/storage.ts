@@ -2,13 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
+import { sql } from "@/lib/db";
+import { recordActivityLog } from "@/lib/activity-logger";
 import {
   isStorageConfigured,
   validateImageMagicBytes,
   uploadImageToBucket,
   deleteBucketObject,
 } from "@/lib/storage";
-import { moderateImageBuffer } from "@/lib/moderation";
 
 export interface StorageActionResult {
   success: boolean;
@@ -28,7 +29,7 @@ export async function uploadStorageImageAction(
   formData: FormData
 ): Promise<StorageActionResult> {
   const user = await getCurrentUser();
-  if (!isDevAuthorized(user)) {
+  if (!user || !isDevAuthorized(user)) {
     return {
       success: false,
       error: "Unauthorized: Elevated Admin credentials are required to upload.",
@@ -77,21 +78,6 @@ export async function uploadStorageImageAction(
 
     const contentType = inspection.detectedType || file.type || "image/webp";
 
-    // Pre-upload OpenAI Multimodal Safety Moderation
-    const moderation = await moderateImageBuffer(buffer, contentType);
-    if (!moderation.approved) {
-      if (moderation.flagged) {
-        return {
-          success: false,
-          error: "Image rejected: Content flagged by safety policy.",
-        };
-      }
-      return {
-        success: false,
-        error: moderation.error || "Safety review failed. Please try again.",
-      };
-    }
-
     const result = await uploadImageToBucket(buffer, file.name, contentType);
 
     revalidatePath("/dev/tools/storage");
@@ -113,7 +99,7 @@ export async function deleteStorageObjectAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   const user = await getCurrentUser();
-  if (!isDevAuthorized(user)) {
+  if (!user || !isDevAuthorized(user)) {
     return {
       success: false,
       error: "Unauthorized: Elevated Admin credentials are required to delete files.",
@@ -131,6 +117,56 @@ export async function deleteStorageObjectAction(
     }
 
     await deleteBucketObject(key);
+
+    // Cascade deletion to public.posts & public.user_bingo_progress so posts are never orphaned without photos
+    const matchingPosts = await sql`
+      SELECT id, user_id, bingo_task_id FROM public.posts
+      WHERE image_url LIKE ${"%" + key}
+    `;
+
+    if (matchingPosts.length > 0) {
+      const postIds = matchingPosts.map((p) => p.id);
+
+      // Remove bingo progress linking to these posts
+      await sql`
+        DELETE FROM public.user_bingo_progress
+        WHERE post_id = ANY(${postIds}::uuid[])
+      `;
+
+      // Hide posts so they never appear on the memory board without photos
+      await sql`
+        UPDATE public.posts
+        SET status = 'hidden', updated_at = NOW()
+        WHERE id = ANY(${postIds}::uuid[])
+      `;
+
+      // Invalidate linked raffle entries
+      await sql`
+        UPDATE public.raffle_entries
+        SET status = 'disqualified',
+            disqualification_reason = 'Photo deleted by administrator'
+        WHERE post_ids && ${postIds}::uuid[]
+          AND status = 'valid'
+      `;
+
+      await recordActivityLog({
+        actionType: "POST_MODERATE",
+        category: "admin",
+        actorId: user.id,
+        actorName: user.name,
+        actorEmail: user.email,
+        actorRole: user.role,
+        targetId: postIds.join(","),
+        targetType: "post",
+        description: `Storage object "${key}" deleted by Admin ${user.name}; cascaded ${postIds.length} linked post(s) to hidden.`,
+        metadata: { key, cascadedPostIds: postIds },
+      });
+    }
+
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev");
+    revalidatePath("/dev/logs");
     revalidatePath("/dev/tools/storage");
     return { success: true };
   } catch (err: unknown) {

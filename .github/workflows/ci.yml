@@ -27,7 +27,10 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || npm install
+
+      - name: Run all integration and test suites
+        run: npm test
 
       - name: Lint
         run: npm run lint
@@ -37,3 +40,6 @@ jobs:
 
       - name: Production build
         run: npm run build
+        env:
+          NEON_AUTH_BASE_URL: https://ep-damp-snow-b5y6ydzx.neonauth.c-7.us-east-2.aws.neon.tech/neondb/auth
+          NEON_AUTH_COOKIE_SECRET: build_dummy_cookie_secret_minimum_32_characters_long
