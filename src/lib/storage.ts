@@ -50,6 +50,16 @@ export function getPublicObjectUrl(key: string): string {
   return `${endpoint}/${STORAGE_BUCKET}/${key}`;
 }
 
+export function extractStorageKey(url: string): string | null {
+  if (!url) return null;
+  const bucketSegment = `/${STORAGE_BUCKET}/`;
+  const idx = url.indexOf(bucketSegment);
+  if (idx !== -1) {
+    return url.slice(idx + bucketSegment.length);
+  }
+  return null;
+}
+
 /**
  * Validates file magic bytes to guarantee file is an authentic image
  * and prevent disguised non-image files from uploading to the bucket.

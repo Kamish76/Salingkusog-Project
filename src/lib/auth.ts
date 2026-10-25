@@ -1,6 +1,5 @@
 import { sql } from "@/lib/db";
 import { auth } from "@/lib/auth/server";
-import { recordActivityLog } from "@/lib/activity-logger";
 
 export type UserRole = "superadmin" | "admin" | "user";
 
@@ -46,31 +45,6 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
           }
           isBanned = Boolean(rows[0].banned);
           banReason = (rows[0].banReason as string) || null;
-
-          // Track new user registration if created within the last 15 minutes
-          const userCreatedAt = rows[0].createdAt ? new Date(rows[0].createdAt as string | Date) : null;
-          const isRecentUser = userCreatedAt && Date.now() - userCreatedAt.getTime() < 15 * 60 * 1000;
-          if (isRecentUser) {
-            const existingLog = await sql`
-              SELECT 1 FROM public.activity_logs
-              WHERE action_type = 'USER_REGISTER' AND target_id = ${session.user.id}
-              LIMIT 1
-            `;
-            if (existingLog.length === 0) {
-              await recordActivityLog({
-                actionType: "USER_REGISTER",
-                category: "user",
-                actorId: session.user.id,
-                actorName: session.user.name,
-                actorEmail: session.user.email,
-                actorRole: userRole,
-                targetId: session.user.id,
-                targetType: "user",
-                description: `New user joined via Google OAuth: ${session.user.name || "Student"} (${session.user.email})`,
-                metadata: { provider: "google", email: session.user.email },
-              });
-            }
-          }
         }
       }
 

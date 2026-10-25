@@ -289,37 +289,37 @@ export async function resetRaffleRulesToDefaultsAction(): Promise<{
   }
 
   try {
-    for (const seed of CANONICAL_RAFFLE_RULES) {
-      await sql`
-        INSERT INTO public.raffle_rules (
-          rule_key, name, category, description, tickets_awarded, is_active, updated_at
-        )
-        VALUES (
-          ${seed.ruleKey},
-          ${seed.name},
-          ${seed.category},
-          ${seed.description},
-          ${seed.ticketsAwarded},
-          ${seed.isActive},
-          now()
-        )
-        ON CONFLICT (rule_key) DO UPDATE
-        SET 
-          name = EXCLUDED.name,
-          category = EXCLUDED.category,
-          description = EXCLUDED.description,
-          tickets_awarded = EXCLUDED.tickets_awarded,
-          is_active = EXCLUDED.is_active,
-          updated_at = now()
-      `;
-    }
-
-    // Reset max_tickets_per_user to 0 (unlimited)
-    await sql`
-      UPDATE public.event_config
-      SET max_tickets_per_user = 0, updated_at = now(), updated_by = ${caller.id}::uuid
-      WHERE key = 'active_event'
-    `;
+    await sql.transaction([
+      ...CANONICAL_RAFFLE_RULES.map(
+        (seed) => sql`
+          INSERT INTO public.raffle_rules (
+            rule_key, name, category, description, tickets_awarded, is_active, updated_at
+          )
+          VALUES (
+            ${seed.ruleKey},
+            ${seed.name},
+            ${seed.category},
+            ${seed.description},
+            ${seed.ticketsAwarded},
+            ${seed.isActive},
+            now()
+          )
+          ON CONFLICT (rule_key) DO UPDATE
+          SET 
+            name = EXCLUDED.name,
+            category = EXCLUDED.category,
+            description = EXCLUDED.description,
+            tickets_awarded = EXCLUDED.tickets_awarded,
+            is_active = EXCLUDED.is_active,
+            updated_at = now()
+        `
+      ),
+      sql`
+        UPDATE public.event_config
+        SET max_tickets_per_user = 0, updated_at = now(), updated_by = ${caller.id}::uuid
+        WHERE key = 'active_event'
+      `,
+    ]);
 
     await recordActivityLog({
       actionType: "RAFFLE_RULES_RESET",

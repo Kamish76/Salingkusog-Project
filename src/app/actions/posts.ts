@@ -7,6 +7,8 @@ import {
   isStorageConfigured,
   validateImageMagicBytes,
   uploadImageToBucket,
+  deleteBucketObject,
+  extractStorageKey,
 } from "@/lib/storage";
 import {
   generateRaffleCode,
@@ -83,6 +85,7 @@ export async function submitStudentPostAction(
     const displayName = isAnonymous ? "Anonymous Student" : user.name;
 
     // Check if replacing an existing photo for this bingo task
+    let replacedPostId: string | null = null;
     if (bingoTaskId) {
       const existingSlot = await sql`
         SELECT post_id FROM public.user_bingo_progress
@@ -90,11 +93,19 @@ export async function submitStudentPostAction(
         LIMIT 1
       `;
       if (existingSlot.length > 0 && existingSlot[0].post_id) {
-        // Delete the previous post to prevent orphan duplicates
-        await sql`
+        replacedPostId = existingSlot[0].post_id;
+        // Delete the previous post and remove storage blob to prevent orphan duplicates
+        const deleted = await sql`
           DELETE FROM public.posts
-          WHERE id = ${existingSlot[0].post_id}::uuid AND user_id = ${user.id}::uuid
+          WHERE id = ${replacedPostId}::uuid AND user_id = ${user.id}::uuid
+          RETURNING image_url
         `;
+        if (deleted.length > 0 && deleted[0].image_url) {
+          const key = extractStorageKey(deleted[0].image_url);
+          if (key) {
+            deleteBucketObject(key).catch((err) => console.error("Failed to delete replaced blob:", err));
+          }
+        }
       }
     }
 
@@ -150,6 +161,13 @@ export async function submitStudentPostAction(
           completed_at = now()
       `;
 
+      if (replacedPostId) {
+        await sql`
+          UPDATE public.raffle_entries
+          SET post_ids = array_replace(post_ids, ${replacedPostId}::uuid, ${newPostId}::uuid)
+          WHERE user_id = ${user.id}::uuid AND ${replacedPostId}::uuid = ANY(post_ids)
+        `;
+      }
     }
 
     // Evaluate dynamic raffle rules (Bingo lines, Milestones, and Memory Drops)
@@ -356,11 +374,27 @@ export async function removeBingoTaskPhotoAction(
       WHERE user_id = ${user.id}::uuid AND task_id = ${taskId}::uuid
     `;
 
-    // Also delete the linked post
+    // Also delete the linked post, remove storage blob, and invalidate linked raffle tickets
     if (postId) {
-      await sql`
+      const deleted = await sql`
         DELETE FROM public.posts
         WHERE id = ${postId}::uuid AND user_id = ${user.id}::uuid
+        RETURNING image_url
+      `;
+      if (deleted.length > 0 && deleted[0].image_url) {
+        const key = extractStorageKey(deleted[0].image_url);
+        if (key) {
+          deleteBucketObject(key).catch((err) => console.error("Failed to delete removed blob:", err));
+        }
+      }
+
+      await sql`
+        UPDATE public.raffle_entries
+        SET status = 'disqualified',
+            disqualification_reason = 'Photo proof removed by user'
+        WHERE user_id = ${user.id}::uuid
+          AND ${postId}::uuid = ANY(post_ids)
+          AND status = 'valid'
       `;
     }
 

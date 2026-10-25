@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getCurrentUser, isDevAuthorized, isSuperAdmin } from "@/lib/auth";
-import { setDevRoleAction } from "@/app/actions/auth-role";
 import { AuthButton } from "@/components/auth-button";
 import { ActivityLogsClient } from "./activity-logs-client";
 
@@ -59,39 +58,13 @@ export default async function DevLogsPage() {
             <AuthButton user={user} />
           </div>
 
-          {/* Dev testing role simulator */}
-          <div className="pt-4 border-t border-zinc-800/80 space-y-3">
-            <p className="text-xs text-zinc-500 font-mono">
-              [Dev Simulator] Test authorization states:
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <form action={setDevRoleAction}>
-                <input type="hidden" name="role" value="superadmin" />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition cursor-pointer"
-                >
-                  Simulate SuperAdmin
-                </button>
-              </form>
-
-              <form action={setDevRoleAction}>
-                <input type="hidden" name="role" value="admin" />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition cursor-pointer"
-                >
-                  Simulate Admin (Moderator)
-                </button>
-              </form>
-
-              <Link
-                href="/dev"
-                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition"
-              >
-                Return to Overview
-              </Link>
-            </div>
+          <div className="pt-4 border-t border-zinc-800/80 flex justify-center">
+            <Link
+              href="/dev"
+              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition"
+            >
+              Return to Overview
+            </Link>
           </div>
         </div>
       </div>

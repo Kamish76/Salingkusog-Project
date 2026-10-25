@@ -13,17 +13,6 @@ export async function signOutAction() {
   revalidatePath("/gallery");
 }
 
-export async function setDevRole(_role?: string) {
-  const cookieStore = await cookies();
-  cookieStore.delete("dev_role");
-  revalidatePath("/");
-  revalidatePath("/dev");
-}
-
-export async function setDevRoleAction(_formData?: FormData) {
-  await setDevRole();
-}
-
 export async function updateUserRoleAction(formData: FormData) {
   const targetUserId = formData.get("targetUserId")?.toString();
   const newRole = formData.get("newRole")?.toString();

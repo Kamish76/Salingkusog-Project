@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
-import { setDevRoleAction } from "@/app/actions/auth-role";
 import { AuthButton } from "@/components/auth-button";
 import { isStorageConfigured, STORAGE_BUCKET } from "@/lib/storage";
 
@@ -58,32 +57,6 @@ export default async function DevToolsPage() {
               Sign in with your registered account:
             </p>
             <AuthButton user={user} />
-          </div>
-
-          <div className="pt-4 border-t border-zinc-800/80 space-y-3">
-            <p className="text-xs text-zinc-500 font-mono">
-              [Dev Simulator] Test authorization states:
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <form action={setDevRoleAction}>
-                <input type="hidden" name="role" value="superadmin" />
-                <button
-                  type="submit"
-                  className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition cursor-pointer active:scale-95"
-                >
-                  Simulate SuperAdmin
-                </button>
-              </form>
-              <form action={setDevRoleAction}>
-                <input type="hidden" name="role" value="admin" />
-                <button
-                  type="submit"
-                  className="px-3 py-2 min-h-[38px] rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition cursor-pointer active:scale-95"
-                >
-                  Simulate Admin (Moderator)
-                </button>
-              </form>
-            </div>
           </div>
         </div>
       </div>

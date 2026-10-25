@@ -18,7 +18,6 @@
     "@neondatabase/auth": "^0.6.0-beta",
     "@neondatabase/serverless": "^1.2.0",
     "next": "16.4.2",
-    "openai": "^7.43.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

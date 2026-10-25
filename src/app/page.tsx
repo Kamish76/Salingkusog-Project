@@ -23,8 +23,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const resolvedParams = searchParams ? await searchParams : {};
   const isAuthRequired = resolvedParams.auth === "required";
 
-  // 1. Fetch live event stats from Neon database
-  const statsRows = await sql`
+  const isUuid = Boolean(
+    user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+  );
+
+  // Fetch all initial homepage data concurrently to eliminate waterfall round-trip latency
+  const statsPromise = sql`
     SELECT 
       (SELECT count(*) FROM public.posts WHERE status = 'published' AND image_url IS NOT NULL AND TRIM(image_url) != '') as total_snaps,
       (SELECT count(*) FROM public.raffle_entries WHERE status IN ('valid', 'verified')) as total_raffles,
@@ -32,13 +36,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       COALESCE((SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), true) as is_raffle_active
   `;
 
-  const totalSnaps = Number(statsRows[0]?.total_snaps || 0);
-  const totalRaffles = Number(statsRows[0]?.total_raffles || 0);
-  const currentDay = Number(statsRows[0]?.current_day || 1);
-  const isRaffleActive = Boolean(statsRows[0]?.is_raffle_active ?? true);
-
-  // 2. Fetch real published posts from Neon database (must have valid non-empty photo)
-  const postRows = await sql`
+  const postRowsPromise = sql`
     SELECT 
       p.id,
       p.user_id,
@@ -59,6 +57,52 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     LIMIT 60
   `;
 
+  const taskRowsPromise = sql`
+    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
+    FROM public.bingo_tasks
+    ORDER BY slot_index ASC
+  `;
+
+  const progressRowsPromise =
+    user && isUuid
+      ? sql`
+          SELECT 
+            bt.slot_index, 
+            ubp.task_id, 
+            ubp.post_id, 
+            ubp.completed_at,
+            p.image_url,
+            p.caption
+          FROM public.user_bingo_progress ubp
+          JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
+          LEFT JOIN public.posts p ON ubp.post_id = p.id
+          WHERE ubp.user_id = ${user.id}::uuid
+        `
+      : Promise.resolve([]);
+
+  const raffleRowsPromise =
+    user && isUuid
+      ? sql`
+          SELECT raffle_code, line_type, line_index
+          FROM public.raffle_entries
+          WHERE user_id = ${user.id}::uuid
+          ORDER BY created_at DESC
+        `
+      : Promise.resolve([]);
+
+  const [statsRows, postRows, taskRows, progressRows, raffleRows] = await Promise.all([
+    statsPromise,
+    postRowsPromise,
+    taskRowsPromise,
+    progressRowsPromise,
+    raffleRowsPromise,
+  ]);
+
+  const totalSnaps = Number(statsRows[0]?.total_snaps || 0);
+  const totalRaffles = Number(statsRows[0]?.total_raffles || 0);
+  const currentDay = Number(statsRows[0]?.current_day || 1);
+  const isRaffleActive = Boolean(statsRows[0]?.is_raffle_active ?? true);
+
   const posts: PostRecord[] = postRows.map((r) => ({
     id: r.id,
     userId: r.user_id,
@@ -72,13 +116,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     createdAt: r.created_at,
   }));
 
-  // 3. Fetch real 9 Bingo challenge tasks
-  const taskRows = await sql`
-    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
-    FROM public.bingo_tasks
-    ORDER BY slot_index ASC
-  `;
-
   const tasks: BingoTaskItem[] = taskRows.map((r) => ({
     id: r.id,
     slotIndex: Number(r.slot_index),
@@ -89,51 +126,20 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     requiresSelfie: Boolean(r.requires_selfie),
   }));
 
-  // 4. Fetch authenticated user's real progress and raffle entries
-  let userProgress: UserProgressItem[] = [];
-  let raffleEntries: RaffleEntryItem[] = [];
+  const userProgress: UserProgressItem[] = (progressRows as Record<string, unknown>[]).map((r) => ({
+    slotIndex: Number(r.slot_index),
+    taskId: String(r.task_id),
+    postId: String(r.post_id),
+    completedAt: r.completed_at as string | Date,
+    imageUrl: (r.image_url as string) || null,
+    caption: (r.caption as string) || null,
+  }));
 
-  const isUuid = Boolean(
-    user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
-  );
-
-  if (user && isUuid) {
-    const progressRows = await sql`
-      SELECT 
-        bt.slot_index, 
-        ubp.task_id, 
-        ubp.post_id, 
-        ubp.completed_at,
-        p.image_url,
-        p.caption
-      FROM public.user_bingo_progress ubp
-      JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
-      LEFT JOIN public.posts p ON ubp.post_id = p.id
-      WHERE ubp.user_id = ${user.id}::uuid
-    `;
-
-    userProgress = progressRows.map((r) => ({
-      slotIndex: Number(r.slot_index),
-      taskId: r.task_id,
-      postId: r.post_id,
-      completedAt: r.completed_at,
-      imageUrl: r.image_url || null,
-      caption: r.caption || null,
-    }));
-
-    const raffleRows = await sql`
-      SELECT raffle_code, line_type, line_index
-      FROM public.raffle_entries
-      WHERE user_id = ${user.id}::uuid
-      ORDER BY created_at DESC
-    `;
-
-    raffleEntries = raffleRows.map((r) => ({
-      raffleCode: r.raffle_code,
-      lineType: r.line_type,
-      lineIndex: Number(r.line_index),
-    }));
-  }
+  const raffleEntries: RaffleEntryItem[] = (raffleRows as Record<string, unknown>[]).map((r) => ({
+    raffleCode: String(r.raffle_code),
+    lineType: String(r.line_type),
+    lineIndex: Number(r.line_index),
+  }));
 
   return (
     <div className="min-h-[100dvh] bg-[#fcf9f5] text-[#1e1b19] flex flex-col font-body selection:bg-[#ffdcc4] selection:text-[#6f3800] relative overflow-x-hidden">
