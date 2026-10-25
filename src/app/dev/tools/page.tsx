@@ -14,14 +14,14 @@ export default async function DevToolsPage() {
   // 1. Access Gate: Deny guests and non-moderator accounts
   if (!authorized) {
     return (
-      <div className="max-w-2xl mx-auto py-12">
-        <div className="p-8 rounded-2xl border border-red-900/50 bg-red-950/20 text-center space-y-6">
+      <div className="max-w-2xl mx-auto py-6 sm:py-12">
+        <div className="p-4 sm:p-8 rounded-2xl border border-red-900/50 bg-red-950/20 text-center space-y-6">
           <div className="w-12 h-12 rounded-full bg-red-900/30 text-red-400 flex items-center justify-center mx-auto text-xl font-bold">
             !
           </div>
 
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-red-200">
+            <h1 className="text-xl sm:text-2xl font-bold text-red-200">
               Access Restricted to Moderator / Admin Accounts
             </h1>
             <p className="text-sm text-zinc-400">
@@ -29,11 +29,11 @@ export default async function DevToolsPage() {
             </p>
           </div>
 
-          <div className="p-4 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs font-mono text-left space-y-1">
+          <div className="p-4 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs font-mono text-left space-y-1 overflow-x-auto">
             <div className="text-zinc-500">{"// Authorization Check"}</div>
             <div>
               Detected Identity:{" "}
-              <span className="text-zinc-200 font-bold">
+              <span className="text-zinc-200 font-bold break-all">
                 {user ? user.email : "Unauthenticated"}
               </span>
             </div>
@@ -69,7 +69,7 @@ export default async function DevToolsPage() {
                 <input type="hidden" name="role" value="superadmin" />
                 <button
                   type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition cursor-pointer"
+                  className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition cursor-pointer active:scale-95"
                 >
                   Simulate SuperAdmin
                 </button>
@@ -78,7 +78,7 @@ export default async function DevToolsPage() {
                 <input type="hidden" name="role" value="admin" />
                 <button
                   type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition cursor-pointer"
+                  className="px-3 py-2 min-h-[38px] rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition cursor-pointer active:scale-95"
                 >
                   Simulate Admin (Moderator)
                 </button>
@@ -91,6 +91,36 @@ export default async function DevToolsPage() {
   }
 
   const tools = [
+    {
+      title: "Raffle System & Ticket Rules Manager",
+      href: "/dev/tools/raffle",
+      badge: "TICKET ENGINE",
+      badgeColor: "amber",
+      description:
+        "Manage what counts as a raffle ticket across bingo lines, challenge milestones, and memory drops. Configure per-rule rewards, student caps, and test in the sandbox.",
+      status: "7 Rules Configured",
+      features: [
+        "Configurable line, milestone & photo rules",
+        "Per-rule tickets counter & live enable/disable",
+        "Max ticket limits per student enforcement",
+        "Interactive 3x3 sandbox for real-time simulation",
+      ],
+    },
+    {
+      title: "3x3 Bingo Card & Challenge Manager",
+      href: "/dev/tools/bingo",
+      badge: "GAME ENGINE",
+      badgeColor: "emerald",
+      description:
+        "Preview the live 3x3 student bingo card across event days, update challenge tasks, categories, and unlock schedules in real time.",
+      status: "9 Tasks Configured",
+      features: [
+        "Live 3x3 card preview with Day 1–3 lock simulation",
+        "Instant task editor (titles, descriptions, categories)",
+        "Selfie requirement & active challenge controls",
+        "Audit logged modifications with instant path revalidation",
+      ],
+    },
     {
       title: "Neon Object Storage & Image Lab",
       href: "/dev/tools/storage",
@@ -144,22 +174,22 @@ export default async function DevToolsPage() {
           <span>/</span>
           <span className="text-amber-400">Developer Tools</span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex flex-wrap items-center gap-2">
           <span>Developer Tools & Testing Suite</span>
           <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono font-normal">
             ADMIN ONLY
           </span>
         </h1>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-xs sm:text-sm text-zinc-400 mt-1">
           Suite of administrative testing utilities, infrastructure diagnostics, and optimization labs for the Salingkusog backend.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {tools.map((tool) => (
           <div
             key={tool.href}
-            className="p-6 rounded-xl border border-zinc-800 bg-zinc-900/60 backdrop-blur flex flex-col justify-between hover:border-zinc-700 transition space-y-4"
+            className="p-5 sm:p-6 rounded-xl border border-zinc-800 bg-zinc-900/60 backdrop-blur flex flex-col justify-between hover:border-zinc-700 transition space-y-4"
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -200,7 +230,7 @@ export default async function DevToolsPage() {
             <div className="pt-2">
               <Link
                 href={tool.href}
-                className="w-full py-2 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition flex items-center justify-center gap-2 border border-zinc-700"
+                className="w-full py-2.5 px-3 min-h-[44px] rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition flex items-center justify-center gap-2 border border-zinc-700 active:scale-95"
               >
                 <span>Launch Tool</span>
                 <span>→</span>

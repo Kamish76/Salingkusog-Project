@@ -112,7 +112,7 @@ export default async function DevUsersPage() {
             <span>/</span>
             <span className="text-zinc-200">User Moderation & Management</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             User Moderation & Account Directory
           </h1>
           <p className="text-sm text-zinc-400 mt-1">

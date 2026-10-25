@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Karla, Caveat } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
@@ -21,6 +21,13 @@ const caveat = Caveat({
   weight: ["400", "600", "700"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#fcf9f5",
+};
+
 export const metadata: Metadata = {
   title: "Salingkusog | Collegiate Memory Board & 3x3 Intramurals Bingo",
   description:
@@ -33,7 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       lang="en"
       className={`${bricolage.variable} ${karla.variable} ${caveat.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-body bg-[#fcf9f5] text-[#1e1b19]">
+      <body className="min-h-full flex flex-col font-body bg-[#fcf9f5] text-[#1e1b19] overflow-x-hidden w-full selection:bg-[#ffdcc4] selection:text-[#6f3800]">
         {children}
       </body>
     </html>

@@ -109,6 +109,16 @@ export function UploadMemoryModal({
     }
   };
 
+  // Prevent background scrolling while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   // Keyboard accessibility: Escape to dismiss
   useEffect(() => {
     if (!isOpen) return;
@@ -285,7 +295,7 @@ export function UploadMemoryModal({
         opacity: isExpanded ? 1 : 0,
         transition: "opacity 260ms cubic-bezier(0.16, 1, 0.3, 1)",
       }}
-      className={`fixed inset-0 z-[60] flex flex-col items-center justify-between p-4 sm:p-7 ${
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-between p-4 sm:p-7 ${
         returnToBingo ? "bg-black/60" : "bg-black/75"
       } select-none overflow-y-auto`}
     >
@@ -293,7 +303,7 @@ export function UploadMemoryModal({
       <div
         style={controlsStyle}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md flex items-center justify-between px-4 py-3 rounded-xl bg-[#1e1b19] border border-stone-800 text-white shadow-lg shrink-0"
+        className="sticky top-0 z-10 w-full max-w-md flex items-center justify-between px-4 py-3 rounded-xl bg-[#1e1b19]/95 backdrop-blur-md border border-stone-800 text-white shadow-lg shrink-0"
       >
         <div className="flex items-center gap-2.5 truncate">
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-stone-800 text-stone-200 border border-stone-700">
@@ -308,7 +318,7 @@ export function UploadMemoryModal({
           onClick={handleClose}
           type="button"
           aria-label="Close upload modal"
-          className="w-7 h-7 rounded-lg bg-stone-800 hover:bg-stone-700 text-white flex items-center justify-center text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer shrink-0 ml-2"
+          className="w-10 h-10 sm:w-8 sm:h-8 min-h-[44px] min-w-[44px] rounded-lg bg-stone-800 hover:bg-stone-700 text-white flex items-center justify-center text-sm font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer shrink-0 ml-2 active:scale-95"
         >
           ✕
         </button>
@@ -441,7 +451,7 @@ export function UploadMemoryModal({
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 maxLength={200}
-                className="w-full px-4 py-2.5 rounded-lg bg-[#1e1b19] border border-stone-800 text-white placeholder:text-stone-500 text-xs font-body focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5e4d] shadow-sm"
+                className="w-full px-4 py-3 sm:py-2.5 rounded-lg bg-[#1e1b19] border border-stone-800 text-white placeholder:text-stone-500 text-base sm:text-xs font-body focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5e4d] shadow-sm"
               />
               <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] text-stone-500 font-mono">
                 {caption.length}/200
@@ -454,7 +464,7 @@ export function UploadMemoryModal({
                 <select
                   value={selectedTaskId}
                   onChange={(e) => setSelectedTaskId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#1e1b19] border border-stone-800 text-white text-xs font-body focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5e4d] shadow-sm"
+                  className="w-full px-3.5 py-3 sm:py-2.5 rounded-lg bg-[#1e1b19] border border-stone-800 text-white text-base sm:text-xs font-body focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5e4d] shadow-sm"
                 >
                   <option value="" className="bg-stone-900 text-white">
                     General Memory (No bingo slot)
@@ -469,12 +479,12 @@ export function UploadMemoryModal({
             )}
 
             {/* Anonymous Toggle */}
-            <label style={controlsStyle} className="flex items-center gap-2 cursor-pointer select-none px-1">
+            <label style={controlsStyle} className="flex items-center gap-2 cursor-pointer select-none px-1 py-1">
               <input
                 type="checkbox"
                 checked={isAnonymous}
                 onChange={(e) => setIsAnonymous(e.target.checked)}
-                className="rounded border-stone-700 text-[#ff5e4d] focus:ring-0 bg-stone-900"
+                className="rounded border-stone-700 text-[#ff5e4d] focus:ring-0 bg-stone-900 h-4 w-4 cursor-pointer"
               />
               <span className="font-body text-xs text-stone-400">
                 Post anonymously (hides your name on the public board)
@@ -488,7 +498,7 @@ export function UploadMemoryModal({
       <div
         style={controlsStyle}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md flex flex-col gap-2 shrink-0 pt-1"
+        className="w-full max-w-md flex flex-col gap-2 shrink-0 pt-1 pb-safe"
       >
         {errorMessage && (
           <div className="p-2.5 rounded-lg bg-red-950/80 border border-red-800 text-red-200 text-xs text-center font-body flex items-center justify-center gap-2">
@@ -514,7 +524,7 @@ export function UploadMemoryModal({
               onClick={handleSubmit}
               type="button"
               disabled={submitting || !selectedFile}
-              className="py-3 px-4 rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] disabled:opacity-40 text-white font-display font-bold text-xs shadow-md transition focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none cursor-pointer flex items-center justify-center gap-1.5"
+              className="py-3 px-4 min-h-[44px] rounded-lg bg-[#ff5e4d] hover:bg-[#b4281e] disabled:opacity-40 text-white font-display font-bold text-xs shadow-md transition focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
             >
               <span>{submitting ? "Dropping..." : "Drop Into Well"}</span>
             </button>
@@ -523,7 +533,7 @@ export function UploadMemoryModal({
               onClick={handleClose}
               type="button"
               aria-label={returnToBingo ? "Back to Bingo Card" : "Cancel"}
-              className="py-3 px-4 rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white font-display font-medium text-xs border border-stone-800 transition focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none cursor-pointer flex items-center justify-center"
+              className="py-3 px-4 min-h-[44px] rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white font-display font-medium text-xs border border-stone-800 transition focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none cursor-pointer flex items-center justify-center active:scale-95"
             >
               {returnToBingo ? "← Back to Bingo" : "Cancel"}
             </button>
