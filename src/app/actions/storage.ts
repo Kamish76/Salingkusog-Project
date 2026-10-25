@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
+import { sql } from "@/lib/db";
+import { recordActivityLog } from "@/lib/activity-logger";
 import {
   isStorageConfigured,
   validateImageMagicBytes,
@@ -28,7 +30,7 @@ export async function uploadStorageImageAction(
   formData: FormData
 ): Promise<StorageActionResult> {
   const user = await getCurrentUser();
-  if (!isDevAuthorized(user)) {
+  if (!user || !isDevAuthorized(user)) {
     return {
       success: false,
       error: "Unauthorized: Elevated Admin credentials are required to upload.",
@@ -113,7 +115,7 @@ export async function deleteStorageObjectAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   const user = await getCurrentUser();
-  if (!isDevAuthorized(user)) {
+  if (!user || !isDevAuthorized(user)) {
     return {
       success: false,
       error: "Unauthorized: Elevated Admin credentials are required to delete files.",
@@ -131,6 +133,47 @@ export async function deleteStorageObjectAction(
     }
 
     await deleteBucketObject(key);
+
+    // Cascade deletion to public.posts & public.user_bingo_progress so posts are never orphaned without photos
+    const matchingPosts = await sql`
+      SELECT id, user_id, bingo_task_id FROM public.posts
+      WHERE image_url LIKE ${"%" + key}
+    `;
+
+    if (matchingPosts.length > 0) {
+      const postIds = matchingPosts.map((p) => p.id);
+
+      // Remove bingo progress linking to these posts
+      await sql`
+        DELETE FROM public.user_bingo_progress
+        WHERE post_id = ANY(${postIds}::uuid[])
+      `;
+
+      // Hide posts so they never appear on the memory board without photos
+      await sql`
+        UPDATE public.posts
+        SET status = 'hidden', updated_at = NOW()
+        WHERE id = ANY(${postIds}::uuid[])
+      `;
+
+      await recordActivityLog({
+        actionType: "POST_MODERATE",
+        category: "admin",
+        actorId: user.id,
+        actorName: user.name,
+        actorEmail: user.email,
+        actorRole: user.role,
+        targetId: postIds.join(","),
+        targetType: "post",
+        description: `Storage object "${key}" deleted by Admin ${user.name}; cascaded ${postIds.length} linked post(s) to hidden.`,
+        metadata: { key, cascadedPostIds: postIds },
+      });
+    }
+
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev");
+    revalidatePath("/dev/logs");
     revalidatePath("/dev/tools/storage");
     return { success: true };
   } catch (err: unknown) {

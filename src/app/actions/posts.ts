@@ -74,6 +74,10 @@ export async function submitStudentPostAction(
     const contentType = inspection.detectedType || file.type || "image/webp";
     const uploadResult = await uploadImageToBucket(buffer, file.name, contentType);
 
+    if (!uploadResult?.url || !uploadResult.url.trim()) {
+      return { success: false, error: "Failed to obtain a valid photo URL from storage." };
+    }
+
     const displayName = isAnonymous ? "Anonymous Student" : user.name;
 
     // Check if replacing an existing photo for this bingo task

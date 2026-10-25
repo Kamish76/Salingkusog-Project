@@ -101,13 +101,41 @@ export function ActivityLogsClient() {
 
   // Initial load on mount
   useEffect(() => {
-    loadInitialLogs("", "all", "all");
+    let ignore = false;
+    const load = async () => {
+      try {
+        const result = await fetchActivityLogsAction({
+          search: "",
+          category: "all",
+          offset: 0,
+          limit: 25,
+        });
+        if (!ignore) {
+          setLogs(result.logs);
+          setTotalCount(result.totalCount);
+          setHasMore(result.hasMore);
+          setSummary(result.summary);
+        }
+      } catch (err) {
+        if (!ignore) {
+          console.error("Failed to load activity logs:", err);
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+
     return () => {
+      ignore = true;
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [loadInitialLogs]);
+  }, []);
 
   // Helper for action badges
   const renderActionBadge = (action: ActivityActionType, metadata?: Record<string, unknown>) => {
