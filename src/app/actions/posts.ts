@@ -149,14 +149,14 @@ export async function submitStudentPostAction(
     if (!inspection.valid) {
       return {
         success: false,
-        error: "Only valid image files (JPEG, PNG, WebP, GIF, AVIF) can be posted.",
+        error: "Only valid photos (JPEG, PNG, WebP, GIF, AVIF, or iOS HEIC) can be posted.",
       };
     }
 
     if (inspection.isHeic) {
       return {
         success: false,
-        error: "HEIC photos must be optimized in the browser before submitting. Please re-select your photo.",
+        error: "This HEIC photo could not be optimized by your browser. Please try selecting it again or use a JPEG/PNG photo.",
       };
     }
 
