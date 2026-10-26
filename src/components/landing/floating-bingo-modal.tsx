@@ -132,7 +132,7 @@ export function FloatingBingoModal({
   raffleEntries,
   currentDay,
   isEventActive = true,
-  isRaffleActive = true,
+  isRaffleActive = false,
   isOpen: externalIsOpen,
   onOpenChange,
   onSelectTaskToUpload,
@@ -626,7 +626,9 @@ export function FloatingBingoModal({
                   )}
                 </div>
                 <p className="font-body text-xs text-[#5a413d] mt-1">
-                  Complete all 9 challenges to enter the official stage raffle draw
+                  {isRaffleActive
+                    ? "Complete all 9 challenges to enter the official stage raffle draw"
+                    : "Complete all 9 challenges to finish your 3×3 card"}
                 </p>
                 {!isEventActive && (
                   <div className="mt-2 text-[11px] sm:text-xs text-amber-900 font-body px-2.5 py-1.5 bg-amber-50 border border-amber-200/90 rounded-lg flex items-center gap-1.5">
@@ -832,76 +834,49 @@ export function FloatingBingoModal({
             </div>
 
             {/* Real Claimed Raffle Ticket Box */}
-            {!isRaffleActive ? (
+            {isRaffleActive && (
               raffleEntries.length > 0 ? (
-                <div className="mt-3 p-3 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center justify-between gap-2">
+                <div className="mt-3 p-3 rounded-xl bg-[#fff8f5] border border-[#f4a261]/40 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <svg className="w-5 h-5 text-stone-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-[#8e4e14]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z" />
                     </svg>
                     <div>
-                      <span className="font-display text-xs font-bold text-stone-700 block leading-tight">
-                        Raffle Drawings on Standby
+                      <span className="font-display text-xs font-bold text-[#8e4e14] block leading-tight">
+                        Raffle Ticket Earned
                       </span>
-                      <span className="font-mono text-[10px] text-stone-500 block">
-                        {raffleEntries.length} ticket{raffleEntries.length === 1 ? "" : "s"} saved · {raffleEntries[0].raffleCode}
+                      <span className="font-mono text-[10px] text-stone-600 block">
+                        Code: {raffleEntries[0].raffleCode} ({
+                          raffleEntries[0].lineType === "row"
+                            ? "Row Line"
+                            : raffleEntries[0].lineType === "column"
+                            ? "Column Line"
+                            : raffleEntries[0].lineType === "diagonal"
+                            ? "Diagonal Line"
+                            : raffleEntries[0].lineType === "blackout"
+                            ? "Full Blackout"
+                            : raffleEntries[0].lineType === "milestone"
+                            ? "Milestone"
+                            : raffleEntries[0].lineType === "memory_drop"
+                            ? "Campus Memory"
+                            : raffleEntries[0].lineType
+                        })
                       </span>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-md bg-stone-200 text-stone-600 font-bold text-[10px]">
-                    Standby
+
+                  <span className="px-2 py-0.5 rounded-md bg-[#f4a261]/20 text-[#8e4e14] font-bold text-[10px]">
+                    Valid Entry
                   </span>
                 </div>
               ) : (
                 <div className="mt-3 p-3 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center gap-2 text-stone-600 text-xs font-body">
                   <svg className="w-4 h-4 text-stone-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" />
-                  </svg>
-                  <span>Raffle drawings are temporarily on pause while event setup is underway. Bingo stamps are active.</span>
-                </div>
-              )
-            ) : raffleEntries.length > 0 ? (
-              <div className="mt-3 p-3 rounded-xl bg-[#fff8f5] border border-[#f4a261]/40 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-5 h-5 text-[#8e4e14]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z" />
                   </svg>
-                  <div>
-                    <span className="font-display text-xs font-bold text-[#8e4e14] block leading-tight">
-                      Raffle Ticket Earned
-                    </span>
-                    <span className="font-mono text-[10px] text-stone-600 block">
-                      Code: {raffleEntries[0].raffleCode} ({
-                        raffleEntries[0].lineType === "row"
-                          ? "Row Line"
-                          : raffleEntries[0].lineType === "column"
-                          ? "Column Line"
-                          : raffleEntries[0].lineType === "diagonal"
-                          ? "Diagonal Line"
-                          : raffleEntries[0].lineType === "blackout"
-                          ? "Full Blackout"
-                          : raffleEntries[0].lineType === "milestone"
-                          ? "Milestone"
-                          : raffleEntries[0].lineType === "memory_drop"
-                          ? "Campus Memory"
-                          : raffleEntries[0].lineType
-                      })
-                    </span>
-                  </div>
+                  <span>Complete any 3-slot row, column, or diagonal line to earn a verifiable stage raffle entry.</span>
                 </div>
-
-                <span className="px-2 py-0.5 rounded-md bg-[#f4a261]/20 text-[#8e4e14] font-bold text-[10px]">
-                  Valid Entry
-                </span>
-              </div>
-            ) : (
-              <div className="mt-3 p-3 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center gap-2 text-stone-600 text-xs font-body">
-                <svg className="w-4 h-4 text-stone-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z" />
-                </svg>
-                <span>Complete any 3-slot row, column, or diagonal line to earn a verifiable stage raffle entry.</span>
-              </div>
+              )
             )}
 
             {/* Action Buttons */}
@@ -931,7 +906,7 @@ export function FloatingBingoModal({
                   target="_blank"
                   className="inline-flex items-center gap-1 text-[11px] font-body text-[#8e706c] hover:text-[#b4281e] underline decoration-stone-300 hover:decoration-[#b4281e] transition-colors"
                 >
-                  <span>📜 View Official Rally &amp; Raffle Rules</span>
+                  <span>{isRaffleActive ? "📜 View Official Rally & Raffle Rules" : "📜 View Official Rally Rules"}</span>
                 </Link>
               </div>
             </div>
