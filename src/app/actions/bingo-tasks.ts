@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
+import { getCurrentUser, isSuperAdmin } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { recordActivityLog } from "@/lib/activity-logger";
 import { type BingoTaskRecord, CANONICAL_BINGO_SEED_TASKS } from "@/lib/bingo-engine";
@@ -22,10 +22,10 @@ export async function updateBingoTaskAction(
   formData: FormData
 ): Promise<UpdateBingoTaskResult> {
   const caller = await getCurrentUser();
-  if (!caller || !isDevAuthorized(caller)) {
+  if (!caller || !isSuperAdmin(caller)) {
     return {
       success: false,
-      error: "Unauthorized: Only moderator or superadmin accounts can edit bingo tasks.",
+      error: "Unauthorized: SuperAdmin role required to edit bingo tasks.",
     };
   }
 
@@ -153,10 +153,10 @@ export async function resetBingoTasksToDefaultsAction(): Promise<{
   error?: string;
 }> {
   const caller = await getCurrentUser();
-  if (!caller || !isDevAuthorized(caller)) {
+  if (!caller || !isSuperAdmin(caller)) {
     return {
       success: false,
-      error: "Unauthorized: Only moderator or superadmin accounts can reset bingo tasks.",
+      error: "Unauthorized: SuperAdmin role required to reset bingo tasks.",
     };
   }
 

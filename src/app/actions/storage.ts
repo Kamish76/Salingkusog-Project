@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
+import { getCurrentUser, isDevAuthorized, isSuperAdmin } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { recordActivityLog } from "@/lib/activity-logger";
 import {
@@ -100,10 +100,10 @@ export async function deleteStorageObjectAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   const user = await getCurrentUser();
-  if (!user || !isDevAuthorized(user)) {
+  if (!user || !isSuperAdmin(user)) {
     return {
       success: false,
-      error: "Unauthorized: Elevated Admin credentials are required to delete files.",
+      error: "Unauthorized: SuperAdmin role required to delete storage files directly.",
     };
   }
 
