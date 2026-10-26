@@ -6,24 +6,25 @@ interface LegalHeaderProps {
 
 export function LegalHeader({ currentTab }: LegalHeaderProps) {
   const tabs = [
-    { id: "privacy", label: "Privacy Notice", href: "/privacy" },
-    { id: "terms", label: "Terms of Use", href: "/terms" },
-    { id: "rally-rules", label: "Rally & Raffle Rules", href: "/rally-rules" },
+    { id: "privacy", shortLabel: "Privacy", label: "Privacy Notice", href: "/privacy" },
+    { id: "terms", shortLabel: "Terms", label: "Terms of Use", href: "/terms" },
+    { id: "rally-rules", shortLabel: "Rules", label: "Rally & Raffle Rules", href: "/rally-rules" },
   ];
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-[#e8ded5] bg-[#fcf9f5]/95 backdrop-blur-xs">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <div className="max-w-4xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-3">
         {/* Back Link & Brand */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-[#f5ece9] text-[#1e1b19] border border-[#e8ded5] text-xs font-display font-bold transition shadow-2xs active:scale-95 shrink-0"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full bg-white hover:bg-[#f5ece9] text-[#1e1b19] border border-[#e8ded5] text-xs font-display font-bold transition shadow-2xs active:scale-95 shrink-0"
           >
             <svg className="w-3.5 h-3.5 shrink-0 text-[#ff5e4d]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
             </svg>
-            <span>Campus Board</span>
+            <span className="hidden sm:inline">Campus Board</span>
+            <span className="sm:hidden">Board</span>
           </Link>
           <span className="text-xs text-[#8e706c] font-body border-l border-[#e8ded5] pl-2.5 hidden sm:inline">
             Intramurals 2026
@@ -31,20 +32,24 @@ export function LegalHeader({ currentTab }: LegalHeaderProps) {
         </div>
 
         {/* Tab navigation */}
-        <nav aria-label="Legal Documents" className="flex items-center gap-1 sm:gap-1.5">
+        <nav
+          aria-label="Legal Documents"
+          className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth shrink min-w-0"
+        >
           {tabs.map((tab) => {
             const isActive = currentTab === tab.id;
             return (
               <Link
                 key={tab.id}
                 href={tab.href}
-                className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-display font-bold transition ${
+                className={`px-2.5 py-1.5 sm:px-3 rounded-lg text-xs font-display font-bold transition shrink-0 ${
                   isActive
                     ? "bg-[#ffdad5] text-[#b4281e]"
                     : "text-[#5a413d] hover:bg-white hover:text-[#1e1b19]"
                 }`}
               >
-                {tab.label}
+                <span className="sm:hidden">{tab.shortLabel}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
               </Link>
             );
           })}
@@ -68,7 +73,7 @@ export function LegalAdvisoryBanner() {
         </strong>
         <span>
           This document is published under the Philippine Data Privacy Act of 2012 (RA 10173). The provisions below represent standard student-friendly protections and are subject to final review and endorsement by the Data Protection Officer (DPO), faculty adviser, and student council of{" "}
-          <span className="font-mono bg-[#ffdad5]/60 px-1 py-0.5 rounded font-semibold text-[#8e4e14]">[CAMPUS / UNIVERSITY NAME]</span>.
+          <span className="font-mono bg-[#ffdad5]/60 px-1 py-0.5 rounded font-semibold text-[#8e4e14] break-words">[CAMPUS / UNIVERSITY NAME]</span>.
         </span>
       </div>
     </aside>
