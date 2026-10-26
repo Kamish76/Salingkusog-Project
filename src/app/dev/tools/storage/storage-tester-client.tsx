@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import {
   processAndDownscaleImage,
   ImageProcessResult,
@@ -41,6 +41,15 @@ export function StorageTesterClient({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Clean up previous blob preview URLs to prevent memory leaks during repeated testing
+  useEffect(() => {
+    return () => {
+      if (processed?.previewUrl && processed.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(processed.previewUrl);
+      }
+    };
+  }, [processed?.previewUrl]);
+
   // Trigger downscaling when file or settings change
   const handleFileChange = async (file: File) => {
     setSelectedFile(file);
@@ -69,12 +78,15 @@ export function StorageTesterClient({
         // Raw image without resizing
         const previewUrl = URL.createObjectURL(file);
         const bitmap = await createImageBitmap(file);
+        const originalWidth = bitmap.width;
+        const originalHeight = bitmap.height;
+        bitmap.close();
         setProcessed({
           blob: file,
-          originalWidth: bitmap.width,
-          originalHeight: bitmap.height,
-          resizedWidth: bitmap.width,
-          resizedHeight: bitmap.height,
+          originalWidth,
+          originalHeight,
+          resizedWidth: originalWidth,
+          resizedHeight: originalHeight,
           originalSize: file.size,
           resizedSize: file.size,
           savedPercentage: 0,
@@ -330,7 +342,7 @@ export function StorageTesterClient({
                   <button
                     onClick={handleUpload}
                     disabled={uploadPending}
-                    className="w-full py-2.5 px-4 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-zinc-950 font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/10"
+                    className="w-full py-3 px-4 min-h-[44px] rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-zinc-950 font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/10 active:scale-95"
                   >
                     {uploadPending ? (
                       <>

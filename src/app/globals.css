@@ -1,26 +1,147 @@
 @import "tailwindcss";
+@source "../**";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fcf9f5;
+  --foreground: #1e1b19;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-display: var(--font-bricolage), sans-serif;
+  --font-body: var(--font-karla), sans-serif;
+  --font-handwriting: var(--font-caveat), cursive;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-paper: #fcf9f5;
+  --color-paper-card: #ffffff;
+  --color-paper-surface: #f5ece9;
+  --color-paper-border: #e8ded5;
+  --color-coral: #ff5e4d;
+  --color-coral-dark: #b4281e;
+  --color-terracotta: #f4a261;
+  --color-terracotta-dark: #8e4e14;
+  --color-sage: #588157;
+  --color-charcoal: #1e1b19;
+  --color-walnut: #5a413d;
+  --color-clay: #8e706c;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #fcf9f5;
+  background-image: 
+    radial-gradient(#ebdcd3 0.75px, transparent 0.75px), 
+    radial-gradient(#ebdcd3 0.75px, #fcf9f5 0.75px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+  color: #1e1b19;
+  font-family: var(--font-karla), system-ui, sans-serif;
 }
+
+/* Washi Tape Stickers */
+.washi-tape-coral {
+  background: rgba(255, 120, 100, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transform: rotate(-1.5deg);
+  backdrop-filter: blur(1px);
+}
+
+.washi-tape-sage {
+  background: rgba(140, 185, 140, 0.75);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transform: rotate(2deg);
+  backdrop-filter: blur(1px);
+}
+
+.washi-tape-butter {
+  background: rgba(255, 225, 130, 0.85);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transform: rotate(-2.5deg);
+  backdrop-filter: blur(1px);
+}
+
+/* Scrapbook Shadows & Hover Lift */
+.shadow-scrapbook {
+  box-shadow: 0 10px 25px -4px rgba(47, 20, 0, 0.08), 0 4px 8px -2px rgba(47, 20, 0, 0.04);
+}
+
+.shadow-polaroid {
+  box-shadow: 0 14px 28px rgba(78, 38, 10, 0.1), 0 4px 10px rgba(78, 38, 10, 0.05);
+}
+
+/* Scrapbook Card Hover Lift */
+.scrapbook-card {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+  will-change: transform, box-shadow;
+}
+
+.scrapbook-card:hover {
+  transform: scale(1.025) rotate(0deg) translateY(-6px) !important;
+  z-index: 20 !important;
+  box-shadow: 0 20px 35px -6px rgba(180, 40, 30, 0.15), 0 8px 12px -3px rgba(47, 20, 0, 0.08);
+}
+
+/* Apple Fluid UI Animation Tokens */
+:root {
+  --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-apple-spring: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes appleScaleUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes appleFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-apple-scale {
+  animation: appleScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-apple-fade {
+  animation: appleFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Mobile Touch & Safe Area Utilities */
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 1rem);
+}
+
+.bottom-safe {
+  bottom: max(1.25rem, env(safe-area-inset-bottom, 1.25rem));
+}
+
+/* Hide scrollbar for clean horizontal swipes */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+
+
