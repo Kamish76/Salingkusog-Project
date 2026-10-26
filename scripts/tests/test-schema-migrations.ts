@@ -20,7 +20,7 @@ export async function runSchemaMigrationsTest() {
   assert.ok(fs.existsSync(migrationsDir), "Migrations directory must exist");
 
   const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
-  assert.ok(files.length >= 7, `Expected at least 7 migration files, found ${files.length}`);
+  assert.ok(files.length >= 8, `Expected at least 8 migration files, found ${files.length}`);
 
   let combinedSql = "";
   for (const file of files) {
@@ -39,6 +39,8 @@ export async function runSchemaMigrationsTest() {
     "public.event_config",
     "public.activity_logs",
     "public.raffle_rules",
+    "public.user_consents",
+    "public.photo_reports",
   ];
 
   for (const table of requiredTables) {
@@ -48,7 +50,7 @@ export async function runSchemaMigrationsTest() {
       `Schema must define table ${table}`
     );
   }
-  console.log("  ✔ All 7 required application tables defined in migrations");
+  console.log("  ✔ All 9 required application tables defined in migrations");
 
   // 2. Relational integrity & cascade behavior
   assert.ok(
