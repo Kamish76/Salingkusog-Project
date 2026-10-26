@@ -34,7 +34,29 @@ export function isHeicFormat(file: File | Blob): boolean {
   return false;
 }
 
-const HEIC_BRANDS = new Set(["heic", "heix", "mif1", "msf1", "hevc", "hevx"]);
+export const HEIC_BRANDS = new Set([
+  "heic",
+  "heix",
+  "hevc",
+  "hevx",
+  "heim",
+  "heis",
+  "hevm",
+  "hevs",
+  "mif1",
+  "msf1",
+]);
+
+/**
+ * Checks whether a 12+ byte buffer starts with an ISO Base Media File Format
+ * HEIC/HEIF `ftyp` header.
+ */
+export function isHeicHeader(buf: Uint8Array): boolean {
+  if (buf.length < 12) return false;
+  const ftyp = String.fromCharCode(buf[4], buf[5], buf[6], buf[7]);
+  const brand = String.fromCharCode(buf[8], buf[9], buf[10], buf[11]).toLowerCase();
+  return ftyp === "ftyp" && HEIC_BRANDS.has(brand);
+}
 
 /**
  * Sniffs the first 12 bytes of a Blob/File for an ISO Base Media File Format
@@ -43,10 +65,7 @@ const HEIC_BRANDS = new Set(["heic", "heix", "mif1", "msf1", "hevc", "hevx"]);
 export async function hasHeicMagicBytes(file: Blob): Promise<boolean> {
   try {
     const buf = new Uint8Array(await file.slice(0, 12).arrayBuffer());
-    if (buf.length < 12) return false;
-    const ftyp = String.fromCharCode(buf[4], buf[5], buf[6], buf[7]);
-    const brand = String.fromCharCode(buf[8], buf[9], buf[10], buf[11]).toLowerCase();
-    return ftyp === "ftyp" && HEIC_BRANDS.has(brand);
+    return isHeicHeader(buf);
   } catch {
     return false;
   }
@@ -96,36 +115,57 @@ function loadImageElement(blob: Blob): Promise<DecodedImageSource> {
 }
 
 /**
+ * Decodes a standard Blob/File using createImageBitmap (with EXIF orientation correction),
+ * falling back to HTMLImageElement.
+ */
+async function decodeNativeBlob(blob: Blob): Promise<DecodedImageSource> {
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(blob, {
+        imageOrientation: "from-image",
+      });
+      if (bitmap.width > 0 && bitmap.height > 0) {
+        return {
+          width: bitmap.width,
+          height: bitmap.height,
+          draw: (ctx, w, h) => ctx.drawImage(bitmap, 0, 0, w, h),
+          cleanup: () => bitmap.close(),
+        };
+      }
+      bitmap.close();
+    } catch {
+      // Fallback to HTMLImageElement if createImageBitmap fails
+    }
+  }
+  return await loadImageElement(blob);
+}
+
+/**
  * Decodes an image into a drawable canvas source.
  * Employs a hybrid strategy:
- * 1. For HEIC on Safari/Apple: Uses native HTMLImageElement decode.
- * 2. For HEIC on non-Apple browsers: Dynamically imports `heic2any` to convert to JPEG blob first.
- * 3. For standard formats: Uses createImageBitmap (with imageOrientation: 'from-image'), falling back to HTMLImageElement.
+ * 1. Tries native browser decoding (createImageBitmap with EXIF orientation or HTMLImageElement).
+ *    Works natively for JPEG/PNG/WebP/AVIF everywhere and for HEIC on Safari/iOS/macOS.
+ * 2. For HEIC/HEIF on browsers without native HEIC support (Chrome/Firefox/Edge on Windows/Android),
+ *    dynamically imports `heic-to` (libheif 1.23+) to transcode to JPEG first.
  */
 async function decodeImageSource(file: File | Blob): Promise<DecodedImageSource> {
   const isHeic = isHeicFormat(file) || (await hasHeicMagicBytes(file));
 
   if (isHeic) {
-    // Strategy 1: Try native Safari decoding first (near instantaneous, zero extra download)
+    // Strategy 1: Try native OS/browser decoding first (instantaneous on Safari/iOS/macOS)
     try {
-      const nativeSource = await loadImageElement(file);
-      return nativeSource;
+      return await decodeNativeBlob(file);
     } catch {
-      // Strategy 2: If native decode fails (e.g., Chrome/Firefox/Edge on Windows/Android),
-      // dynamically import heic2any on-demand so it doesn't inflate initial page bundle.
+      // Strategy 2: If native decode fails, dynamically import heic-to on-demand
       try {
-        const heic2anyModule = await import("heic2any");
-        const heic2any = heic2anyModule.default || heic2anyModule;
-        const converted = await heic2any({
+        const { heicTo } = await import("heic-to/csp");
+        const jpegBlob = await heicTo({
           blob: file,
-          toType: "image/jpeg",
+          type: "image/jpeg",
           quality: 0.9,
         });
-
-        const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
-        return await loadImageElement(jpegBlob);
-      } catch (transcodeErr) {
-        console.error("heic2any transcode failed:", transcodeErr);
+        return await decodeNativeBlob(jpegBlob);
+      } catch {
         throw new Error(
           "Could not convert HEIC photo. Please take a new snapshot or choose a standard JPEG/PNG photo."
         );
@@ -133,25 +173,7 @@ async function decodeImageSource(file: File | Blob): Promise<DecodedImageSource>
     }
   }
 
-  // Non-HEIC standard images: Prefer createImageBitmap with EXIF orientation correction
-  if (typeof createImageBitmap === "function") {
-    try {
-      const bitmap = await createImageBitmap(file, {
-        imageOrientation: "from-image",
-      });
-      return {
-        width: bitmap.width,
-        height: bitmap.height,
-        draw: (ctx, w, h) => ctx.drawImage(bitmap, 0, 0, w, h),
-        cleanup: () => bitmap.close(),
-      };
-    } catch {
-      // Fallback to HTMLImageElement if createImageBitmap fails
-      return await loadImageElement(file);
-    }
-  }
-
-  return await loadImageElement(file);
+  return await decodeNativeBlob(file);
 }
 
 /**
