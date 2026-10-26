@@ -27,16 +27,23 @@ export default async function DevBingoManagerPage() {
     isActive: Boolean(r.is_active),
   }));
 
-  // 3. Fetch current event active day
+  // 3. Fetch current event active day and event active status
   const eventConfigRows = await sql`
-    SELECT current_day FROM public.event_config WHERE key = 'active_event' LIMIT 1
+    SELECT 
+      COALESCE(current_day, 1) as current_day,
+      COALESCE(is_event_active, true) as is_event_active
+    FROM public.event_config 
+    WHERE key = 'active_event' 
+    LIMIT 1
   `;
   const currentDay = Number(eventConfigRows[0]?.current_day || 1);
+  const isEventActive = Boolean(eventConfigRows[0]?.is_event_active ?? true);
 
   return (
     <BingoManagerClient
       initialTasks={tasks}
       currentDay={currentDay}
+      isEventActive={isEventActive}
       userRole={user?.role || "admin"}
     />
   );
