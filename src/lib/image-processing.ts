@@ -34,6 +34,24 @@ export function isHeicFormat(file: File | Blob): boolean {
   return false;
 }
 
+const HEIC_BRANDS = new Set(["heic", "heix", "mif1", "msf1", "hevc", "hevx"]);
+
+/**
+ * Sniffs the first 12 bytes of a Blob/File for an ISO Base Media File Format
+ * HEIC/HEIF `ftyp` header, catching HEIC files renamed or disguised as `.jpg`.
+ */
+export async function hasHeicMagicBytes(file: Blob): Promise<boolean> {
+  try {
+    const buf = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    if (buf.length < 12) return false;
+    const ftyp = String.fromCharCode(buf[4], buf[5], buf[6], buf[7]);
+    const brand = String.fromCharCode(buf[8], buf[9], buf[10], buf[11]).toLowerCase();
+    return ftyp === "ftyp" && HEIC_BRANDS.has(brand);
+  } catch {
+    return false;
+  }
+}
+
 interface DecodedImageSource {
   width: number;
   height: number;
@@ -85,7 +103,7 @@ function loadImageElement(blob: Blob): Promise<DecodedImageSource> {
  * 3. For standard formats: Uses createImageBitmap (with imageOrientation: 'from-image'), falling back to HTMLImageElement.
  */
 async function decodeImageSource(file: File | Blob): Promise<DecodedImageSource> {
-  const isHeic = isHeicFormat(file);
+  const isHeic = isHeicFormat(file) || (await hasHeicMagicBytes(file));
 
   if (isHeic) {
     // Strategy 1: Try native Safari decoding first (near instantaneous, zero extra download)
