@@ -4,7 +4,8 @@
 import { useState, useTransition, useRef, useEffect } from "react";
 import {
   processAndDownscaleImage,
-  ImageProcessResult,
+  isHeicFormat,
+  type ImageProcessResult,
 } from "@/lib/image-processing";
 import {
   uploadStorageImageAction,
@@ -55,8 +56,8 @@ export function StorageTesterClient({
     setSelectedFile(file);
     setUploadStatus({ type: "idle" });
 
-    // Validate MIME type in browser
-    if (!file.type.startsWith("image/")) {
+    // Validate MIME type or HEIC in browser
+    if (!file.type.startsWith("image/") && !isHeicFormat(file)) {
       setUploadStatus({
         type: "error",
         message: "Storage Lock: Only image files are permitted.",
@@ -77,10 +78,16 @@ export function StorageTesterClient({
       } else {
         // Raw image without resizing
         const previewUrl = URL.createObjectURL(file);
-        const bitmap = await createImageBitmap(file);
-        const originalWidth = bitmap.width;
-        const originalHeight = bitmap.height;
-        bitmap.close();
+        let originalWidth = 1080;
+        let originalHeight = 1080;
+        try {
+          const bitmap = await createImageBitmap(file);
+          originalWidth = bitmap.width;
+          originalHeight = bitmap.height;
+          bitmap.close();
+        } catch {
+          // Fallback if raw image cannot be read directly by createImageBitmap
+        }
         setProcessed({
           blob: file,
           originalWidth,
@@ -91,6 +98,7 @@ export function StorageTesterClient({
           resizedSize: file.size,
           savedPercentage: 0,
           previewUrl,
+          outputType: (file.type === "image/webp" ? "image/webp" : "image/jpeg") as "image/webp" | "image/jpeg",
         });
       }
     } catch (err: unknown) {
@@ -263,7 +271,7 @@ export function StorageTesterClient({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/avif"
+            accept="image/png,image/jpeg,image/webp,image/avif,.heic,.heif,image/heic,image/heif"
             onChange={(e) => {
               if (e.target.files?.[0]) handleFileChange(e.target.files[0]);
             }}
