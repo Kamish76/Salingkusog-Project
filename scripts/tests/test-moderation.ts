@@ -99,6 +99,13 @@ export async function runModerationTest() {
   assert.strictEqual(res5.status, "outage_fallback");
   console.log("  ✔ Missing API key safely triggers outage_fallback");
 
+  // Test 6: Buffer exceeding 4MB rejected
+  const oversizedBuffer = new Uint8Array(5 * 1024 * 1024);
+  const res6 = await moderatePostContent(oversizedBuffer, "image/png", "Oversized", 5000, "sk-test", mockApprovedFetch);
+  assert.strictEqual(res6.status, "rejected");
+  assert.strictEqual(res6.reason, "Photo exceeds 4MB. Please compress or downscale your photo before uploading.");
+  console.log("  ✔ Oversized buffer (>4MB) safely rejected before network request");
+
   console.log("✔ Moderation service suite passed cleanly\n");
 }
 

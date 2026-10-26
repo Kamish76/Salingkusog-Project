@@ -17,7 +17,7 @@ import { isModerator, isSuperAdmin, type AuthUser } from "../../src/lib/auth-pre
 import { extractStorageKey, getPublicObjectUrl } from "../../src/lib/storage.ts";
 
 export async function runPhotoModerationTest() {
-  console.log("â–¶ [Test Suite] Photo Moderation Actions & Cascades");
+  console.log("▶ [Test Suite] Photo Moderation Actions & Cascades");
 
   // 1. Role Predicates
   const guest: AuthUser | null = null;
@@ -32,7 +32,7 @@ export async function runPhotoModerationTest() {
 
   assert.equal(isSuperAdmin(moderator), false, "Moderator is not superadmin");
   assert.equal(isSuperAdmin(superAdmin), true, "Superadmin is superadmin");
-  console.log("  âœ” Role predicate matrix verified");
+  console.log("  ✔ Role predicate matrix verified");
 
   // 2. Hide Post Cascade Simulation
   interface MockPost {
@@ -95,7 +95,7 @@ export async function runPhotoModerationTest() {
   assert.equal(tickets[0].disqualificationReason, "Inappropriate photo content");
   assert.equal(tickets[1].status, "valid", "Unrelated ticket must remain valid");
   assert.equal(progress.length, 1, "Progress for hidden post must be cleared");
-  console.log("  âœ” Hide post cascade & ticket disqualification verified");
+  console.log("  ✔ Hide post cascade & ticket disqualification verified");
 
   // 3. Restore Post Simulation
   function simulateRestorePost(postId: string) {
@@ -105,12 +105,12 @@ export async function runPhotoModerationTest() {
 
   simulateRestorePost("p1");
   assert.equal(posts[0].status, "published");
-  console.log("  âœ” Restore post status verified");
+  console.log("  ✔ Restore post status verified");
 
   // 4. Permanent Delete Simulation (S3 Key Extraction & Purge)
   const key = extractStorageKey(posts[0].imageUrl);
   assert.equal(key, "posts/p1.webp", "Storage key must be correctly extracted");
-  console.log("  âœ” S3 key extraction for permanent deletion verified");
+  console.log("  ✔ S3 key extraction for permanent deletion verified");
 
   // 5. User Ban Cascade Simulation
   function simulateUserBan(target: AuthUser, reason: string) {

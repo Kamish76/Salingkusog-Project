@@ -77,9 +77,12 @@ export async function submitStudentPostAction(
       return { success: false, error: "The selected photo is empty." };
     }
 
-    // Safety hard cap (10 MB)
-    if (file.size > 10 * 1024 * 1024) {
-      return { success: false, error: "Photo must be under 10 MB." };
+    // Safety hard cap (4 MB)
+    if (file.size > 4 * 1024 * 1024) {
+      return {
+        success: false,
+        error: "Photo exceeds 4MB. Please compress or downscale your photo before uploading.",
+      };
     }
 
     const caption = (formData.get("caption") as string)?.trim() || "";
@@ -168,7 +171,9 @@ export async function submitStudentPostAction(
       return {
         success: false,
         error:
-          "Your photo could not be posted because it was flagged by our community safety guidelines. Please choose another photo.",
+          moderation.reason?.includes("4MB")
+            ? moderation.reason
+            : "Your photo could not be posted because it was flagged by our community safety guidelines. Please choose another photo.",
       };
     }
 
