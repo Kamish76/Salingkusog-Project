@@ -75,7 +75,7 @@ function loadImageElement(blob: Blob): Promise<DecodedImageSource> {
     img.onload = () => {
       if (!img.naturalWidth || !img.naturalHeight) {
         cleanup();
-        reject(new Error("Loaded image has zero dimensions"));
+        reject(new Error("This photo appears to be empty or corrupted. Please choose another photo."));
         return;
       }
       resolve({
@@ -88,7 +88,7 @@ function loadImageElement(blob: Blob): Promise<DecodedImageSource> {
 
     img.onerror = () => {
       cleanup();
-      reject(new Error("HTMLImageElement failed to decode image"));
+      reject(new Error("Could not read this photo format. Please use a JPEG, PNG, WebP, AVIF, or HEIC photo."));
     };
 
     img.src = url;
