@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useTransition } from "react";
+import Link from "next/link";
 import { ROTATIONS, TAPES, PHOTO_ASPECTS, formatTimeAgo } from "@/lib/polaroid";
 import type { PostRecord } from "@/components/landing/memory-board";
 import { UploadMemoryModal, type OriginRect } from "@/components/landing/upload-memory-modal";
 import type { BingoTaskItem, UserProgressItem } from "@/components/landing/floating-bingo-modal";
+import { exportRecaptchaBingoCard } from "@/lib/export-recaptcha-card";
+import { deleteStudentPostAction } from "@/app/actions/posts";
+import { updatePromotionalConsentAction, wipeoutUserAccountAction } from "@/app/actions/consent";
+import { authClient } from "@/lib/auth/client";
+import { isTaskUnlocked } from "@/lib/bingo-engine";
 
 interface PersonalGalleryViewProps {
   posts: PostRecord[];
@@ -14,16 +20,20 @@ interface PersonalGalleryViewProps {
     email: string;
   };
   currentDay: number;
+  isEventActive?: boolean;
   tasks: BingoTaskItem[];
   userProgress: UserProgressItem[];
+  agreedPromotionalUse?: boolean;
 }
 
 export function PersonalGalleryView({
   posts,
   user,
   currentDay,
+  isEventActive = true,
   tasks,
   userProgress,
+  agreedPromotionalUse = false,
 }: PersonalGalleryViewProps) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [preselectedTaskId, setPreselectedTaskId] = useState<string | undefined>(undefined);
@@ -31,16 +41,35 @@ export function PersonalGalleryView({
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
+  // Deletion states for individual posts
+  const [locallyDeletedIds, setLocallyDeletedIds] = useState<Set<string>>(new Set());
+  const [confirmDeletePostId, setConfirmDeletePostId] = useState<string | null>(null);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+
+  // Privacy & Consent states
+  const [isPromoEnabled, setIsPromoEnabled] = useState(agreedPromotionalUse);
+  const [isUpdatingPromo, startPromoTransition] = useTransition();
+  const [promoFeedback, setPromoFeedback] = useState<string | null>(null);
+
+  // Account Wipeout states
+  const [isWipeoutModalOpen, setIsWipeoutModalOpen] = useState(false);
+  const [wipeoutConfirmText, setWipeoutConfirmText] = useState("");
+  const [isWipingOut, setIsWipingOut] = useState(false);
+  const [wipeoutError, setWipeoutError] = useState<string | null>(null);
+
   // Track failed / missing images to exclude them from the album
   const [failedPostIds, setFailedPostIds] = useState<Set<string>>(new Set());
 
-  // Only display posts that have a valid non-empty photo and have not failed to load
+  // Only display posts that have a valid non-empty photo, have not failed to load, and haven't been deleted
   const validPosts = useMemo(
     () =>
       posts.filter(
-        (p) => Boolean(p.imageUrl && p.imageUrl.trim()) && !failedPostIds.has(p.id)
+        (p) =>
+          Boolean(p.imageUrl && p.imageUrl.trim()) &&
+          !failedPostIds.has(p.id) &&
+          !locallyDeletedIds.has(p.id)
       ),
-    [posts, failedPostIds]
+    [posts, failedPostIds, locallyDeletedIds]
   );
 
   // Dynamic aspect ratio calculation matching memory board
@@ -103,33 +132,6 @@ export function PersonalGalleryView({
   const progressBySlot = new Map(userProgress.map((p) => [p.slotIndex, p]));
   const completedCount = progressBySlot.size;
 
-  /**
-   * Helper to load an image onto canvas cleanly with CORS or Blob fallback.
-   */
-  const loadCanvasImage = (url: string): Promise<HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = async () => {
-        try {
-          const res = await fetch(url);
-          const blob = await res.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const fallbackImg = new Image();
-          fallbackImg.onload = () => {
-            URL.revokeObjectURL(blobUrl);
-            resolve(fallbackImg);
-          };
-          fallbackImg.onerror = reject;
-          fallbackImg.src = blobUrl;
-        } catch (fetchErr) {
-          reject(fetchErr);
-        }
-      };
-      img.src = url;
-    });
-  };
 
   /**
    * Export the 3x3 Bingo Card as a 2400x2800 high-resolution PNG image
@@ -140,282 +142,73 @@ export function PersonalGalleryView({
     setExportError(null);
 
     try {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Could not initialize canvas context");
-
-      // 2400 x 2800 canvas (300 DPI high-definition keepsake poster)
-      canvas.width = 2400;
-      canvas.height = 2800;
-
-      // 1. Background Fill (warm paper tone)
-      ctx.fillStyle = "#fcf9f5";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // 2. Subtle Outer Border Frame
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = "#e8ded5";
-      ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
-
-      // 3. Top Decorative Washi Tape Accent
-      ctx.save();
-      ctx.fillStyle = "rgba(255, 120, 100, 0.88)";
-      ctx.fillRect(960, 36, 480, 52);
-      ctx.restore();
-
-      // 4. Header Titles & Branding
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#8e4e14";
-      ctx.font = "bold 34px sans-serif";
-      ctx.fillText("SALINGKUSOG 2026 • INTRAMURALS", 1200, 160);
-
-      ctx.fillStyle = "#1e1b19";
-      ctx.font = "900 76px sans-serif";
-      ctx.fillText("3×3 Bingo Rally Keepsake Card", 1200, 248);
-
-      // Student Metadata Pill Box
-      const studentBoxX = 220;
-      const studentBoxY = 295;
-      const studentBoxW = 1960;
-      const studentBoxH = 100;
-
-      ctx.fillStyle = "#ffffff";
-      ctx.strokeStyle = "#e8ded5";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(studentBoxX, studentBoxY, studentBoxW, studentBoxH, 20);
-      ctx.fill();
-      ctx.stroke();
-
-      // Student Name & Info inside pill
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#1e1b19";
-      ctx.font = "bold 36px sans-serif";
-      ctx.fillText(`Student: ${user.name || "Collegiate Athlete"}`, studentBoxX + 45, studentBoxY + 62);
-
-      ctx.fillStyle = "#8e706c";
-      ctx.font = "normal 30px sans-serif";
-      ctx.fillText(user.email ? `•  ${user.email}` : "", studentBoxX + 600, studentBoxY + 62);
-
-      // Right-aligned Stamps Counter Badge
-      ctx.textAlign = "right";
-      ctx.fillStyle = completedCount > 0 ? "#0d3513" : "#8e4e14";
-      ctx.font = "bold 34px sans-serif";
-      ctx.fillText(`${completedCount} of 9 Challenges Stamped`, studentBoxX + studentBoxW - 45, studentBoxY + 62);
-
-      // 5. 3x3 Grid Layout Matrix
-      const gridStartX = 220;
-      const gridStartY = 430;
-      const totalGridSize = 1960;
-      const gap = 55;
-      const slotW = (totalGridSize - gap * 2) / 3; // ~616px
-      const slotH = slotW; // Square 616x616px
-
-      // Load all available images concurrently
-      const loadedImages = new Map<number, HTMLImageElement>();
-      for (const [slotIdx, prog] of progressBySlot.entries()) {
-        if (prog.imageUrl) {
-          try {
-            const img = await loadCanvasImage(prog.imageUrl);
-            loadedImages.set(slotIdx, img);
-          } catch (err) {
-            console.warn(`Could not load photo for slot ${slotIdx}:`, err);
-          }
-        }
-      }
-
-      // Draw each of the 9 slots
-      for (let row = 0; row < 3; row++) {
-        for (let col = 0; col < 3; col++) {
-          const slotIndex = row * 3 + col;
-          const task = tasks.find((t) => t.slotIndex === slotIndex);
-          const progress = progressBySlot.get(slotIndex);
-          const photo = loadedImages.get(slotIndex);
-
-          const x = gridStartX + col * (slotW + gap);
-          const y = gridStartY + row * (slotH + gap);
-
-          if (progress && photo) {
-            // COMPLETED POLAROID CARD
-            ctx.save();
-            ctx.fillStyle = "#ffffff";
-            ctx.shadowColor = "rgba(47, 20, 0, 0.12)";
-            ctx.shadowBlur = 24;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 8;
-
-            ctx.beginPath();
-            ctx.roundRect(x, y, slotW, slotH, 20);
-            ctx.fill();
-            ctx.restore();
-
-            // Polaroid Border
-            ctx.strokeStyle = "#e8ded5";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(x, y, slotW, slotH, 20);
-            ctx.stroke();
-
-            // Photo frame within polaroid
-            const pad = 24;
-            const photoX = x + pad;
-            const photoY = y + pad;
-            const photoW = slotW - pad * 2;
-            const photoH = slotH - 140;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.roundRect(photoX, photoY, photoW, photoH, 12);
-            ctx.clip();
-
-            // Draw image aspect fill / crop
-            const imgAspect = photo.naturalWidth / photo.naturalHeight;
-            const frameAspect = photoW / photoH;
-            let sx = 0, sy = 0, sw = photo.naturalWidth, sh = photo.naturalHeight;
-
-            if (imgAspect > frameAspect) {
-              sw = photo.naturalHeight * frameAspect;
-              sx = (photo.naturalWidth - sw) / 2;
-            } else {
-              sh = photo.naturalWidth / frameAspect;
-              sy = (photo.naturalHeight - sh) / 2;
-            }
-
-            ctx.drawImage(photo, sx, sy, sw, sh, photoX, photoY, photoW, photoH);
-            ctx.restore();
-
-            // Slot bottom polaroid caption & stamp
-            ctx.textAlign = "left";
-            ctx.fillStyle = "#1e1b19";
-            ctx.font = "bold 26px sans-serif";
-            const title = task?.title || `Challenge Slot #${slotIndex + 1}`;
-            ctx.fillText(title.length > 24 ? title.slice(0, 22) + "..." : title, x + pad, y + slotH - 75);
-
-            ctx.fillStyle = "#8e706c";
-            ctx.font = "normal 22px sans-serif";
-            ctx.fillText(`Slot 0${slotIndex + 1} • Verified Memory`, x + pad, y + slotH - 35);
-
-            // Stamped Seal Badge in bottom right of polaroid
-            ctx.save();
-            ctx.fillStyle = "#eaf8ea";
-            ctx.strokeStyle = "#2e7d32";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(x + slotW - pad - 145, y + slotH - 85, 145, 55, 12);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.textAlign = "center";
-            ctx.fillStyle = "#1b5e20";
-            ctx.font = "bold 22px sans-serif";
-            ctx.fillText("✓ STAMPED", x + slotW - pad - 72, y + slotH - 50);
-            ctx.restore();
-          } else {
-            // UNCOMPLETED / PENDING SLOT
-            ctx.save();
-            ctx.fillStyle = "#ffffff";
-            ctx.strokeStyle = "#ded2c7";
-            ctx.lineWidth = 2;
-            ctx.setLineDash([8, 6]);
-
-            ctx.beginPath();
-            ctx.roundRect(x, y, slotW, slotH, 20);
-            ctx.fill();
-            ctx.stroke();
-            ctx.restore();
-
-            // Slot Number Badge
-            ctx.textAlign = "left";
-            ctx.fillStyle = "#8e4e14";
-            ctx.font = "bold 26px sans-serif";
-            ctx.fillText(`SLOT 0${slotIndex + 1}`, x + 35, y + 60);
-
-            // Category tag
-            if (task?.category) {
-              ctx.textAlign = "right";
-              ctx.fillStyle = "#8e706c";
-              ctx.font = "bold 20px sans-serif";
-              ctx.fillText(task.category.toUpperCase(), x + slotW - 35, y + 60);
-            }
-
-            // Task Title
-            ctx.textAlign = "left";
-            ctx.fillStyle = "#1e1b19";
-            ctx.font = "bold 32px sans-serif";
-            const taskTitle = task?.title || `Challenge #${slotIndex + 1}`;
-            // Simple 2-line wrap
-            const words = taskTitle.split(" ");
-            let line1 = "", line2 = "";
-            for (const w of words) {
-              if ((line1 + " " + w).length <= 16) {
-                line1 += (line1 ? " " : "") + w;
-              } else {
-                line2 += (line2 ? " " : "") + w;
-              }
-            }
-            ctx.fillText(line1, x + 35, y + 150);
-            if (line2) ctx.fillText(line2, x + 35, y + 195);
-
-            // Description preview
-            if (task?.description) {
-              ctx.fillStyle = "#5a413d";
-              ctx.font = "normal 24px sans-serif";
-              const desc = task.description.length > 55 ? task.description.slice(0, 52) + "..." : task.description;
-              ctx.fillText(desc, x + 35, y + 265);
-            }
-
-            // Status Badge at bottom
-            const isUnlocked = (task?.unlockDay || 1) <= currentDay;
-            ctx.save();
-            ctx.fillStyle = isUnlocked ? "#fbf2ee" : "#f5f5f5";
-            ctx.strokeStyle = isUnlocked ? "#f4a261" : "#e0e0e0";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(x + 35, y + slotH - 85, slotW - 70, 50, 10);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.textAlign = "center";
-            ctx.fillStyle = isUnlocked ? "#8e4e14" : "#9e9e9e";
-            ctx.font = "bold 22px sans-serif";
-            ctx.fillText(
-              isUnlocked ? "CHALLENGE OPEN • UNSTAMPED" : `LOCKED • UNLOCKS DAY ${task?.unlockDay || 1}`,
-              x + slotW / 2,
-              y + slotH - 52
-            );
-            ctx.restore();
-          }
-        }
-      }
-
-      // 6. Footer Note
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#8e706c";
-      ctx.font = "bold 26px sans-serif";
-      ctx.fillText("Official Salingkusog Collegiate Keepsake • Authenticated Student Memory Rally", 1200, 2580);
-
-      ctx.fillStyle = "#b4281e";
-      ctx.font = "italic 24px sans-serif";
-      ctx.fillText("made with warm paper & student spirit", 1200, 2625);
-
-      // 7. Direct High-Quality PNG Download
-      canvas.toBlob((blob) => {
-        if (!blob) throw new Error("Canvas PNG generation failed");
-        const downloadUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const cleanName = (user.name || "student").toLowerCase().replace(/[^a-z0-9]/g, "-");
-        a.href = downloadUrl;
-        a.download = `salingkusog-bingo-${cleanName}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(downloadUrl);
-        setIsExporting(false);
-      }, "image/png", 1.0);
+      await exportRecaptchaBingoCard({
+        user,
+        tasks,
+        userProgress,
+      });
     } catch (err) {
       console.error("Export error:", err);
       setExportError(err instanceof Error ? err.message : "Failed to export card image");
+    } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    setDeletingPostId(postId);
+    try {
+      const res = await deleteStudentPostAction(postId);
+      if (res.success) {
+        setLocallyDeletedIds((prev) => new Set([...prev, postId]));
+        setConfirmDeletePostId(null);
+      } else {
+        alert(res.error || "Failed to delete memory.");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Failed to delete memory.");
+    } finally {
+      setDeletingPostId(null);
+    }
+  };
+
+  const handleTogglePromo = (checked: boolean) => {
+    setIsPromoEnabled(checked);
+    startPromoTransition(async () => {
+      const res = await updatePromotionalConsentAction(checked);
+      if (res.success) {
+        setPromoFeedback(checked ? "Promotional recap enabled" : "Promotional recap disabled");
+        setTimeout(() => setPromoFeedback(null), 3000);
+      } else {
+        setIsPromoEnabled(!checked);
+        alert(res.error || "Failed to update preference.");
+      }
+    });
+  };
+
+  const handleWipeoutAccount = async () => {
+    if (wipeoutConfirmText.trim().toUpperCase() !== "DELETE") {
+      setWipeoutError('Please type "DELETE" exactly to confirm.');
+      return;
+    }
+
+    setIsWipingOut(true);
+    setWipeoutError(null);
+
+    try {
+      const res = await wipeoutUserAccountAction();
+      if (res.success) {
+        await authClient.signOut();
+        window.location.replace("/");
+      } else {
+        setWipeoutError(res.error || "Account wipeout failed. Please try again.");
+        setIsWipingOut(false);
+      }
+    } catch (err) {
+      console.error("Wipeout error:", err);
+      setWipeoutError("Failed to delete account. Please try again.");
+      setIsWipingOut(false);
     }
   };
 
@@ -542,7 +335,8 @@ export function PersonalGalleryView({
           {Array.from({ length: 9 }).map((_, slotIndex) => {
             const task = tasks.find((t) => t.slotIndex === slotIndex);
             const progress = progressBySlot.get(slotIndex);
-            const isUnlocked = (task?.unlockDay || 1) <= currentDay;
+            const isUnlocked = isTaskUnlocked(task?.unlockDay || 1, currentDay);
+            const isAvailable = isUnlocked && isEventActive;
 
             if (progress && progress.imageUrl) {
               return (
@@ -588,7 +382,7 @@ export function PersonalGalleryView({
               <div
                 key={slotIndex}
                 className={`relative rounded-xl p-3.5 sm:p-4 border border-dashed flex flex-col justify-between min-h-[170px] ${
-                  isUnlocked
+                  isAvailable
                     ? "bg-[#fcf9f5] border-[#ded2c7] hover:border-[#ff5e4d]/60 transition"
                     : "bg-stone-50 border-stone-200 opacity-60"
                 }`}
@@ -613,7 +407,7 @@ export function PersonalGalleryView({
                 </div>
 
                 <div className="mt-3 pt-2 border-t border-[#e8ded5]/60 flex items-center justify-between">
-                  {isUnlocked ? (
+                  {isAvailable ? (
                     <button
                       onClick={(e) => handleOpenUpload(task?.id, e)}
                       type="button"
@@ -629,7 +423,7 @@ export function PersonalGalleryView({
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                       </svg>
-                      <span>Unlocks Day {task?.unlockDay}</span>
+                      <span>{!isEventActive ? "Event Paused" : `Unlocks Day ${task?.unlockDay}`}</span>
                     </span>
                   )}
                 </div>
@@ -749,12 +543,141 @@ export function PersonalGalleryView({
                         {post.caption}
                       </p>
                     )}
+
+                    {/* Delete Action on Polaroid */}
+                    <div className="mt-3 pt-2.5 border-t border-[#e8ded5]/70 flex items-center justify-between">
+                      {confirmDeletePostId === post.id ? (
+                        <div className="w-full flex items-center justify-between gap-2 p-1.5 rounded-lg bg-red-50 text-red-800 text-[11px]">
+                          <span>Permanently delete?</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePost(post.id)}
+                              disabled={deletingPostId === post.id}
+                              className="px-2 py-0.5 rounded bg-red-600 text-white font-bold hover:bg-red-700 transition cursor-pointer"
+                            >
+                              {deletingPostId === post.id ? "..." : "Yes"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeletePostId(null)}
+                              className="px-2 py-0.5 rounded bg-white text-stone-700 border border-stone-200 hover:bg-stone-100 transition cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeletePostId(post.id)}
+                          className="text-[11px] text-stone-400 hover:text-red-600 font-display flex items-center gap-1 transition ml-auto cursor-pointer"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                          <span>Delete</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </article>
               );
             })}
           </div>
         )}
+      </section>
+
+      {/* 3. PRIVACY & STUDENT DATA RIGHTS (RA 10173) */}
+      <section aria-label="Privacy and data preferences" className="relative bg-white border border-[#e8ded5] rounded-2xl p-5 sm:p-8 shadow-xs flex flex-col gap-5">
+        <div className="washi-tape-coral w-28 h-4.5 absolute -top-1 right-8 rounded-xs opacity-80 pointer-events-none"></div>
+
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#fff8f5] border border-[#ffdad5] text-[#b4281e] text-[10px] sm:text-[11px] font-display font-bold uppercase tracking-wider mb-1">
+            <span>🛡️</span>
+            <span>Philippine DPA (RA 10173) Compliance</span>
+          </div>
+          <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#1e1b19] tracking-tight">
+            Privacy &amp; Permissions
+          </h2>
+          <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-0.5">
+            You hold complete control over your campus memories and personal data.
+          </p>
+        </div>
+
+        {/* Feature Highlights Toggle Card */}
+        <div className="p-4 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex-1">
+            <span className="font-display font-bold text-xs sm:text-sm text-[#1e1b19] block">
+              Event Highlights &amp; Promotional Feature
+            </span>
+            <p className="font-body text-xs text-[#5a413d] mt-0.5 leading-relaxed">
+              Allow student organizers to feature your memories in official Intramurals 2026 wrap-up recaps, department slideshows, and campus spirit reels.
+            </p>
+            {promoFeedback && (
+              <span className="text-[11px] text-emerald-600 font-bold block mt-1 animate-in fade-in">
+                ✓ {promoFeedback}
+              </span>
+            )}
+          </div>
+
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              checked={isPromoEnabled}
+              disabled={isUpdatingPromo}
+              onChange={(e) => handleTogglePromo(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff5e4d]"></div>
+          </label>
+        </div>
+
+        {/* Legal Links Card */}
+        <div className="p-4 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-[#5a413d]">
+            <span>📜</span>
+            <span>Review our transparent student policies anytime:</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/privacy" target="_blank" className="text-[#b4281e] font-bold underline">
+              Privacy Notice
+            </Link>
+            <span className="text-[#e8ded5]">•</span>
+            <Link href="/terms" target="_blank" className="text-[#b4281e] font-bold underline">
+              Terms of Use
+            </Link>
+            <span className="text-[#e8ded5]">•</span>
+            <Link href="/rally-rules" target="_blank" className="text-[#b4281e] font-bold underline">
+              Rally Rules
+            </Link>
+          </div>
+        </div>
+
+        {/* Permanent Account Wipeout Card (Right to Erasure) */}
+        <div className="p-4 sm:p-5 rounded-xl bg-red-50/80 border border-red-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
+          <div className="flex-1">
+            <span className="font-display font-bold text-xs sm:text-sm text-red-900 flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>Right to Erasure: Delete Account &amp; All Memories</span>
+            </span>
+            <p className="font-body text-xs text-red-800/80 mt-1 leading-relaxed max-w-xl">
+              Permanently purges all your uploaded photos from cloud storage, clears all your 3×3 bingo progress, voids your earned raffle tickets, and revokes your consent record under RA 10173.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setWipeoutConfirmText("");
+              setWipeoutError(null);
+              setIsWipeoutModalOpen(true);
+            }}
+            className="px-4 py-2.5 min-h-[44px] rounded-xl bg-red-600 hover:bg-red-700 text-white font-display font-bold text-xs shadow-xs active:scale-95 transition cursor-pointer shrink-0 w-full sm:w-auto"
+          >
+            Delete My Account &amp; All Memories
+          </button>
+        </div>
       </section>
 
       {/* 4. Upload Modal directly accessible from gallery slots */}
@@ -765,6 +688,7 @@ export function PersonalGalleryView({
         returnToBingo={false}
         isAuthenticated={true}
         currentDay={currentDay}
+        isEventActive={isEventActive}
         bingoTasks={tasks.map((t) => ({
           id: t.id,
           slotIndex: t.slotIndex,
@@ -774,6 +698,70 @@ export function PersonalGalleryView({
         }))}
         preselectedTaskId={preselectedTaskId}
       />
+
+      {/* 5. ACCOUNT WIPEOUT CONFIRMATION MODAL */}
+      {isWipeoutModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wipeout-modal-title"
+          className="fixed inset-0 z-[120] flex items-center justify-center p-3.5 sm:p-6 bg-stone-950/80 backdrop-blur-sm overflow-y-auto"
+        >
+          <div className="relative w-full max-w-md rounded-2xl bg-white border border-red-200 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 text-[#1e1b19] animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl">
+              ⚠️
+            </div>
+
+            <div className="text-center">
+              <h3 id="wipeout-modal-title" className="font-display font-extrabold text-base sm:text-lg text-[#1e1b19]">
+                Permanently Delete Everything?
+              </h3>
+              <p className="text-xs text-[#5a413d] font-body mt-1.5 leading-relaxed">
+                This will instantly delete <strong>all {validPosts.length} of your memories</strong>, discard all storage photos, remove your 3×3 bingo progress, and void all your stage raffle codes. This cannot be undone.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs font-body">
+              <label htmlFor="wipeout-confirm-input" className="block font-display font-bold text-stone-700 mb-1">
+                Type <span className="font-mono text-red-600">DELETE</span> to confirm:
+              </label>
+              <input
+                id="wipeout-confirm-input"
+                type="text"
+                value={wipeoutConfirmText}
+                onChange={(e) => setWipeoutConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full px-3 py-2 rounded-lg bg-white border border-stone-300 font-mono text-xs focus:outline-none focus:border-red-500 uppercase"
+              />
+            </div>
+
+            {wipeoutError && (
+              <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs text-center font-body">
+                {wipeoutError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-200">
+              <button
+                type="button"
+                onClick={() => setIsWipeoutModalOpen(false)}
+                disabled={isWipingOut}
+                className="px-4 py-2 min-h-[44px] rounded-xl text-stone-600 hover:bg-stone-100 font-display font-medium text-xs transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleWipeoutAccount}
+                disabled={isWipingOut || wipeoutConfirmText.trim().toUpperCase() !== "DELETE"}
+                className="px-5 py-2 min-h-[44px] rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-display font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+              >
+                <span>{isWipingOut ? "Deleting Data..." : "Permanently Delete Account"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

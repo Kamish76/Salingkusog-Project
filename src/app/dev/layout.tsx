@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
+import { getCurrentUser, isDevAuthorized, isSuperAdmin } from "@/lib/auth";
 import { AuthButton } from "@/components/auth-button";
 import { DevNav } from "@/components/dev-nav";
+
 
 export const instant = false;
 
@@ -60,15 +61,15 @@ export default async function DevLayout({
               href="/"
               className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] sm:min-h-[36px] flex items-center justify-center rounded-full sm:rounded border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition text-xs shrink-0 active:scale-95"
             >
-              <span className="hidden sm:inline">← Back to User Side</span>
-              <span className="sm:hidden">← Home</span>
+              <span className="hidden sm:inline">â† Back to User Side</span>
+              <span className="sm:hidden">â† Home</span>
             </Link>
           </div>
         </div>
       </header>
 
       {/* Dev Section Tabs Navigation */}
-      <DevNav />
+      <DevNav isSuperAdmin={isSuperAdmin(user)} />
 
       {/* Main Dev Container */}
       <div className="flex-1 max-w-6xl w-full mx-auto px-3.5 sm:px-6 py-6 sm:py-8">{children}</div>

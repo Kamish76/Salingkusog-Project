@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { auth } from "@/lib/auth/server";
+import { pushDiagnosticLog } from "@/lib/server-log-buffer";
 import {
   type UserRole,
   type AuthUser,
@@ -30,6 +31,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       let banReason: string | null = null;
 
       if (process.env.DATABASE_URL) {
+        try {
         const isIdUuid = session.user.id && UUID_REGEX.test(session.user.id);
         const rows = isIdUuid
           ? await sql`
@@ -52,7 +54,23 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
           isBanned = Boolean(rows[0].banned);
           banReason = (rows[0].banReason as string) || null;
         }
+      } catch (dbErr: unknown) {
+        pushDiagnosticLog({
+          subsystem: "database",
+          level: "error",
+          message: `DB error during session role resolution: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`,
+        });
       }
+    }
+
+    // Emergency admin authorization fallback during database outage
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    if (userRole === "user" && session.user.email && adminEmails.includes(session.user.email.toLowerCase())) {
+      userRole = "admin";
+    }
 
       return {
         id: session.user.id,

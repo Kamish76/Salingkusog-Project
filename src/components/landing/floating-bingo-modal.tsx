@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { removeBingoTaskPhotoAction } from "@/app/actions/posts";
+import { exportRecaptchaBingoCard } from "@/lib/export-recaptcha-card";
+import { isTaskUnlocked } from "@/lib/bingo-engine";
 
 export interface BingoTaskItem {
   id: string;
@@ -42,11 +45,13 @@ interface FloatingBingoModalProps {
   userProgress: UserProgressItem[];
   raffleEntries: RaffleEntryItem[];
   currentDay: number;
+  isEventActive?: boolean;
   isRaffleActive?: boolean;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   onSelectTaskToUpload?: (taskId: string, originRect?: OriginRect) => void;
   isUploadOpen?: boolean;
+  user?: { name?: string | null; email?: string | null } | null;
 }
 
 function getCategoryIcon(category: string) {
@@ -125,12 +130,34 @@ export function FloatingBingoModal({
   userProgress,
   raffleEntries,
   currentDay,
+  isEventActive = true,
   isRaffleActive = true,
   isOpen: externalIsOpen,
   onOpenChange,
   onSelectTaskToUpload,
   isUploadOpen = false,
+  user,
 }: FloatingBingoModalProps) {
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleExportBingoCard = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      await exportRecaptchaBingoCard({
+        user,
+        tasks,
+        userProgress,
+      });
+    } catch (err) {
+      console.error("Export error:", err);
+      setExportError(err instanceof Error ? err.message : "Failed to export card image");
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isControlled = externalIsOpen !== undefined;
   const isOpen = isControlled ? externalIsOpen : internalIsOpen;
@@ -312,8 +339,7 @@ export function FloatingBingoModal({
   const handleTileClick = (task: BingoTaskItem, e: React.MouseEvent<HTMLButtonElement>) => {
     const progress = progressBySlot.get(task.slotIndex);
     const isCompleted = Boolean(progress);
-    // All locks disabled for testing as requested
-    const isLocked = false;
+    const isUnlocked = isTaskUnlocked(task.unlockDay, currentDay);
 
     if (isCompleted && progress) {
       // Capture element rect for Apple fluid zoom from tile origin
@@ -331,8 +357,13 @@ export function FloatingBingoModal({
       return;
     }
 
-    if (isLocked) {
-      setActiveHint(`🔒 Day ${task.unlockDay} challenge.`);
+    if (!isEventActive) {
+      setActiveHint("⏸️ Bingo uploads are currently paused by organizers.");
+      return;
+    }
+
+    if (!isUnlocked) {
+      setActiveHint(`🔒 This challenge unlocks on Day ${task.unlockDay}. Check back then!`);
       return;
     }
 
@@ -488,8 +519,8 @@ export function FloatingBingoModal({
 
   return (
     <>
-      {/* PERSISTENT BINGO STAMP TRIGGER BUTTON */}
-      <aside aria-label="3x3 Bingo Challenge" className="fixed bottom-safe right-3 sm:right-8 z-40">
+      {/* PERSISTENT BINGO STAMP TRIGGER DOCK (Mobile-First Sticky Dock & Desktop Quick-Access) */}
+      <aside aria-label="3x3 Bingo Challenge" className="fixed bottom-3 inset-x-3 sm:inset-x-auto sm:right-8 sm:bottom-6 z-40 flex justify-center pointer-events-none">
         <button
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -506,29 +537,39 @@ export function FloatingBingoModal({
           }}
           type="button"
           aria-label="Open 3x3 Bingo Card"
-          className="group relative flex items-center gap-2.5 sm:gap-3 px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] rounded-xl bg-white text-[#1e1b19] border border-[#e8ded5] hover:border-stone-400 focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none transition-all cursor-pointer shadow-md sm:shadow-xs active:scale-95"
+          className="pointer-events-auto group relative w-full sm:w-auto max-w-sm sm:max-w-none flex items-center justify-between sm:justify-start gap-3 px-4 py-2.5 sm:px-4 sm:py-3 min-h-[48px] sm:min-h-[44px] rounded-2xl sm:rounded-xl bg-white text-[#1e1b19] border-2 border-[#ffdad5] sm:border-[#e8ded5] hover:border-[#ff5e4d] focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none transition-all cursor-pointer shadow-lg sm:shadow-xs active:scale-[0.98]"
         >
-          {/* Status Indicator */}
-          <span className="relative flex h-2.5 w-2.5">
-            {completedCount > 0 ? (
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#588157]"></span>
-            ) : (
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#ff5e4d]"></span>
-            )}
-          </span>
-
-          <svg className="w-5 h-5 text-[#ff5e4d] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
-          </svg>
-
-          <div className="flex flex-col text-left">
-            <span className="font-display font-bold text-xs sm:text-sm tracking-tight text-[#1e1b19] leading-tight">
-              3×3 Bingo Rally
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Status Indicator */}
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              {completedCount >= 9 ? (
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#2b6127]"></span>
+              ) : completedCount > 0 ? (
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#588157]"></span>
+              ) : (
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#ff5e4d] animate-pulse"></span>
+              )}
             </span>
-            <span className="font-body text-[10px] sm:text-[11px] text-[#8e706c] font-normal leading-tight">
-              {completedCount} of 9 completed
-            </span>
+
+            <svg className="w-5 h-5 text-[#ff5e4d] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+            </svg>
+
+            <div className="flex flex-col text-left">
+              <span className="font-display font-bold text-xs sm:text-sm tracking-tight text-[#1e1b19] leading-tight">
+                3×3 Bingo Rally
+              </span>
+              <span className="font-body text-[11px] text-[#8e706c] font-normal leading-tight">
+                {completedCount >= 9 ? "🎉 Card completed!" : `${completedCount} of 9 stamped`}
+              </span>
+            </div>
+          </div>
+
+          {/* Quick-Action CTA Pill on Mobile */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#ff5e4d] text-white text-xs font-display font-bold shrink-0 sm:hidden">
+            <span>Open Card</span>
+            <span>→</span>
           </div>
         </button>
       </aside>
@@ -563,21 +604,75 @@ export function FloatingBingoModal({
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-200">
                     Day {currentDay}
                   </span>
+                  {!isEventActive && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                      Paused
+                    </span>
+                  )}
                 </div>
                 <p className="font-body text-xs text-[#5a413d] mt-1">
-                  Complete challenges to earn verified raffle tickets
+                  Complete all 9 challenges to enter the official stage raffle draw
                 </p>
+                {!isEventActive && (
+                  <div className="mt-2 text-[11px] sm:text-xs text-amber-900 font-body px-2.5 py-1.5 bg-amber-50 border border-amber-200/90 rounded-lg flex items-center gap-1.5">
+                    <span>⏸️</span>
+                    <span>Bingo submissions are currently paused by organizers.</span>
+                  </div>
+                )}
               </div>
 
-              <button
-                onClick={handleCloseBingo}
-                type="button"
-                aria-label="Close modal"
-                className="w-10 h-10 sm:w-9 sm:h-9 min-h-[44px] min-w-[44px] rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center text-sm font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer -mr-1 -mt-1 active:scale-95 shrink-0"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2 -mr-1 -mt-1">
+                {userProgress.some((p) => p.imageUrl) && (
+                  <button
+                    onClick={handleExportBingoCard}
+                    disabled={isExporting}
+                    type="button"
+                    title="Export 3x3 Bingo Card as PNG"
+                    aria-label="Export 3x3 Bingo Card as PNG"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-stone-900 hover:bg-stone-800 disabled:bg-stone-400 text-white font-display text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer shadow-xs active:scale-95 shrink-0"
+                  >
+                    {isExporting ? (
+                      <>
+                        <svg className="w-3.5 h-3.5 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                        <span className="hidden sm:inline">Exporting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5 text-[#ff5e4d]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        <span>Export PNG</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  onClick={handleCloseBingo}
+                  type="button"
+                  aria-label="Close modal"
+                  className="w-10 h-10 sm:w-9 sm:h-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center text-sm font-bold transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer active:scale-95 shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
+
+            {exportError && (
+              <div className="mb-2 text-xs text-rose-600 font-body px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between">
+                <span>{exportError}</span>
+                <button
+                  type="button"
+                  onClick={() => setExportError(null)}
+                  className="text-rose-500 hover:text-rose-700 font-bold ml-2"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* 3x3 Challenge Grid & Polaroid Collage */}
             <div className="my-2 bg-[#fcf9f5] p-3.5 sm:p-4.5 rounded-2xl border border-[#e8ded5] overflow-visible">
@@ -585,6 +680,8 @@ export function FloatingBingoModal({
                 {tasks.map((task) => {
                   const progress = progressBySlot.get(task.slotIndex);
                   const isCompleted = Boolean(progress && progress.imageUrl);
+                  const isUnlocked = isTaskUnlocked(task.unlockDay, currentDay);
+                  const isLocked = !isUnlocked || !isEventActive;
                   const isCenter = task.slotIndex === 4;
                   const icon = getCategoryIcon(task.category);
                   const rotationClass = POLAROID_ROTATIONS[task.slotIndex % POLAROID_ROTATIONS.length];
@@ -599,25 +696,51 @@ export function FloatingBingoModal({
                       className="relative aspect-square flex items-center justify-center overflow-visible"
                     >
                       {!isCompleted ? (
-                        /* Empty Slot Button: Tap to open upload modal */
-                        <button
-                          onClick={(e) => handleTileClick(task, e)}
-                          type="button"
-                          className={`w-full h-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer select-none sm:hover:active:scale-98 ${
-                            isCenter
-                              ? "bg-[#ffdad5]/30 text-[#630002] border-[#ff5e4d]/60 font-bold"
-                              : "bg-white/80 border-[#e8ded5] hover:border-stone-400 hover:bg-white text-[#1e1b19]"
-                          }`}
-                          style={{ zIndex: 1 }}
-                        >
-                          <span className="mb-1">{icon}</span>
-                          <span className="font-display text-[10px] sm:text-xs font-bold leading-tight truncate w-full text-stone-800">
-                            {task.title}
-                          </span>
-                          <span className="text-[9px] font-bold text-[#ff5e4d] mt-0.5">
-                            + Add Photo
-                          </span>
-                        </button>
+                        isLocked ? (
+                          /* Locked / Teaser Slot Button */
+                          <button
+                            onClick={(e) => handleTileClick(task, e)}
+                            type="button"
+                            aria-label={`${task.title} - ${!isEventActive ? "Paused" : `Unlocks on Day ${task.unlockDay}`}`}
+                            className={`w-full h-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none select-none ${
+                              isCenter
+                                ? "bg-stone-100/50 text-stone-500 border-stone-300/50"
+                                : "bg-stone-50/70 border-stone-200/80 text-stone-500 hover:border-stone-300 hover:bg-stone-100/60"
+                            }`}
+                            style={{ zIndex: 1 }}
+                          >
+                            <span className="mb-0.5 opacity-40">{icon}</span>
+                            <span className="font-display text-[10px] sm:text-xs font-bold leading-tight truncate w-full text-stone-600">
+                              {task.title}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[8.5px] sm:text-[9.5px] font-bold px-1.5 py-0.5 rounded-full mt-1 bg-stone-200/70 text-stone-600">
+                              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                              </svg>
+                              {!isEventActive ? "Paused" : `Day ${task.unlockDay}`}
+                            </span>
+                          </button>
+                        ) : (
+                          /* Empty Slot Button: Tap to open upload modal */
+                          <button
+                            onClick={(e) => handleTileClick(task, e)}
+                            type="button"
+                            className={`w-full h-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer select-none sm:hover:active:scale-98 ${
+                              isCenter
+                                ? "bg-[#ffdad5]/30 text-[#630002] border-[#ff5e4d]/60 font-bold"
+                                : "bg-white/80 border-[#e8ded5] hover:border-stone-400 hover:bg-white text-[#1e1b19]"
+                            }`}
+                            style={{ zIndex: 1 }}
+                          >
+                            <span className="mb-1">{icon}</span>
+                            <span className="font-display text-[10px] sm:text-xs font-bold leading-tight truncate w-full text-stone-800">
+                              {task.title}
+                            </span>
+                            <span className="text-[9px] font-bold text-[#ff5e4d] mt-0.5">
+                              + Add Photo
+                            </span>
+                          </button>
+                        )
                       ) : (
                         <>
                           {/* Ghost Slot Placeholder */}
@@ -785,6 +908,16 @@ export function FloatingBingoModal({
                   Return to Memory Board
                 </button>
               )}
+
+              <div className="text-center pt-1">
+                <Link
+                  href="/rally-rules"
+                  target="_blank"
+                  className="inline-flex items-center gap-1 text-[11px] font-body text-[#8e706c] hover:text-[#b4281e] underline decoration-stone-300 hover:decoration-[#b4281e] transition-colors"
+                >
+                  <span>📜 View Official Rally &amp; Raffle Rules</span>
+                </Link>
+              </div>
             </div>
           </div>
         </div>

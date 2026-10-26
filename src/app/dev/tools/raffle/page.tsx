@@ -3,6 +3,7 @@ import { sql } from "@/lib/db";
 import { type RaffleRuleRecord, type RaffleRuleCategory } from "@/lib/bingo-engine";
 import { RaffleManagerClient } from "./raffle-manager-client";
 
+
 export const instant = false;
 
 export default async function DevRaffleManagerPage() {

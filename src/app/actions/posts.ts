@@ -13,11 +13,20 @@ import {
 import {
   generateRaffleCode,
   evaluateRaffleRules,
+  isTaskUnlocked,
   type RaffleRuleRecord,
   type RaffleRuleCategory,
   type ExistingRaffleClaim,
 } from "@/lib/bingo-engine";
 import { recordActivityLog } from "@/lib/activity-logger";
+import { moderatePostContent } from "@/lib/moderation";
+import { checkUserConsent } from "@/app/actions/consent";
+import {
+  type ReportReason,
+  VALID_REPORT_REASONS,
+} from "@/lib/consent-predicates";
+
+export type { ReportReason };
 
 export interface SubmitPostResult {
   success: boolean;
@@ -38,6 +47,17 @@ export async function submitStudentPostAction(
   }
   if (user.banned) {
     return { success: false, error: "Your account is suspended." };
+  }
+
+  // Verify Philippine DPA compliance & student consent layer
+  if (process.env.DATABASE_URL) {
+    const { hasConsented } = await checkUserConsent(user.id);
+    if (!hasConsented) {
+      return {
+        success: false,
+        error: "Consent required. Please review and agree to our Terms of Use and Privacy Notice before posting.",
+      };
+    }
   }
 
   if (!isStorageConfigured()) {
@@ -66,6 +86,61 @@ export async function submitStudentPostAction(
     const isAnonymous = formData.get("isAnonymous") === "true";
     const bingoTaskId = (formData.get("bingoTaskId") as string)?.trim() || null;
 
+    let validatedSlotIndex: number | null = null;
+    let validatedTaskTitle: string | null = null;
+
+    // Strict server-side validation for Bingo tasks BEFORE content moderation or storage upload
+    if (bingoTaskId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bingoTaskId);
+      if (!isUuid) {
+        return { success: false, error: "Invalid bingo challenge identifier." };
+      }
+
+      // 1. Check live event status and current day from database
+      const eventConfigRows = await sql`
+        SELECT 
+          COALESCE(current_day, 1) as current_day,
+          COALESCE(is_event_active, true) as is_event_active
+        FROM public.event_config 
+        WHERE key = 'active_event' 
+        LIMIT 1
+      `;
+      const isEventActive = Boolean(eventConfigRows[0]?.is_event_active ?? true);
+      const currentDay = Number(eventConfigRows[0]?.current_day || 1);
+
+      if (!isEventActive) {
+        return { success: false, error: "Bingo uploads are currently paused." };
+      }
+
+      // 2. Check task record, active status, and unlock day
+      const taskRows = await sql`
+        SELECT id, slot_index, title, unlock_day, is_active
+        FROM public.bingo_tasks
+        WHERE id = ${bingoTaskId}::uuid
+        LIMIT 1
+      `;
+
+      if (taskRows.length === 0) {
+        return { success: false, error: "Bingo challenge not found." };
+      }
+
+      const task = taskRows[0];
+      if (!task.is_active) {
+        return { success: false, error: "This bingo challenge is currently inactive." };
+      }
+
+      const taskUnlockDay = Number(task.unlock_day || 1);
+      if (!isTaskUnlocked(taskUnlockDay, currentDay)) {
+        return {
+          success: false,
+          error: `This bingo challenge is locked until Day ${taskUnlockDay}.`,
+        };
+      }
+
+      validatedSlotIndex = Number(task.slot_index);
+      validatedTaskTitle = task.title;
+    }
+
     // Validate magic bytes
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
@@ -79,6 +154,17 @@ export async function submitStudentPostAction(
     }
 
     const contentType = inspection.detectedType || file.type || "image/webp";
+
+    // Automated Content Moderation check via OpenAI omni-moderation-latest
+    const moderation = await moderatePostContent(buffer, contentType, caption);
+    if (moderation.status === "rejected") {
+      return {
+        success: false,
+        error:
+          "Your photo could not be posted because it was flagged by our community safety guidelines. Please choose another photo.",
+      };
+    }
+
     const uploadResult = await uploadImageToBucket(buffer, file.name, contentType);
 
     if (!uploadResult?.url || !uploadResult.url.trim()) {
@@ -141,21 +227,11 @@ export async function submitStudentPostAction(
 
     const newPostId = insertedPosts[0]?.id;
     let newRaffleCode: string | undefined = undefined;
-    let slotIndex: number | null = null;
-    let taskTitle: string | null = null;
+    const slotIndex: number | null = validatedSlotIndex;
+    const taskTitle: string | null = validatedTaskTitle;
 
     // If this post fulfills a 3x3 Bingo slot, link or update user_bingo_progress
     if (bingoTaskId && newPostId) {
-      // Lookup bingo task details for audit logs
-      const taskRows = await sql`
-        SELECT slot_index, title FROM public.bingo_tasks
-        WHERE id = ${bingoTaskId}::uuid LIMIT 1
-      `;
-      if (taskRows.length > 0) {
-        slotIndex = Number(taskRows[0].slot_index);
-        taskTitle = taskRows[0].title;
-      }
-
       await sql`
         INSERT INTO public.user_bingo_progress (user_id, task_id, post_id)
         VALUES (${user.id}::uuid, ${bingoTaskId}::uuid, ${newPostId}::uuid)
@@ -337,6 +413,26 @@ export async function submitStudentPostAction(
       },
     });
 
+    if (moderation.status === "outage_fallback" && newPostId) {
+      await recordActivityLog({
+        actionType: "MODERATION_OUTAGE_BYPASS",
+        category: "system",
+        actorId: user.id,
+        actorName: user.name,
+        actorEmail: user.email,
+        actorRole: user.role,
+        targetId: newPostId,
+        targetType: "post",
+        description: `Post uploaded during OpenAI moderation service timeout or outage. Manual review recommended. (${moderation.reason || "Upstream unavailable"})`,
+        metadata: {
+          postId: newPostId,
+          imageUrl: uploadResult.url,
+          bingoTaskId,
+          isAnonymous,
+        },
+      });
+    }
+
     revalidatePath("/");
     revalidatePath("/gallery");
     revalidatePath("/dev");
@@ -457,3 +553,203 @@ export async function removeBingoTaskPhotoAction(
     };
   }
 }
+
+/**
+ * Permanently delete a student post owned by the active user.
+ * Cleans up linked bingo slot progress, invalidates dependent raffle tickets,
+ * removes the image from storage, and writes an audit log.
+ */
+export async function deleteStudentPostAction(
+  postId: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "Please sign in to delete this memory." };
+  }
+  if (user.banned) {
+    return { success: false, error: "Your account is suspended." };
+  }
+
+  try {
+    // 1. Verify ownership
+    const existing = await sql`
+      SELECT p.id, p.user_id, p.image_url, p.caption, bt.slot_index, bt.title as task_title
+      FROM public.posts p
+      LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
+      WHERE p.id = ${postId}::uuid
+      LIMIT 1
+    `;
+
+    if (existing.length === 0) {
+      return { success: false, error: "Memory not found." };
+    }
+
+    if (existing[0].user_id !== user.id) {
+      return { success: false, error: "You can only delete memories that you own." };
+    }
+
+    const post = existing[0];
+
+    // 2. Clear any bingo progress linked to this post
+    await sql`
+      DELETE FROM public.user_bingo_progress
+      WHERE user_id = ${user.id}::uuid AND post_id = ${postId}::uuid
+    `;
+
+    // 3. Invalidate/delete any raffle tickets earned using this post
+    await sql`
+      DELETE FROM public.raffle_entries
+      WHERE user_id = ${user.id}::uuid
+        AND ${postId}::uuid = ANY(post_ids)
+    `;
+
+    // 4. Delete the post row
+    await sql`
+      DELETE FROM public.posts
+      WHERE id = ${postId}::uuid AND user_id = ${user.id}::uuid
+    `;
+
+    // 5. Delete storage blob if present
+    if (post.image_url) {
+      const key = extractStorageKey(post.image_url);
+      if (key) {
+        deleteBucketObject(key).catch((err) =>
+          console.error("Failed to delete removed memory blob:", err)
+        );
+      }
+    }
+
+    // 6. Record audit log
+    await recordActivityLog({
+      actionType: "POST_DELETE",
+      category: "user",
+      actorId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetId: postId,
+      targetType: "post",
+      description: `[Memory Board] Deleted memory${post.caption ? ` · "${post.caption.slice(0, 50)}"` : ""}`,
+      metadata: {
+        action: "delete_memory",
+        postId,
+        slotIndex: post.slot_index,
+        taskTitle: post.task_title,
+      },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev");
+    revalidatePath("/dev/logs");
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("deleteStudentPostAction error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to delete memory",
+    };
+  }
+}
+
+/**
+ * Flag / Report a photo memory for non-consensual appearance or guideline violations.
+ * Inserts a report into public.photo_reports, flags the post status to 'flagged' for review,
+ * and records an activity audit trail.
+ */
+export async function reportPhotoAction(
+  postId: string,
+  reason: ReportReason,
+  details?: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!postId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId)) {
+    return { success: false, error: "Invalid post ID." };
+  }
+
+  if (!VALID_REPORT_REASONS.includes(reason)) {
+    return { success: false, error: "Invalid report reason provided." };
+  }
+
+  const user = await getCurrentUser();
+  const sanitizedDetails = (details || "").trim().slice(0, 500);
+
+  try {
+    // 1. Verify post exists
+    const postRows = await sql`
+      SELECT id, status, caption, display_name FROM public.posts
+      WHERE id = ${postId}::uuid
+      LIMIT 1
+    `;
+
+    if (postRows.length === 0) {
+      return { success: false, error: "Photo memory no longer exists." };
+    }
+
+    const post = postRows[0];
+
+    // 2. Insert report
+    const reporterId = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+      ? user.id
+      : null;
+
+    await sql`
+      INSERT INTO public.photo_reports (
+        post_id,
+        reporter_id,
+        reason,
+        details,
+        status,
+        created_at
+      )
+      VALUES (
+        ${postId}::uuid,
+        ${reporterId ? sql`${reporterId}::uuid` : null},
+        ${reason},
+        ${sanitizedDetails || null},
+        'pending',
+        now()
+      );
+    `;
+
+    // 3. Update post status to 'flagged' for review
+    await sql`
+      UPDATE public.posts
+      SET status = 'flagged'
+      WHERE id = ${postId}::uuid;
+    `;
+
+    // 4. Record activity audit log
+    await recordActivityLog({
+      actionType: "PHOTO_REPORT",
+      category: "user",
+      actorId: user?.id || null,
+      actorName: user?.name || "Guest Visitor",
+      actorEmail: user?.email || null,
+      actorRole: user?.role || "user",
+      targetId: postId,
+      targetType: "post",
+      description: `[Content Report] Post flagged for "${reason}"${sanitizedDetails ? `: ${sanitizedDetails}` : ""}`,
+      metadata: {
+        postId,
+        reason,
+        details: sanitizedDetails,
+        postAuthor: post.display_name,
+      },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev/logs");
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("reportPhotoAction error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to submit photo report",
+    };
+  }
+}
+
+
