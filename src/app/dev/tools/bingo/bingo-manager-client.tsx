@@ -10,10 +10,15 @@ import {
   updateBingoTaskAction,
   resetBingoTasksToDefaultsAction,
 } from "@/app/actions/bingo-tasks";
+import {
+  setCurrentDayAction,
+  toggleEventStatusAction,
+} from "@/app/actions/event-config";
 
 interface BingoManagerClientProps {
   initialTasks: BingoTaskRecord[];
   currentDay: number;
+  isEventActive?: boolean;
   userRole?: string;
 }
 
@@ -65,7 +70,11 @@ function CategoryIcon({ category, className = "w-4 h-4" }: { category: string; c
 export function BingoManagerClient({
   initialTasks,
   currentDay,
+  isEventActive = true,
 }: BingoManagerClientProps) {
+  const [liveDay, setLiveDay] = useState<number>(currentDay || 1);
+  const [liveEventActive, setLiveEventActive] = useState<boolean>(isEventActive);
+  const [isUpdatingEvent, startEventTransition] = useTransition();
   // Sort tasks by slotIndex (0..8)
   const sortedInitial = [...initialTasks].sort((a, b) => a.slotIndex - b.slotIndex);
   
@@ -201,6 +210,46 @@ export function BingoManagerClient({
     });
   };
 
+  const handleChangeLiveDay = (day: number) => {
+    startEventTransition(async () => {
+      try {
+        await setCurrentDayAction(day);
+        setLiveDay(day);
+        setPreviewDay(day);
+        setStatusBanner({
+          type: "success",
+          message: `Active Intramurals Day set to Day ${day}!`,
+        });
+      } catch (err: unknown) {
+        setStatusBanner({
+          type: "error",
+          message: err instanceof Error ? err.message : "Failed to update event day.",
+        });
+      }
+    });
+  };
+
+  const handleToggleLiveEvent = () => {
+    startEventTransition(async () => {
+      try {
+        const nextState = !liveEventActive;
+        const fd = new FormData();
+        fd.append("enabled", String(nextState));
+        await toggleEventStatusAction(fd);
+        setLiveEventActive(nextState);
+        setStatusBanner({
+          type: "success",
+          message: `Event status switched to ${nextState ? "ACTIVE" : "PAUSED"}!`,
+        });
+      } catch (err: unknown) {
+        setStatusBanner({
+          type: "error",
+          message: err instanceof Error ? err.message : "Failed to toggle event status.",
+        });
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb & Header */}
@@ -235,6 +284,57 @@ export function BingoManagerClient({
             </svg>
             <span>Reset to Defaults</span>
           </button>
+        </div>
+      </div>
+
+      {/* Organizer Live Event Controls Panel */}
+      <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/80 backdrop-blur flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+          <div>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+              Active Intramural Day (Live DB)
+            </span>
+            <div className="inline-flex rounded-lg bg-zinc-950 p-1 border border-zinc-800">
+              {[1, 2, 3].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  disabled={isUpdatingEvent}
+                  onClick={() => handleChangeLiveDay(d)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-mono font-bold transition cursor-pointer disabled:opacity-50 ${
+                    liveDay === d
+                      ? "bg-amber-500 text-stone-950 shadow-xs"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                  }`}
+                >
+                  Day {d}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-l border-zinc-800 pl-4 sm:pl-6">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+              Bingo Submission Status
+            </span>
+            <button
+              type="button"
+              disabled={isUpdatingEvent}
+              onClick={handleToggleLiveEvent}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold border transition cursor-pointer flex items-center gap-2 ${
+                liveEventActive
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                  : "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${liveEventActive ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
+              <span>{liveEventActive ? "ACTIVE (Uploads Allowed)" : "PAUSED (Uploads Frozen)"}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="text-right text-[11px] font-mono text-zinc-500">
+          Changes sync live across student clients.
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
+import { getCurrentUser, isDevAuthorized, isSuperAdmin } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { recordActivityLog } from "@/lib/activity-logger";
 import {
@@ -73,7 +73,15 @@ export async function uploadStorageImageAction(
       return {
         success: false,
         error:
-          "Storage Locked: File rejected. Only verified image formats (JPEG, PNG, WebP, GIF, AVIF) can be uploaded.",
+          "Storage Locked: File rejected. Only verified image formats (JPEG, PNG, WebP, GIF, AVIF, or browser-optimized HEIC) can be uploaded.",
+      };
+    }
+
+    if (inspection.isHeic) {
+      return {
+        success: false,
+        error:
+          "Raw HEIC files cannot be stored directly in the bucket. Enable 'Scale Down to Max 1080p (WebP)' to convert before uploading.",
       };
     }
 
@@ -100,10 +108,10 @@ export async function deleteStorageObjectAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   const user = await getCurrentUser();
-  if (!user || !isDevAuthorized(user)) {
+  if (!user || !isSuperAdmin(user)) {
     return {
       success: false,
-      error: "Unauthorized: Elevated Admin credentials are required to delete files.",
+      error: "Unauthorized: SuperAdmin role required to delete storage files directly.",
     };
   }
 
