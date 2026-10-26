@@ -28,6 +28,7 @@ interface UploadMemoryModalProps {
   isAuthenticated: boolean;
   currentDay: number;
   isEventActive?: boolean;
+  isRaffleActive?: boolean;
   bingoTasks: BingoTaskOption[];
   preselectedTaskId?: string;
   originRect?: OriginRect | null;
@@ -46,11 +47,13 @@ export function UploadMemoryModal({
   isAuthenticated,
   currentDay,
   isEventActive = true,
+  isRaffleActive = false,
   bingoTasks,
   preselectedTaskId,
   originRect,
   returnToBingo = false,
 }: UploadMemoryModalProps) {
+  void isRaffleActive;
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
