@@ -50,10 +50,12 @@ export async function probeDatabase(
     };
   }
 
+  let timer: NodeJS.Timeout | undefined;
+
   try {
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Database query timed out after ${timeoutMs}ms`)), timeoutMs)
-    );
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Database query timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
 
     await Promise.race([sqlFn`SELECT 1 as health`, timeoutPromise]);
     const latencyMs = Math.round(performance.now() - start);
@@ -81,6 +83,8 @@ export async function probeDatabase(
       message,
       checkedAt,
     };
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -101,6 +105,8 @@ export async function probeStorage(
     };
   }
 
+  let timer: NodeJS.Timeout | undefined;
+
   try {
     const client = s3ClientOverride || getStorageClient();
     const command = new ListObjectsV2Command({
@@ -108,9 +114,9 @@ export async function probeStorage(
       MaxKeys: 1,
     });
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`S3 probe timed out after ${timeoutMs}ms`)), timeoutMs)
-    );
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`S3 probe timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
 
     await Promise.race([client.send(command), timeoutPromise]);
     const latencyMs = Math.round(performance.now() - start);
@@ -138,6 +144,8 @@ export async function probeStorage(
       message,
       checkedAt,
     };
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -264,7 +272,15 @@ export async function probeModeration(
   }
 }
 
-export async function runAllHealthProbes(): Promise<SystemHealthSummary> {
+let cachedSummary: { data: SystemHealthSummary; expiresAt: number } | null = null;
+const PROBE_CACHE_TTL_MS = 10_000;
+
+export async function runAllHealthProbes(forceFresh = false): Promise<SystemHealthSummary> {
+  const now = Date.now();
+  if (!forceFresh && cachedSummary && now < cachedSummary.expiresAt) {
+    return cachedSummary.data;
+  }
+
   const timestamp = new Date().toISOString();
 
   const [dbResult, storageResult, authResult, modResult] = await Promise.allSettled([
@@ -327,7 +343,7 @@ export async function runAllHealthProbes(): Promise<SystemHealthSummary> {
     overallStatus = "degraded";
   }
 
-  return {
+  const result: SystemHealthSummary = {
     timestamp,
     status: overallStatus,
     summary: counts,
@@ -339,4 +355,7 @@ export async function runAllHealthProbes(): Promise<SystemHealthSummary> {
     },
     recentLogs: getRecentDiagnosticLogs(50),
   };
+
+  cachedSummary = { data: result, expiresAt: now + PROBE_CACHE_TTL_MS };
+  return result;
 }

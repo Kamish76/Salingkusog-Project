@@ -8,6 +8,15 @@ import type {
 } from "@/lib/health-probes";
 import type { SubsystemType } from "@/lib/server-log-buffer";
 
+async function fetchHealthData(fresh = false): Promise<SystemHealthSummary> {
+  const url = fresh ? "/api/health?fresh=true" : "/api/health";
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Health probe returned HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export function HealthDashboardClient() {
   const [data, setData] = useState<SystemHealthSummary | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -18,22 +27,17 @@ export function HealthDashboardClient() {
   const [isProbing, setIsProbing] = useState<boolean>(false);
   const [lastFetchTime, setLastFetchTime] = useState<string>("");
 
-  const fetchHealth = useCallback(async (manual = false) => {
-    if (manual) setIsProbing(true);
+  const handleManualProbe = useCallback(async () => {
+    setIsProbing(true);
     try {
-      const res = await fetch("/api/health", { cache: "no-store" });
-      if (!res.ok) {
-        throw new Error(`Health probe returned HTTP ${res.status}`);
-      }
-      const json: SystemHealthSummary = await res.json();
+      const json = await fetchHealthData(true);
       setData(json);
       setError(null);
       setLastFetchTime(new Date().toLocaleTimeString());
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false);
-      if (manual) setIsProbing(false);
+      setIsProbing(false);
     }
   }, []);
 
@@ -43,11 +47,7 @@ export function HealthDashboardClient() {
 
     const probe = async () => {
       try {
-        const res = await fetch("/api/health", { cache: "no-store" });
-        if (!res.ok) {
-          throw new Error(`Health probe returned HTTP ${res.status}`);
-        }
-        const json: SystemHealthSummary = await res.json();
+        const json = await fetchHealthData(false);
         if (!isCancelled) {
           setData(json);
           setError(null);
@@ -70,7 +70,7 @@ export function HealthDashboardClient() {
     if (autoRefresh) {
       intervalId = setInterval(() => {
         probe();
-      }, 5000);
+      }, 30000);
     }
 
     return () => {
@@ -151,7 +151,7 @@ export function HealthDashboardClient() {
           <span
             className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-medium border ${badge.bg}`}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}></span>
+            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
             {badge.text}
           </span>
         </div>
@@ -162,7 +162,7 @@ export function HealthDashboardClient() {
 
         <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono pt-2 border-t border-zinc-800/60 w-full">
           <span>{probe ? getLatencyBadge(probe.latencyMs, status) : "N/A"}</span>
-          <span>{isSelected ? "Filtering Logs âœ“" : "Click to filter"}</span>
+          <span>{isSelected ? "Filtering Logs ✓" : "Click to filter"}</span>
         </div>
       </button>
     );
@@ -187,66 +187,56 @@ export function HealthDashboardClient() {
 
   return (
     <div className="space-y-6">
-      {/* Top Controls & Pulse Summary */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span
-              className={`w-2.5 h-2.5 rounded-full ${
-                data?.status === "healthy"
-                  ? "bg-emerald-400 animate-pulse"
-                  : data?.status === "degraded"
-                  ? "bg-amber-400 animate-pulse"
-                  : "bg-rose-500"
-              }`}
-            ></span>
-            <span className="font-bold text-sm text-zinc-200">
-              System Status:{" "}
-              <span className="font-mono uppercase tracking-wide">
-                {data?.status || (loading ? "Probing..." : "Unknown")}
-              </span>
-            </span>
-          </div>
-
-          {lastFetchTime && (
-            <span className="text-xs font-mono text-zinc-400 border-l border-zinc-800 pl-3">
-              Last probe: {lastFetchTime}
-            </span>
-          )}
+      {/* Top Header & Global Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-5">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+            <span>Salingkusog Subsystem Health</span>
+            {loading && <span className="text-xs font-mono text-zinc-500 animate-pulse">(initializing...)</span>}
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Real-time diagnostics and isolated failover monitors for database, storage, auth, and AI pipelines.
+          </p>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+        <div className="flex items-center gap-2.5">
+          {lastFetchTime && (
+            <span className="text-xs font-mono text-zinc-500 hidden sm:inline-block">
+              Updated: {lastFetchTime}
+            </span>
+          )}
+
           <button
             type="button"
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium border transition flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium border transition flex items-center gap-2 cursor-pointer ${
               autoRefresh
-                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40"
-                : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-zinc-200"
+                ? "border-emerald-500/40 bg-emerald-950/30 text-emerald-300"
+                : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
             }`}
           >
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
+              className={`w-2 h-2 rounded-full ${
                 autoRefresh ? "bg-emerald-400 animate-ping" : "bg-zinc-500"
               }`}
             ></span>
-            <span>{autoRefresh ? "Auto-Refresh (5s)" : "Auto-Refresh Off"}</span>
+            <span>{autoRefresh ? "Auto-Refresh (30s)" : "Auto-Refresh Off"}</span>
           </button>
 
           <button
             type="button"
             disabled={isProbing}
-            onClick={() => fetchHealth(true)}
+            onClick={handleManualProbe}
             className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white transition flex items-center gap-1.5 cursor-pointer"
           >
             {isProbing ? (
               <>
-                <span className="animate-spin text-xs">âŸ³</span>
+                <span className="animate-spin text-xs">⟳</span>
                 <span>Probing...</span>
               </>
             ) : (
               <>
-                <span>âš¡</span>
+                <span>⚡</span>
                 <span>Probe All Now</span>
               </>
             )}
@@ -261,7 +251,7 @@ export function HealthDashboardClient() {
           className="p-4 rounded-xl border border-rose-500/40 bg-rose-950/20 text-rose-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg"
         >
           <div className="flex items-center gap-2">
-            <span className="text-rose-400 text-lg">âš ï¸</span>
+            <span className="text-rose-400 text-lg">⚠️</span>
             <div>
               <p className="font-bold tracking-tight">Postgres Database Unreachable</p>
               <p className="text-rose-300/80">
@@ -281,7 +271,7 @@ export function HealthDashboardClient() {
           role="alert"
           className="p-4 rounded-xl border border-rose-500/40 bg-rose-950/20 text-rose-300 text-xs flex items-center gap-2"
         >
-          <span>âœ•</span>
+          <span>✕</span>
           <span>Failed to fetch health endpoint: {error}</span>
         </div>
       )}
@@ -291,25 +281,25 @@ export function HealthDashboardClient() {
         {renderServiceCard(
           "database",
           "Neon Postgres",
-          "ðŸ˜",
+          "🗄️",
           data?.subsystems.database
         )}
         {renderServiceCard(
           "storage",
           "Neon S3 Storage",
-          "ðŸª£",
+          "🪣",
           data?.subsystems.storage
         )}
         {renderServiceCard(
           "auth",
           "Neon Better Auth",
-          "ðŸ”",
+          "🔐",
           data?.subsystems.auth
         )}
         {renderServiceCard(
           "moderation",
           "OpenAI Moderation",
-          "ðŸ›¡ï¸",
+          "🛡️",
           data?.subsystems.moderation
         )}
       </div>
@@ -319,7 +309,7 @@ export function HealthDashboardClient() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <span>ðŸ“‹</span>
+              <span>📋</span>
               <span>Production Diagnostic & Error Stream</span>
             </h2>
             <p className="text-xs text-zinc-400">

@@ -71,6 +71,14 @@ export async function runHealthProbesTest() {
   assert.ok(summary.subsystems.moderation);
   assert.ok(Array.isArray(summary.recentLogs));
 
+  // 7. Test Server-Side Cache and forceFresh bypass
+  const s1 = await runAllHealthProbes(true);
+  await new Promise((r) => setTimeout(r, 15));
+  const s2 = await runAllHealthProbes(false);
+  assert.equal(s1.timestamp, s2.timestamp, "Consecutive calls within 10s should return cached summary");
+  const s3 = await runAllHealthProbes(true);
+  assert.notEqual(s1.timestamp, s3.timestamp, "forceFresh=true should bypass cache and return fresh summary");
+
   console.log("  ✓ All health probe isolation and resilience tests passed\n");
 }
 

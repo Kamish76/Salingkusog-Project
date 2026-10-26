@@ -14,6 +14,8 @@ export interface ModerationResult {
  * routing bypass events to audit logs for administrator review while strictly
  * blocking explicitly flagged inappropriate content.
  */
+const MAX_MODERATION_BYTES = 4 * 1024 * 1024; // 4 MB
+
 export async function moderatePostContent(
   imageBuffer: Uint8Array,
   mimeType: string,
@@ -22,6 +24,12 @@ export async function moderatePostContent(
   apiKeyOverride?: string,
   fetchFn: typeof fetch = fetch
 ): Promise<ModerationResult> {
+  if (imageBuffer.length > MAX_MODERATION_BYTES) {
+    return {
+      status: "rejected",
+      reason: "Photo exceeds 4MB. Please compress or downscale your photo before uploading.",
+    };
+  }
   const apiKey = apiKeyOverride !== undefined ? apiKeyOverride : process.env.OPENAI_API_KEY;
 
   if (!apiKey || !apiKey.trim()) {
