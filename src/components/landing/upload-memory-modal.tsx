@@ -439,6 +439,14 @@ export function UploadMemoryModal({
                 onChange={handleFileChange}
               />
 
+              {/* Gentle Photo Consent & Courtesy Banner */}
+              <div className="p-2.5 rounded-xl bg-[#fff8f5] border border-[#ffdad5] text-[#5a413d] text-xs font-body flex items-start gap-2">
+                <span className="text-sm shrink-0">🤝</span>
+                <p className="leading-snug">
+                  <strong className="font-display font-bold text-[#b4281e]">Campus Photo Tip:</strong> Make sure friends and classmates in your photo are happy to have it shared on the campus memory board!
+                </p>
+              </div>
+
               {/* Caption Input */}
               <div className="relative">
                 <input

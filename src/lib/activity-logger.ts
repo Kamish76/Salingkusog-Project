@@ -16,7 +16,11 @@ export type ActivityActionType =
   | "BINGO_TASKS_RESET"
   | "RAFFLE_RULE_UPDATE"
   | "RAFFLE_GLOBAL_CONFIG_UPDATE"
-  | "RAFFLE_RULES_RESET";
+  | "RAFFLE_RULES_RESET"
+  | "CONSENT_AGREE"
+  | "CONSENT_UPDATE"
+  | "ACCOUNT_WIPEOUT"
+  | "PHOTO_REPORT";
 
 export interface LogActivityParams {
   actionType: ActivityActionType;
