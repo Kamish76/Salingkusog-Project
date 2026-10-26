@@ -17,6 +17,8 @@ import {
 import {
   hasHeicMagicBytes,
   isHeicFormat,
+  MAX_SOURCE_IMAGE_BYTES,
+  processAndDownscaleImage,
 } from "../../src/lib/image-processing.ts";
 
 export async function runStorageMediaTest() {
@@ -131,6 +133,22 @@ export async function runStorageMediaTest() {
   const authenticJpegBlob = new Blob([validJpeg], { type: "image/jpeg" });
   assert.strictEqual(await hasHeicMagicBytes(authenticJpegBlob), false, "Authentic JPEG blob must return false for HEIC magic bytes");
   console.log("  ✔ Client-side disguised HEIC magic byte sniffing verified");
+
+  // 6. Client-Side Pre-Decode File Size Guard
+  await assert.rejects(
+    () => processAndDownscaleImage(new Blob([])),
+    /Selected photo is empty/,
+    "Empty 0-byte blob must be rejected before decode"
+  );
+  const oversizedBlob = Object.defineProperty(new Blob(["x"]), "size", {
+    value: MAX_SOURCE_IMAGE_BYTES + 1,
+  });
+  await assert.rejects(
+    () => processAndDownscaleImage(oversizedBlob),
+    /This photo is too large \(over 25 MB\)/,
+    "Oversized (>25 MB) blob must be rejected before decode"
+  );
+  console.log("  ✔ Client-side 25 MB pre-decode size guard verified");
 
   console.log("✔ Storage & media file safety suite passed cleanly\n");
 }

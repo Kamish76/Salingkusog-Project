@@ -188,6 +188,8 @@ function canvasToBlobResilient(
   });
 }
 
+export const MAX_SOURCE_IMAGE_BYTES = 25 * 1024 * 1024;
+
 /**
  * Downscales an image client-side to a max dimension (default 1080p)
  * and encodes to WebP (or JPEG fallback) format to minimize storage consumption,
@@ -198,6 +200,14 @@ export async function processAndDownscaleImage(
   maxDimension: number = 1080,
   quality: number = 0.82
 ): Promise<ImageProcessResult> {
+  if (!file || file.size === 0) {
+    throw new Error("Selected photo is empty. Please choose a valid photo.");
+  }
+  if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+    throw new Error(
+      "This photo is too large (over 25 MB). Please choose a smaller photo or take a standard snapshot."
+    );
+  }
   const originalSize = file.size;
   const source = await decodeImageSource(file);
 
