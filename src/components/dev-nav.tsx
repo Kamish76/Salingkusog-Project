@@ -3,16 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function DevNav() {
+export function DevNav({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   const pathname = usePathname();
 
-  const navItems = [
+  const baseItems = [
     { label: "System Overview", href: "/dev" },
     { label: "API Health & Diagnostics", href: "/dev/health", badge: "LIVE" },
+    { label: "Photo Moderation", href: "/dev/moderation", badge: "QUEUE" },
+  ];
+
+  const superAdminItems = [
     { label: "User & Role Management", href: "/dev/users" },
     { label: "Audit & Activity Logs", href: "/dev/logs", badge: "SUPERADMIN" },
     { label: "Developer Tools", href: "/dev/tools", badge: "SUITE" },
   ];
+
+  const navItems = isSuperAdmin ? [...baseItems, ...superAdminItems] : baseItems;
 
   return (
     <div className="border-b border-zinc-800/80 bg-zinc-900/40">
