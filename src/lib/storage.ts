@@ -4,6 +4,7 @@ import {
   ListObjectsV2Command,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
+import { isHeicHeader } from "./image-processing.ts";
 
 export interface StorageObjectItem {
   key: string;
@@ -102,23 +103,15 @@ export function validateImageMagicBytes(buffer: Uint8Array): {
     return { valid: true, detectedType: "image/gif", extension: "gif" };
   }
 
-  // AVIF: ....ftypavif or ftypavis
+  // AVIF: ....ftypavif, ftypavis, or ftypavio
   const ftyp = String.fromCharCode(...buffer.slice(4, 8));
   const brand = String.fromCharCode(...buffer.slice(8, 12)).toLowerCase();
-  if (ftyp === "ftyp" && (brand === "avif" || brand === "avis")) {
+  if (ftyp === "ftyp" && (brand === "avif" || brand === "avis" || brand === "avio")) {
     return { valid: true, detectedType: "image/avif", extension: "avif" };
   }
 
-  // HEIC / HEIF container: ....ftypheic, ftypmif1, ftypmsf1, ftypheix, ftyphevc
-  if (
-    ftyp === "ftyp" &&
-    (brand === "heic" ||
-      brand === "heix" ||
-      brand === "mif1" ||
-      brand === "msf1" ||
-      brand === "hevc" ||
-      brand === "hevx")
-  ) {
+  // HEIC / HEIF container: ....ftypheic, ftypmif1, ftypmsf1, ftypheix, ftyphevc, etc.
+  if (isHeicHeader(buffer)) {
     return {
       valid: true,
       detectedType: "image/heic",

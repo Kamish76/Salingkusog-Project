@@ -130,6 +130,21 @@ export async function runStorageMediaTest() {
   const disguisedMif1 = new Blob([validMif1], { type: "image/jpeg" });
   assert.strictEqual(await hasHeicMagicBytes(disguisedMif1), true, "Disguised ftypmif1 blob must be detected by magic bytes");
 
+  const validHeim = new Uint8Array([
+    0x00, 0x00, 0x00, 0x18,
+    0x66, 0x74, 0x79, 0x70, // 'ftyp'
+    0x68, 0x65, 0x69, 0x6d, // 'heim'
+  ]);
+  assert.strictEqual(validateImageMagicBytes(validHeim).isHeic, true, "ftypheim must be recognized as HEIC");
+  assert.strictEqual(await hasHeicMagicBytes(new Blob([validHeim])), true, "ftypheim blob must be detected by magic bytes");
+
+  const validAvio = new Uint8Array([
+    0x00, 0x00, 0x00, 0x1c,
+    0x66, 0x74, 0x79, 0x70, // 'ftyp'
+    0x61, 0x76, 0x69, 0x6f, // 'avio'
+  ]);
+  assert.strictEqual(validateImageMagicBytes(validAvio).detectedType, "image/avif", "ftypavio must be recognized as AVIF");
+
   const authenticJpegBlob = new Blob([validJpeg], { type: "image/jpeg" });
   assert.strictEqual(await hasHeicMagicBytes(authenticJpegBlob), false, "Authentic JPEG blob must return false for HEIC magic bytes");
   console.log("  ✔ Client-side disguised HEIC magic byte sniffing verified");
