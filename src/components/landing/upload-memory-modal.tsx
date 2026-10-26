@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, type ChangeEvent, type FormEvent, type DragEvent } from "react";
-import { processAndDownscaleImage } from "@/lib/image-processing";
+import { processAndDownscaleImage, isHeicFormat } from "@/lib/image-processing";
 import { submitStudentPostAction } from "@/app/actions/posts";
 import { authClient } from "@/lib/auth/client";
 import { isTaskUnlocked } from "@/lib/bingo-engine";
@@ -218,8 +218,11 @@ export function UploadMemoryModal({
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && (file.type.startsWith("image/") || file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif"))) {
+    if (!file) return;
+    if (file.type.startsWith("image/") || isHeicFormat(file)) {
       await handleProcessFile(file);
+    } else {
+      setErrorMessage("Unsupported file type. Please drop a JPEG, PNG, WebP, AVIF, or HEIC photo.");
     }
   };
 

@@ -34,6 +34,24 @@ export function isHeicFormat(file: File | Blob): boolean {
   return false;
 }
 
+const HEIC_BRANDS = new Set(["heic", "heix", "mif1", "msf1", "hevc", "hevx"]);
+
+/**
+ * Sniffs the first 12 bytes of a Blob/File for an ISO Base Media File Format
+ * HEIC/HEIF `ftyp` header, catching HEIC files renamed or disguised as `.jpg`.
+ */
+export async function hasHeicMagicBytes(file: Blob): Promise<boolean> {
+  try {
+    const buf = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    if (buf.length < 12) return false;
+    const ftyp = String.fromCharCode(buf[4], buf[5], buf[6], buf[7]);
+    const brand = String.fromCharCode(buf[8], buf[9], buf[10], buf[11]).toLowerCase();
+    return ftyp === "ftyp" && HEIC_BRANDS.has(brand);
+  } catch {
+    return false;
+  }
+}
+
 interface DecodedImageSource {
   width: number;
   height: number;
@@ -57,7 +75,7 @@ function loadImageElement(blob: Blob): Promise<DecodedImageSource> {
     img.onload = () => {
       if (!img.naturalWidth || !img.naturalHeight) {
         cleanup();
-        reject(new Error("Loaded image has zero dimensions"));
+        reject(new Error("This photo appears to be empty or corrupted. Please choose another photo."));
         return;
       }
       resolve({
@@ -70,7 +88,7 @@ function loadImageElement(blob: Blob): Promise<DecodedImageSource> {
 
     img.onerror = () => {
       cleanup();
-      reject(new Error("HTMLImageElement failed to decode image"));
+      reject(new Error("Could not read this photo format. Please use a JPEG, PNG, WebP, AVIF, or HEIC photo."));
     };
 
     img.src = url;
@@ -85,7 +103,7 @@ function loadImageElement(blob: Blob): Promise<DecodedImageSource> {
  * 3. For standard formats: Uses createImageBitmap (with imageOrientation: 'from-image'), falling back to HTMLImageElement.
  */
 async function decodeImageSource(file: File | Blob): Promise<DecodedImageSource> {
-  const isHeic = isHeicFormat(file);
+  const isHeic = isHeicFormat(file) || (await hasHeicMagicBytes(file));
 
   if (isHeic) {
     // Strategy 1: Try native Safari decoding first (near instantaneous, zero extra download)
@@ -170,6 +188,8 @@ function canvasToBlobResilient(
   });
 }
 
+export const MAX_SOURCE_IMAGE_BYTES = 25 * 1024 * 1024;
+
 /**
  * Downscales an image client-side to a max dimension (default 1080p)
  * and encodes to WebP (or JPEG fallback) format to minimize storage consumption,
@@ -180,6 +200,14 @@ export async function processAndDownscaleImage(
   maxDimension: number = 1080,
   quality: number = 0.82
 ): Promise<ImageProcessResult> {
+  if (!file || file.size === 0) {
+    throw new Error("Selected photo is empty. Please choose a valid photo.");
+  }
+  if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+    throw new Error(
+      "This photo is too large (over 25 MB). Please choose a smaller photo or take a standard snapshot."
+    );
+  }
   const originalSize = file.size;
   const source = await decodeImageSource(file);
 
