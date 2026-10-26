@@ -336,7 +336,8 @@ export function PersonalGalleryView({
             const task = tasks.find((t) => t.slotIndex === slotIndex);
             const progress = progressBySlot.get(slotIndex);
             const isUnlocked = isTaskUnlocked(task?.unlockDay || 1, currentDay);
-            const isAvailable = isUnlocked && isEventActive;
+            const isTaskActive = task?.isActive !== false;
+            const isAvailable = isUnlocked && isEventActive && isTaskActive;
 
             if (progress && progress.imageUrl) {
               return (
@@ -365,14 +366,23 @@ export function PersonalGalleryView({
                     <span className="font-display font-bold text-xs text-[#1e1b19] truncate">
                       {task?.title || `Slot #${slotIndex + 1}`}
                     </span>
-                    <button
-                      onClick={(e) => handleOpenUpload(task?.id, e)}
-                      type="button"
-                      aria-label={`Replace photo for ${task?.title || "slot"}`}
-                      className="text-xs font-display font-bold text-[#8e4e14] hover:text-[#ff5e4d] underline cursor-pointer shrink-0 min-h-[44px] min-w-[44px] inline-flex items-center justify-end p-1"
-                    >
-                      Replace
-                    </button>
+                    {isAvailable ? (
+                      <button
+                        onClick={(e) => handleOpenUpload(task?.id, e)}
+                        type="button"
+                        aria-label={`Replace photo for ${task?.title || "slot"}`}
+                        className="text-xs font-display font-bold text-[#8e4e14] hover:text-[#ff5e4d] underline cursor-pointer shrink-0 min-h-[44px] min-w-[44px] inline-flex items-center justify-end p-1"
+                      >
+                        Replace
+                      </button>
+                    ) : (
+                      <span className="text-[11px] font-body font-semibold text-stone-500 flex items-center gap-1 shrink-0 min-h-[44px] p-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                        </svg>
+                        <span>{!isEventActive || !isTaskActive ? "Paused" : `Day ${task?.unlockDay}`}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               );
@@ -423,7 +433,7 @@ export function PersonalGalleryView({
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                       </svg>
-                      <span>{!isEventActive ? "Event Paused" : `Unlocks Day ${task?.unlockDay}`}</span>
+                      <span>{!isEventActive || !isTaskActive ? "Event Paused" : `Unlocks Day ${task?.unlockDay}`}</span>
                     </span>
                   )}
                 </div>
@@ -695,6 +705,7 @@ export function PersonalGalleryView({
           title: t.title,
           description: t.description,
           unlockDay: t.unlockDay,
+          isActive: t.isActive,
         }))}
         preselectedTaskId={preselectedTaskId}
       />

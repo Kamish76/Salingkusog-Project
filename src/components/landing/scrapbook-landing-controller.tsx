@@ -265,6 +265,7 @@ export function ScrapbookLandingController({
           title: t.title,
           description: t.description,
           unlockDay: t.unlockDay,
+          isActive: t.isActive,
         }))}
         preselectedTaskId={preselectedTaskId}
       />
