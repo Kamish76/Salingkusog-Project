@@ -18,6 +18,7 @@ import { runExportEngineTest } from "./tests/test-export-engine.ts";
 import { runModerationTest } from "./tests/test-moderation.ts";
 import { runServerLogBufferTest } from "./tests/test-server-log-buffer.ts";
 import { runHealthProbesTest } from "./tests/test-health-probes.ts";
+import { runPhotoModerationTest } from "./tests/test-photo-moderation.ts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -31,7 +32,7 @@ interface SuiteResult {
 async function runAllSuites() {
   const startTime = Date.now();
   console.log("===============================================================================");
-  console.log("ðŸš€ SALINGKUSOG MASTER INTEGRATION & PRODUCTION VERIFICATION SUITE");
+  console.log("Ã°Å¸Å¡â‚¬ SALINGKUSOG MASTER INTEGRATION & PRODUCTION VERIFICATION SUITE");
   console.log("===============================================================================\n");
 
   const results: SuiteResult[] = [];
@@ -132,16 +133,25 @@ async function runAllSuites() {
     results.push({ name: "Isolated API Health Probes", durationMs: Date.now() - t9, status: "FAILED", error: (err as Error).message });
   }
 
+  // Suite 11: Photo Moderation & RBAC Cascades
+  const t10 = Date.now();
+  try {
+    await runPhotoModerationTest();
+    results.push({ name: "Photo Moderation & Cascades", durationMs: Date.now() - t10, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "Photo Moderation & Cascades", durationMs: Date.now() - t10, status: "FAILED", error: (err as Error).message });
+  }
+
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
   console.log("===============================================================================");
-  console.log("ðŸ“Š INTEGRATION SUITE RESULTS SUMMARY");
+  console.log("Ã°Å¸â€œÅ  INTEGRATION SUITE RESULTS SUMMARY");
   console.log("===============================================================================");
   for (const r of results) {
-    const icon = r.status === "PASSED" ? "âœ”" : "âœ–";
+    const icon = r.status === "PASSED" ? "Ã¢Å“â€" : "Ã¢Å“â€“";
     console.log(` ${icon} ${r.name.padEnd(36)} [${r.status}] (${r.durationMs}ms)`);
     if (r.error) {
-      console.log(`   â””â”€ Error: ${r.error}`);
+      console.log(`   Ã¢â€â€Ã¢â€â‚¬ Error: ${r.error}`);
     }
   }
   console.log("-------------------------------------------------------------------------------");
@@ -149,10 +159,10 @@ async function runAllSuites() {
 
   const hasFailures = results.some((r) => r.status === "FAILED");
   if (hasFailures) {
-    console.error("\nâŒ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
+    console.error("\nÃ¢ÂÅ’ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
     process.exit(1);
   } else {
-    console.log("\n🎉 ALL 10 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
+    console.log("\n🎉 ALL 11 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
   }
 }
 

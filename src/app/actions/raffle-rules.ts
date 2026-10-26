@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
+import { getCurrentUser, isSuperAdmin } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { recordActivityLog } from "@/lib/activity-logger";
 import { type RaffleRuleRecord, type RaffleRuleCategory } from "@/lib/bingo-engine";
@@ -84,10 +84,10 @@ export async function updateRaffleRuleAction(
   formData: FormData
 ): Promise<UpdateRaffleRuleResult> {
   const caller = await getCurrentUser();
-  if (!caller || !isDevAuthorized(caller)) {
+  if (!caller || !isSuperAdmin(caller)) {
     return {
       success: false,
-      error: "Unauthorized: Only moderator or superadmin accounts can edit raffle rules.",
+      error: "Unauthorized: SuperAdmin role required to edit raffle rules.",
     };
   }
 
@@ -204,10 +204,10 @@ export async function updateRaffleGlobalConfigAction(
   formData: FormData
 ): Promise<UpdateRaffleGlobalConfigResult> {
   const caller = await getCurrentUser();
-  if (!caller || !isDevAuthorized(caller)) {
+  if (!caller || !isSuperAdmin(caller)) {
     return {
       success: false,
-      error: "Unauthorized: Only moderator or superadmin accounts can edit global raffle settings.",
+      error: "Unauthorized: SuperAdmin role required to edit global raffle settings.",
     };
   }
 
@@ -281,10 +281,10 @@ export async function resetRaffleRulesToDefaultsAction(): Promise<{
   error?: string;
 }> {
   const caller = await getCurrentUser();
-  if (!caller || !isDevAuthorized(caller)) {
+  if (!caller || !isSuperAdmin(caller)) {
     return {
       success: false,
-      error: "Unauthorized: Only moderator or superadmin accounts can reset raffle rules.",
+      error: "Unauthorized: SuperAdmin role required to reset raffle rules.",
     };
   }
 
