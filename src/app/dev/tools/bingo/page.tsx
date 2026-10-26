@@ -3,6 +3,7 @@ import { sql } from "@/lib/db";
 import { type BingoTaskRecord } from "@/app/actions/bingo-tasks";
 import { BingoManagerClient } from "./bingo-manager-client";
 
+
 export const instant = false;
 
 export default async function DevBingoManagerPage() {

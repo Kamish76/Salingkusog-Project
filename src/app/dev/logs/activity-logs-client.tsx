@@ -26,6 +26,15 @@ export function ActivityLogsClient() {
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Load initial batch of logs
   const loadInitialLogs = useCallback(
     async (searchQuery: string, category: string, actionType: string) => {

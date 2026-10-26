@@ -13,6 +13,8 @@ import { runSchemaMigrationsTest } from "./tests/test-schema-migrations.ts";
 import { runStorageMediaTest } from "./tests/test-storage-media.ts";
 import { runAuthModerationTest } from "./tests/test-auth-moderation.ts";
 import { runRaffleConcurrencyTest } from "./tests/test-raffle-concurrency.ts";
+import { runImageProxySecurityTest } from "./tests/test-image-proxy.ts";
+import { runExportEngineTest } from "./tests/test-export-engine.ts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -82,6 +84,24 @@ async function runAllSuites() {
     results.push({ name: "Raffle Concurrency & Re-Claims", durationMs: Date.now() - t4, status: "FAILED", error: (err as Error).message });
   }
 
+  // Suite 6: Image Proxy SSRF & Security Guards
+  const t5 = Date.now();
+  try {
+    await runImageProxySecurityTest();
+    results.push({ name: "Image Proxy SSRF & Security", durationMs: Date.now() - t5, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "Image Proxy SSRF & Security", durationMs: Date.now() - t5, status: "FAILED", error: (err as Error).message });
+  }
+
+  // Suite 7: reCAPTCHA Bingo Export Engine
+  const t6 = Date.now();
+  try {
+    await runExportEngineTest();
+    results.push({ name: "reCAPTCHA Bingo Export Engine", durationMs: Date.now() - t6, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "reCAPTCHA Bingo Export Engine", durationMs: Date.now() - t6, status: "FAILED", error: (err as Error).message });
+  }
+
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
   console.log("===============================================================================");
@@ -102,7 +122,7 @@ async function runAllSuites() {
     console.error("\n❌ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
     process.exit(1);
   } else {
-    console.log("\n🎉 ALL 5 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
+    console.log("\n🎉 ALL 7 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
   }
 }
 

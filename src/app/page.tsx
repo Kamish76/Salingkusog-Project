@@ -10,13 +10,14 @@ import type {
   RaffleEntryItem,
 } from "@/components/landing/floating-bingo-modal";
 
-export const instant = false;
 
 interface HomePageProps {
   searchParams?: Promise<{
     auth?: string;
   }>;
 }
+
+export const instant = false;
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const user = await getCurrentUser();
@@ -146,24 +147,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <div className="min-h-[100dvh] bg-[#fcf9f5] text-[#1e1b19] flex flex-col font-body selection:bg-[#ffdcc4] selection:text-[#6f3800] relative overflow-x-hidden">
       {/* ANCHORED SCRAPBOOK HEADER */}
       <header className="sticky top-0 z-40 w-full border-b border-[#e8ded5] bg-[#fcf9f5]/95 backdrop-blur-xs">
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
-          {/* Logo & Subtitle */}
-          <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <span className="font-display font-extrabold text-base sm:text-xl tracking-tight text-[#1e1b19]">
-              Salingkusog
-            </span>
-            <span className="text-xs text-[#8e706c] font-body border-l border-[#e8ded5] pl-2.5 hidden sm:inline">
-              Intramurals 2026
-            </span>
-          </Link>
-
-          {/* Right Status & Controls */}
+        <div className="max-w-6xl mx-auto px-3.5 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+          {/* Logo & Subtitle & Day Pill */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="flex items-center gap-1.5 text-xs font-body text-[#5a413d] bg-white sm:bg-transparent px-2 py-1 sm:px-0 sm:py-0 rounded-full border border-[#e8ded5] sm:border-none">
+            <Link href="/" className="flex items-center gap-2 sm:gap-2.5">
+              <span className="font-display font-extrabold text-base sm:text-xl tracking-tight text-[#1e1b19]">
+                Salingkusog
+              </span>
+              <span className="text-xs text-[#8e706c] font-body border-l border-[#e8ded5] pl-2 hidden sm:inline">
+                Intramurals 2026
+              </span>
+            </Link>
+
+            {/* Subtle Day Indicator grouped with event brand */}
+            <div className="inline-flex items-center gap-1.5 text-xs font-body text-[#5a413d] bg-white px-2.5 py-1 rounded-full border border-[#e8ded5] shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-[#ff5e4d]"></span>
               <span className="font-display font-bold text-[#8e4e14] whitespace-nowrap">Day {currentDay}</span>
             </div>
+          </div>
 
+          {/* Right User & Account Controls */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Authenticated user indicator & My Gallery link */}
             {user && (
               <>
@@ -190,7 +194,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </header>
 
       {/* MAIN CAMPUS SCRAPBOOK CANVAS */}
-      <main className="relative z-10 pt-4 sm:pt-10 pb-28 sm:pb-24 max-w-6xl mx-auto px-3.5 sm:px-6 flex-1 w-full flex flex-col gap-6 sm:gap-10">
+      <main className="relative z-10 pt-4 sm:pt-8 pb-28 sm:pb-24 max-w-6xl mx-auto px-3.5 sm:px-6 flex-1 w-full flex flex-col gap-6 sm:gap-10">
         {/* SCRAPBOOK AUTH REQUIRED BANNER */}
         {isAuthRequired && !user && (
           <div className="relative mx-auto max-w-xl w-full p-4 sm:p-5 rounded-2xl bg-[#fff8f5] border-2 border-dashed border-[#ffdad5] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -216,23 +220,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         )}
 
         {/* HERO TITLE SECTION */}
-        <section className="text-center max-w-2xl mx-auto pt-2 sm:pt-4">
-          <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-3 py-1 rounded-md bg-white border border-[#e8ded5] text-stone-600 text-xs font-medium">
-            <span className="w-2 h-2 rounded-full bg-[#ff5e4d]"></span>
+        <section className="text-center max-w-3xl mx-auto pt-2 sm:pt-4">
+          <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-3 py-1 rounded-md bg-white border border-[#e8ded5] text-stone-600 text-xs font-medium shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-[#ff5e4d] animate-pulse"></span>
             <span className="font-display font-semibold text-xs text-[#8e4e14]">
               Intramurals 2026 • Live Photo Rally
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-5xl md:text-6xl font-display font-extrabold text-[#1e1b19] tracking-tight leading-[1.15]">
-            Toss memories into the{" "}
+          <h1 className="text-2xl sm:text-5xl md:text-6xl font-display font-extrabold text-[#1e1b19] tracking-tight leading-[1.18]">
+            Capture the spirit of Intramurals 2026 —{" "}
             <span className="font-handwriting font-normal text-[#ff5e4d] text-4xl sm:text-6xl md:text-7xl block sm:inline mt-1 sm:mt-0">
-              infinite well
+              one stamp at a time
             </span>
           </h1>
 
-          <p className="mt-3 sm:mt-4 text-[#5a413d] font-body text-xs sm:text-base max-w-lg mx-auto font-normal leading-relaxed px-2">
-            A quiet tactile physical memory board for Salingkusog. Snap campus selfies, cheer for your friends, and unlock your 3×3 Bingo rally stamps.
+          <p className="mt-3 sm:mt-4 text-[#5a413d] font-body text-xs sm:text-base max-w-xl mx-auto font-normal leading-relaxed px-2">
+            Join the 3×3 live photo rally: snap student moments, stamp your card, and earn your ticket into the stage raffle draw.
           </p>
 
           {/* Real Live Stats Bar */}
@@ -246,29 +250,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </span>
             </div>
             <span className="text-[#e8ded5]">•</span>
-            {isRaffleActive ? (
-              <div className="flex items-center gap-1.5 sm:gap-2 text-[#1e1b19]">
-                <span className="font-display font-bold text-xs sm:text-sm text-[#8e4e14]">
-                  {totalRaffles}
-                </span>
-                <span className="text-[#8e706c] text-[11px] sm:text-xs">
-                  {totalRaffles === 1 ? "Raffle Entry" : "Raffle Entries"}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 sm:gap-2 text-[#8e706c]">
-                <span className="font-display font-semibold text-xs text-[#8e706c]">
-                  Raffle Paused
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 sm:gap-2 text-[#1e1b19]">
+              <span className="font-display font-bold text-xs sm:text-sm text-[#8e4e14]">
+                {totalRaffles}
+              </span>
+              <span className="text-[#8e706c] text-[11px] sm:text-xs">
+                {totalRaffles === 1 ? "Stage Raffle Entry" : "Stage Raffle Entries"}
+              </span>
+            </div>
             <span className="text-[#e8ded5] hidden sm:inline">•</span>
             <div className="hidden sm:flex items-center gap-2 text-[#1e1b19]">
               <span className="w-2 h-2 rounded-full bg-[#588157]"></span>
               <span className="font-display font-bold text-sm text-[#588157]">
                 Day {currentDay}
               </span>
-              <span className="text-[#8e706c]">Event Active</span>
+              <span className="text-[#8e706c]">Rally Active</span>
             </div>
           </div>
         </section>

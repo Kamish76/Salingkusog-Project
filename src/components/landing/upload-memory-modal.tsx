@@ -119,6 +119,15 @@ export function UploadMemoryModal({
     };
   }, [isOpen]);
 
+  // Clean up object URLs on preview change or unmount to prevent DOM memory leaks
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   // Keyboard accessibility: Escape to dismiss
   useEffect(() => {
     if (!isOpen) return;
