@@ -12,6 +12,7 @@ export interface BingoTaskOption {
   title: string;
   description?: string;
   unlockDay: number;
+  isActive?: boolean;
 }
 
 export interface OriginRect {
@@ -149,7 +150,7 @@ export function UploadMemoryModal({
 
   const activeTask = bingoTasks.find((t) => t.id === selectedTaskId);
   const isTaskLockedForUpload = activeTask
-    ? !isTaskUnlocked(activeTask.unlockDay, currentDay) || !isEventActive
+    ? !isTaskUnlocked(activeTask.unlockDay, currentDay) || !isEventActive || activeTask.isActive === false
     : false;
 
   const handleSignIn = async () => {
@@ -235,7 +236,7 @@ export function UploadMemoryModal({
 
     if (isTaskLockedForUpload) {
       setErrorMessage(
-        !isEventActive
+        !isEventActive || activeTask?.isActive === false
           ? "Bingo challenge submissions are currently paused."
           : `This challenge is locked until Day ${activeTask?.unlockDay}.`
       );
@@ -519,12 +520,13 @@ export function UploadMemoryModal({
                     <option value="">General Memory (No bingo slot)</option>
                     {bingoTasks.map((t) => {
                       const isUnlocked = isTaskUnlocked(t.unlockDay, currentDay);
-                      const isLocked = !isUnlocked || !isEventActive;
+                      const isTaskActive = t.isActive !== false;
+                      const isLocked = !isUnlocked || !isEventActive || !isTaskActive;
                       return (
                         <option key={t.id} value={t.id} disabled={isLocked}>
                           Slot #{t.slotIndex + 1}: {t.title}{" "}
                           {isLocked
-                            ? !isEventActive
+                            ? !isEventActive || !isTaskActive
                               ? "(Paused)"
                               : `(Unlocks Day ${t.unlockDay})`
                             : ""}
@@ -540,7 +542,7 @@ export function UploadMemoryModal({
                 <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-900 text-xs font-body flex items-center gap-2">
                   <span className="text-sm shrink-0">🔒</span>
                   <span>
-                    {!isEventActive
+                    {!isEventActive || activeTask.isActive === false
                       ? "Bingo challenge submissions are currently paused."
                       : `Slot #${activeTask.slotIndex + 1} (${activeTask.title}) unlocks on Day ${activeTask.unlockDay}. Submissions are locked until then.`}
                   </span>

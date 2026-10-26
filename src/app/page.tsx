@@ -62,7 +62,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   `;
 
   const taskRowsPromise = sql`
-    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
+    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie, is_active
     FROM public.bingo_tasks
     ORDER BY slot_index ASC
   `;
@@ -138,6 +138,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     category: r.category,
     unlockDay: Number(r.unlock_day),
     requiresSelfie: Boolean(r.requires_selfie),
+    isActive: Boolean(r.is_active ?? true),
   }));
 
   const userProgress: UserProgressItem[] = (progressRows as Record<string, unknown>[]).map((r) => ({
