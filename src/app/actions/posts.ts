@@ -13,12 +13,20 @@ import {
 import {
   generateRaffleCode,
   evaluateRaffleRules,
+  isTaskUnlocked,
   type RaffleRuleRecord,
   type RaffleRuleCategory,
   type ExistingRaffleClaim,
 } from "@/lib/bingo-engine";
 import { recordActivityLog } from "@/lib/activity-logger";
 import { moderatePostContent } from "@/lib/moderation";
+import { checkUserConsent } from "@/app/actions/consent";
+import {
+  type ReportReason,
+  VALID_REPORT_REASONS,
+} from "@/lib/consent-predicates";
+
+export type { ReportReason };
 
 export interface SubmitPostResult {
   success: boolean;
@@ -41,6 +49,17 @@ export async function submitStudentPostAction(
     return { success: false, error: "Your account is suspended." };
   }
 
+  // Verify Philippine DPA compliance & student consent layer
+  if (process.env.DATABASE_URL) {
+    const { hasConsented } = await checkUserConsent(user.id);
+    if (!hasConsented) {
+      return {
+        success: false,
+        error: "Consent required. Please review and agree to our Terms of Use and Privacy Notice before posting.",
+      };
+    }
+  }
+
   if (!isStorageConfigured()) {
     return {
       success: false,
@@ -58,14 +77,72 @@ export async function submitStudentPostAction(
       return { success: false, error: "The selected photo is empty." };
     }
 
-    // Safety hard cap (10 MB)
-    if (file.size > 10 * 1024 * 1024) {
-      return { success: false, error: "Photo must be under 10 MB." };
+    // Safety hard cap (4 MB)
+    if (file.size > 4 * 1024 * 1024) {
+      return {
+        success: false,
+        error: "Photo exceeds 4MB. Please compress or downscale your photo before uploading.",
+      };
     }
 
     const caption = (formData.get("caption") as string)?.trim() || "";
     const isAnonymous = formData.get("isAnonymous") === "true";
     const bingoTaskId = (formData.get("bingoTaskId") as string)?.trim() || null;
+
+    let validatedSlotIndex: number | null = null;
+    let validatedTaskTitle: string | null = null;
+
+    // Strict server-side validation for Bingo tasks BEFORE content moderation or storage upload
+    if (bingoTaskId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bingoTaskId);
+      if (!isUuid) {
+        return { success: false, error: "Invalid bingo challenge identifier." };
+      }
+
+      // 1. Check live event status and current day from database
+      const eventConfigRows = await sql`
+        SELECT 
+          COALESCE(current_day, 1) as current_day,
+          COALESCE(is_event_active, true) as is_event_active
+        FROM public.event_config 
+        WHERE key = 'active_event' 
+        LIMIT 1
+      `;
+      const isEventActive = Boolean(eventConfigRows[0]?.is_event_active ?? true);
+      const currentDay = Number(eventConfigRows[0]?.current_day || 1);
+
+      if (!isEventActive) {
+        return { success: false, error: "Bingo uploads are currently paused." };
+      }
+
+      // 2. Check task record, active status, and unlock day
+      const taskRows = await sql`
+        SELECT id, slot_index, title, unlock_day, is_active
+        FROM public.bingo_tasks
+        WHERE id = ${bingoTaskId}::uuid
+        LIMIT 1
+      `;
+
+      if (taskRows.length === 0) {
+        return { success: false, error: "Bingo challenge not found." };
+      }
+
+      const task = taskRows[0];
+      if (!task.is_active) {
+        return { success: false, error: "This bingo challenge is currently inactive." };
+      }
+
+      const taskUnlockDay = Number(task.unlock_day || 1);
+      if (!isTaskUnlocked(taskUnlockDay, currentDay)) {
+        return {
+          success: false,
+          error: `This bingo challenge is locked until Day ${taskUnlockDay}.`,
+        };
+      }
+
+      validatedSlotIndex = Number(task.slot_index);
+      validatedTaskTitle = task.title;
+    }
 
     // Validate magic bytes
     const arrayBuffer = await file.arrayBuffer();
@@ -75,7 +152,14 @@ export async function submitStudentPostAction(
     if (!inspection.valid) {
       return {
         success: false,
-        error: "Only valid image files (JPEG, PNG, WebP, GIF, AVIF) can be posted.",
+        error: "Only valid photos (JPEG, PNG, WebP, GIF, AVIF, or iOS HEIC) can be posted.",
+      };
+    }
+
+    if (inspection.isHeic) {
+      return {
+        success: false,
+        error: "This HEIC photo could not be optimized by your browser. Please try selecting it again or use a JPEG/PNG photo.",
       };
     }
 
@@ -87,7 +171,9 @@ export async function submitStudentPostAction(
       return {
         success: false,
         error:
-          "Your photo could not be posted because it was flagged by our community safety guidelines. Please choose another photo.",
+          moderation.reason?.includes("4MB")
+            ? moderation.reason
+            : "Your photo could not be posted because it was flagged by our community safety guidelines. Please choose another photo.",
       };
     }
 
@@ -153,21 +239,11 @@ export async function submitStudentPostAction(
 
     const newPostId = insertedPosts[0]?.id;
     let newRaffleCode: string | undefined = undefined;
-    let slotIndex: number | null = null;
-    let taskTitle: string | null = null;
+    const slotIndex: number | null = validatedSlotIndex;
+    const taskTitle: string | null = validatedTaskTitle;
 
     // If this post fulfills a 3x3 Bingo slot, link or update user_bingo_progress
     if (bingoTaskId && newPostId) {
-      // Lookup bingo task details for audit logs
-      const taskRows = await sql`
-        SELECT slot_index, title FROM public.bingo_tasks
-        WHERE id = ${bingoTaskId}::uuid LIMIT 1
-      `;
-      if (taskRows.length > 0) {
-        slotIndex = Number(taskRows[0].slot_index);
-        taskTitle = taskRows[0].title;
-      }
-
       await sql`
         INSERT INTO public.user_bingo_progress (user_id, task_id, post_id)
         VALUES (${user.id}::uuid, ${bingoTaskId}::uuid, ${newPostId}::uuid)
@@ -588,4 +664,104 @@ export async function deleteStudentPostAction(
     };
   }
 }
+
+/**
+ * Flag / Report a photo memory for non-consensual appearance or guideline violations.
+ * Inserts a report into public.photo_reports, flags the post status to 'flagged' for review,
+ * and records an activity audit trail.
+ */
+export async function reportPhotoAction(
+  postId: string,
+  reason: ReportReason,
+  details?: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!postId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId)) {
+    return { success: false, error: "Invalid post ID." };
+  }
+
+  if (!VALID_REPORT_REASONS.includes(reason)) {
+    return { success: false, error: "Invalid report reason provided." };
+  }
+
+  const user = await getCurrentUser();
+  const sanitizedDetails = (details || "").trim().slice(0, 500);
+
+  try {
+    // 1. Verify post exists
+    const postRows = await sql`
+      SELECT id, status, caption, display_name FROM public.posts
+      WHERE id = ${postId}::uuid
+      LIMIT 1
+    `;
+
+    if (postRows.length === 0) {
+      return { success: false, error: "Photo memory no longer exists." };
+    }
+
+    const post = postRows[0];
+
+    // 2. Insert report
+    const reporterId = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+      ? user.id
+      : null;
+
+    await sql`
+      INSERT INTO public.photo_reports (
+        post_id,
+        reporter_id,
+        reason,
+        details,
+        status,
+        created_at
+      )
+      VALUES (
+        ${postId}::uuid,
+        ${reporterId ? sql`${reporterId}::uuid` : null},
+        ${reason},
+        ${sanitizedDetails || null},
+        'pending',
+        now()
+      );
+    `;
+
+    // 3. Update post status to 'flagged' for review
+    await sql`
+      UPDATE public.posts
+      SET status = 'flagged'
+      WHERE id = ${postId}::uuid;
+    `;
+
+    // 4. Record activity audit log
+    await recordActivityLog({
+      actionType: "PHOTO_REPORT",
+      category: "user",
+      actorId: user?.id || null,
+      actorName: user?.name || "Guest Visitor",
+      actorEmail: user?.email || null,
+      actorRole: user?.role || "user",
+      targetId: postId,
+      targetType: "post",
+      description: `[Content Report] Post flagged for "${reason}"${sanitizedDetails ? `: ${sanitizedDetails}` : ""}`,
+      metadata: {
+        postId,
+        reason,
+        details: sanitizedDetails,
+        postAuthor: post.display_name,
+      },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev/logs");
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("reportPhotoAction error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to submit photo report",
+    };
+  }
+}
+
 

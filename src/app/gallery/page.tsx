@@ -24,7 +24,9 @@ export default async function PersonalGalleryPage() {
 
   // Fetch initial gallery data concurrently to eliminate sequential waterfall latency
   const configPromise = sql`
-    SELECT COALESCE(current_day, 1) as current_day
+    SELECT 
+      COALESCE(current_day, 1) as current_day,
+      COALESCE(is_event_active, true) as is_event_active
     FROM public.event_config
     WHERE key = 'active_event'
     LIMIT 1
@@ -72,14 +74,24 @@ export default async function PersonalGalleryPage() {
     WHERE ubp.user_id = ${user.id}::uuid
   `;
 
-  const [configRows, postRows, taskRows, progressRows] = await Promise.all([
+  const consentPromise = sql`
+    SELECT agreed_promotional_use
+    FROM public.user_consents
+    WHERE user_id = ${user.id}::uuid
+    LIMIT 1
+  `;
+
+  const [configRows, postRows, taskRows, progressRows, consentRows] = await Promise.all([
     configPromise,
     postRowsPromise,
     taskRowsPromise,
     progressRowsPromise,
+    consentPromise,
   ]);
 
   const currentDay = Number(configRows[0]?.current_day || 1);
+  const isEventActive = Boolean(configRows[0]?.is_event_active ?? true);
+  const agreedPromotionalUse = Boolean(consentRows[0]?.agreed_promotional_use);
 
   const posts: PostRecord[] = postRows.map((r) => ({
     id: r.id,
@@ -161,20 +173,39 @@ export default async function PersonalGalleryPage() {
             email: user.email ?? "",
           }}
           currentDay={currentDay}
+          isEventActive={isEventActive}
           tasks={tasks}
           userProgress={userProgress}
+          agreedPromotionalUse={agreedPromotionalUse}
         />
       </main>
 
       {/* FOOTER */}
       <footer className="border-t border-[#e8ded5] bg-[#fff8f5] py-8 px-4 text-center text-xs text-[#8e706c] font-body">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="font-display font-bold text-stone-700">
-            Salingkusog 2026 · Collegiate Memory Board & 3x3 Bingo
-          </p>
-          <p className="font-handwriting text-sm text-[#b4281e]">
-            made with warm paper & student spirit
-          </p>
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <p className="font-display font-bold text-stone-700">
+              Salingkusog 2026 · Collegiate Memory Board &amp; 3x3 Bingo
+            </p>
+            <span className="hidden sm:inline text-[#e8ded5]">•</span>
+            <p className="font-handwriting text-sm text-[#b4281e]">
+              made with warm paper &amp; student spirit
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs text-[#8e706c]">
+            <Link href="/privacy" className="hover:text-[#1e1b19] underline decoration-[#e8ded5] hover:decoration-[#ff5e4d] transition-colors">
+              Privacy Notice
+            </Link>
+            <span>•</span>
+            <Link href="/terms" className="hover:text-[#1e1b19] underline decoration-[#e8ded5] hover:decoration-[#ff5e4d] transition-colors">
+              Terms of Use
+            </Link>
+            <span>•</span>
+            <Link href="/rally-rules" className="hover:text-[#1e1b19] underline decoration-[#e8ded5] hover:decoration-[#ff5e4d] transition-colors">
+              Rally Rules
+            </Link>
+          </div>
         </div>
       </footer>
     </div>

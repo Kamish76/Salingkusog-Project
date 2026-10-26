@@ -14,6 +14,12 @@ import {
   extractStorageKey,
   getPublicObjectUrl,
 } from "../../src/lib/storage.ts";
+import {
+  hasHeicMagicBytes,
+  isHeicFormat,
+  MAX_SOURCE_IMAGE_BYTES,
+  processAndDownscaleImage,
+} from "../../src/lib/image-processing.ts";
 
 export async function runStorageMediaTest() {
   console.log("▶ [Test Suite] Storage & Media File Safety");
@@ -61,7 +67,19 @@ export async function runStorageMediaTest() {
   assert.strictEqual(avifResult.valid, true, "AVIF header must be valid");
   assert.strictEqual(avifResult.detectedType, "image/avif");
   assert.strictEqual(avifResult.extension, "avif");
-  console.log("  ✔ Authentic image headers (JPEG, PNG, WebP, GIF, AVIF) identified correctly");
+
+  // HEIC: length (4 bytes) + 'ftyp' (4 bytes) + 'heic' (4 bytes)
+  const validHeic = new Uint8Array([
+    0x00, 0x00, 0x00, 0x18,
+    0x66, 0x74, 0x79, 0x70, // 'ftyp'
+    0x68, 0x65, 0x69, 0x63, // 'heic'
+  ]);
+  const heicResult = validateImageMagicBytes(validHeic);
+  assert.strictEqual(heicResult.valid, true, "HEIC header must be recognized as valid image container");
+  assert.strictEqual(heicResult.detectedType, "image/heic");
+  assert.strictEqual(heicResult.isHeic, true, "isHeic flag must be true");
+
+  console.log("  ✔ Authentic image headers (JPEG, PNG, WebP, GIF, AVIF, HEIC) identified correctly");
 
   // 2. Non-Image Payload Rejection
   const plainText = new TextEncoder().encode("This is a simple text document that must not be accepted as an image.");
@@ -98,6 +116,54 @@ export async function runStorageMediaTest() {
   const builtUrl = getPublicObjectUrl("avatars/student-1.png");
   assert.ok(builtUrl.includes("/avatars/student-1.png"), "Built public URL must incorporate object key");
   console.log("  ✔ Storage key parsing and public URL builder verified");
+
+  // 5. Client-Side Disguised HEIC Magic Byte Sniffing
+  const disguisedHeic = new Blob([validHeic], { type: "image/jpeg" });
+  assert.strictEqual(isHeicFormat(disguisedHeic), false, "Disguised HEIC blob has JPEG MIME type");
+  assert.strictEqual(await hasHeicMagicBytes(disguisedHeic), true, "Disguised ftypheic blob must be detected by magic bytes");
+
+  const validMif1 = new Uint8Array([
+    0x00, 0x00, 0x00, 0x18,
+    0x66, 0x74, 0x79, 0x70, // 'ftyp'
+    0x6d, 0x69, 0x66, 0x31, // 'mif1'
+  ]);
+  const disguisedMif1 = new Blob([validMif1], { type: "image/jpeg" });
+  assert.strictEqual(await hasHeicMagicBytes(disguisedMif1), true, "Disguised ftypmif1 blob must be detected by magic bytes");
+
+  const validHeim = new Uint8Array([
+    0x00, 0x00, 0x00, 0x18,
+    0x66, 0x74, 0x79, 0x70, // 'ftyp'
+    0x68, 0x65, 0x69, 0x6d, // 'heim'
+  ]);
+  assert.strictEqual(validateImageMagicBytes(validHeim).isHeic, true, "ftypheim must be recognized as HEIC");
+  assert.strictEqual(await hasHeicMagicBytes(new Blob([validHeim])), true, "ftypheim blob must be detected by magic bytes");
+
+  const validAvio = new Uint8Array([
+    0x00, 0x00, 0x00, 0x1c,
+    0x66, 0x74, 0x79, 0x70, // 'ftyp'
+    0x61, 0x76, 0x69, 0x6f, // 'avio'
+  ]);
+  assert.strictEqual(validateImageMagicBytes(validAvio).detectedType, "image/avif", "ftypavio must be recognized as AVIF");
+
+  const authenticJpegBlob = new Blob([validJpeg], { type: "image/jpeg" });
+  assert.strictEqual(await hasHeicMagicBytes(authenticJpegBlob), false, "Authentic JPEG blob must return false for HEIC magic bytes");
+  console.log("  ✔ Client-side disguised HEIC magic byte sniffing verified");
+
+  // 6. Client-Side Pre-Decode File Size Guard
+  await assert.rejects(
+    () => processAndDownscaleImage(new Blob([])),
+    /Selected photo is empty/,
+    "Empty 0-byte blob must be rejected before decode"
+  );
+  const oversizedBlob = Object.defineProperty(new Blob(["x"]), "size", {
+    value: MAX_SOURCE_IMAGE_BYTES + 1,
+  });
+  await assert.rejects(
+    () => processAndDownscaleImage(oversizedBlob),
+    /This photo is too large \(over 25 MB\)/,
+    "Oversized (>25 MB) blob must be rejected before decode"
+  );
+  console.log("  ✔ Client-side 25 MB pre-decode size guard verified");
 
   console.log("✔ Storage & media file safety suite passed cleanly\n");
 }

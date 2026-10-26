@@ -4,7 +4,7 @@ import { runAllHealthProbes } from "@/lib/health-probes";
 
 export const instant = false;
 
-export async function GET() {
+export async function GET(request: Request) {
   await connection();
 
   const user = await getCurrentUser();
@@ -14,7 +14,10 @@ export async function GET() {
     return Response.json({ status: "ok" }, { status: 200 });
   }
 
-  const diagnostics = await runAllHealthProbes();
+  const { searchParams } = new URL(request.url);
+  const forceFresh = searchParams.get("fresh") === "true" || searchParams.get("fresh") === "1";
+
+  const diagnostics = await runAllHealthProbes(forceFresh);
   return Response.json(diagnostics, {
     status: 200,
     headers: {

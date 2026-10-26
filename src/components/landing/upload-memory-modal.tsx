@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, type ChangeEvent, type FormEvent, type DragEvent } from "react";
-import { processAndDownscaleImage } from "@/lib/image-processing";
+import { processAndDownscaleImage, isHeicFormat, hasHeicMagicBytes } from "@/lib/image-processing";
 import { submitStudentPostAction } from "@/app/actions/posts";
 import { authClient } from "@/lib/auth/client";
+import { isTaskUnlocked } from "@/lib/bingo-engine";
 
 export interface BingoTaskOption {
   id: string;
@@ -25,6 +26,7 @@ interface UploadMemoryModalProps {
   onClose: () => void;
   isAuthenticated: boolean;
   currentDay: number;
+  isEventActive?: boolean;
   bingoTasks: BingoTaskOption[];
   preselectedTaskId?: string;
   originRect?: OriginRect | null;
@@ -42,6 +44,7 @@ export function UploadMemoryModal({
   onClose,
   isAuthenticated,
   currentDay,
+  isEventActive = true,
   bingoTasks,
   preselectedTaskId,
   originRect,
@@ -54,6 +57,7 @@ export function UploadMemoryModal({
   const [selectedTaskId, setSelectedTaskId] = useState<string>(preselectedTaskId || "");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<string | null>(null);
@@ -102,6 +106,7 @@ export function UploadMemoryModal({
       setIsClosing(false);
       setSelectedFile(null);
       setPreviewUrl(null);
+      setIsProcessingImage(false);
       setPreviewOrientation("landscape");
       setCaption("");
       setErrorMessage(null);
@@ -143,6 +148,9 @@ export function UploadMemoryModal({
   if (!isOpen) return null;
 
   const activeTask = bingoTasks.find((t) => t.id === selectedTaskId);
+  const isTaskLockedForUpload = activeTask
+    ? !isTaskUnlocked(activeTask.unlockDay, currentDay) || !isEventActive
+    : false;
 
   const handleSignIn = async () => {
     try {
@@ -157,27 +165,37 @@ export function UploadMemoryModal({
 
   const handleProcessFile = async (file: File) => {
     try {
+      setIsProcessingImage(true);
       setErrorMessage(null);
-      // Downscale to 1080p WebP in browser to preserve storage and bandwidth
+
+      // Downscale to 1080p WebP/JPEG in browser to preserve storage and bandwidth,
+      // and safely transcode iOS HEIC photos
       const processed = await processAndDownscaleImage(file, 1080, 0.82);
-      const convertedFile = new File([processed.blob], file.name.replace(/\.[^.]+$/, ".webp"), {
-        type: "image/webp",
+
+      const extension = processed.outputType === "image/jpeg" ? ".jpg" : ".webp";
+      const convertedFileName = file.name.replace(/\.[^.]+$/, "") + extension;
+      const convertedFile = new File([processed.blob], convertedFileName, {
+        type: processed.outputType,
       });
+
       setSelectedFile(convertedFile);
       setPreviewUrl(processed.previewUrl);
       const aspect = processed.resizedWidth / processed.resizedHeight;
       setPreviewOrientation(aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square");
     } catch (err: unknown) {
       console.error("Image processing failed:", err);
-      setSelectedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      const img = new Image();
-      img.onload = () => {
-        const aspect = img.naturalWidth / img.naturalHeight;
-        setPreviewOrientation(aspect > 1.15 ? "landscape" : aspect < 0.88 ? "portrait" : "square");
-      };
-      img.src = url;
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Could not read this photo format. Please take a new snapshot or choose a standard photo."
+      );
+    } finally {
+      setIsProcessingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -200,8 +218,11 @@ export function UploadMemoryModal({
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) {
+    if (!file) return;
+    if (file.type.startsWith("image/") || isHeicFormat(file) || (await hasHeicMagicBytes(file))) {
       await handleProcessFile(file);
+    } else {
+      setErrorMessage("Unsupported file type. Please drop a JPEG, PNG, WebP, AVIF, or HEIC photo.");
     }
   };
 
@@ -209,6 +230,15 @@ export function UploadMemoryModal({
     e.preventDefault();
     if (!selectedFile) {
       setErrorMessage("Please choose or snap a photo before dropping.");
+      return;
+    }
+
+    if (isTaskLockedForUpload) {
+      setErrorMessage(
+        !isEventActive
+          ? "Bingo challenge submissions are currently paused."
+          : `This challenge is locked until Day ${activeTask?.unlockDay}.`
+      );
       return;
     }
 
@@ -376,21 +406,37 @@ export function UploadMemoryModal({
 
               {/* Tactile Polaroid Photo Dropzone */}
               <div
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => {
+                  if (!isProcessingImage) fileInputRef.current?.click();
+                }}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 className={`relative w-full ${
                   previewUrl ? PREVIEW_ASPECTS[previewOrientation] : "aspect-[4/3] max-h-[38vh]"
                 } overflow-hidden rounded-xl cursor-pointer transition-all duration-200 flex items-center justify-center group ${
-                  previewUrl
+                  isProcessingImage
+                    ? "bg-[#fff5f2] border-2 border-dashed border-[#ff5e4d]/60 cursor-wait"
+                    : previewUrl
                     ? "bg-white p-2.5 pb-4 border border-[#e8ded5] shadow-md"
                     : isDragging
                     ? "bg-[#fff0eb] border-2 border-dashed border-[#ff5e4d] shadow-xs"
                     : "bg-[#fcf9f5] hover:bg-[#fff9f6] border-2 border-dashed border-[#e8ded5] hover:border-[#f4a261]"
                 }`}
               >
-                {previewUrl ? (
+                {isProcessingImage ? (
+                  <div className="flex flex-col items-center justify-center p-6 text-center text-[#1e1b19] gap-3">
+                    <div className="w-9 h-9 border-3 border-[#ff5e4d]/25 border-t-[#ff5e4d] rounded-full animate-spin" />
+                    <div className="flex flex-col items-center">
+                      <span className="font-display font-bold text-xs sm:text-sm text-[#1e1b19]">
+                        Optimizing photo...
+                      </span>
+                      <span className="font-body text-[11px] text-[#5a413d] mt-0.5">
+                        Converting and formatting for campus memory board
+                      </span>
+                    </div>
+                  </div>
+                ) : previewUrl ? (
                   <div className="relative w-full h-full rounded-lg overflow-hidden bg-stone-100 flex items-center justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -434,10 +480,18 @@ export function UploadMemoryModal({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif,.HEIC,.HEIF"
                 className="hidden"
                 onChange={handleFileChange}
               />
+
+              {/* Gentle Photo Consent & Courtesy Banner */}
+              <div className="p-2.5 rounded-xl bg-[#fff8f5] border border-[#ffdad5] text-[#5a413d] text-xs font-body flex items-start gap-2">
+                <span className="text-sm shrink-0">🤝</span>
+                <p className="leading-snug">
+                  <strong className="font-display font-bold text-[#b4281e]">Campus Photo Tip:</strong> Make sure friends and classmates in your photo are happy to have it shared on the campus memory board!
+                </p>
+              </div>
 
               {/* Caption Input */}
               <div className="relative">
@@ -463,12 +517,33 @@ export function UploadMemoryModal({
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] text-[#1e1b19] text-xs sm:text-sm font-body focus:outline-none focus:border-[#ff5e4d] focus:bg-white focus:ring-2 focus:ring-[#ff5e4d]/20 transition shadow-2xs"
                   >
                     <option value="">General Memory (No bingo slot)</option>
-                    {bingoTasks.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        Slot #{t.slotIndex + 1}: {t.title}
-                      </option>
-                    ))}
+                    {bingoTasks.map((t) => {
+                      const isUnlocked = isTaskUnlocked(t.unlockDay, currentDay);
+                      const isLocked = !isUnlocked || !isEventActive;
+                      return (
+                        <option key={t.id} value={t.id} disabled={isLocked}>
+                          Slot #{t.slotIndex + 1}: {t.title}{" "}
+                          {isLocked
+                            ? !isEventActive
+                              ? "(Paused)"
+                              : `(Unlocks Day ${t.unlockDay})`
+                            : ""}
+                        </option>
+                      );
+                    })}
                   </select>
+                </div>
+              )}
+
+              {/* Locked Task Notice */}
+              {isTaskLockedForUpload && activeTask && (
+                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-900 text-xs font-body flex items-center gap-2">
+                  <span className="text-sm shrink-0">🔒</span>
+                  <span>
+                    {!isEventActive
+                      ? "Bingo challenge submissions are currently paused."
+                      : `Slot #${activeTask.slotIndex + 1} (${activeTask.title}) unlocks on Day ${activeTask.unlockDay}. Submissions are locked until then.`}
+                  </span>
                 </div>
               )}
 
@@ -513,10 +588,10 @@ export function UploadMemoryModal({
             <button
               onClick={handleSubmit}
               type="button"
-              disabled={submitting || !selectedFile}
+              disabled={submitting || isProcessingImage || !selectedFile || isTaskLockedForUpload}
               className="flex-1 py-2.5 sm:py-3 px-4 min-h-[44px] rounded-xl bg-[#ff5e4d] hover:bg-[#b4281e] disabled:opacity-40 disabled:hover:bg-[#ff5e4d] text-white font-display font-bold text-xs sm:text-sm shadow-xs transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
             >
-              <span>{submitting ? "Dropping..." : "Drop Into Well"}</span>
+              <span>{submitting ? "Dropping..." : isProcessingImage ? "Optimizing Photo..." : "Drop Into Well"}</span>
             </button>
 
             <button

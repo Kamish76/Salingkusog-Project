@@ -9,6 +9,8 @@ import type {
   UserProgressItem,
   RaffleEntryItem,
 } from "@/components/landing/floating-bingo-modal";
+import { checkUserConsent } from "@/app/actions/consent";
+import { ConsentModal } from "@/components/legal/consent-modal";
 
 
 interface HomePageProps {
@@ -34,6 +36,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       (SELECT count(*) FROM public.posts WHERE status = 'published' AND image_url IS NOT NULL AND TRIM(image_url) != '') as total_snaps,
       (SELECT count(*) FROM public.raffle_entries WHERE status IN ('valid', 'verified')) as total_raffles,
       COALESCE((SELECT current_day FROM public.event_config WHERE key = 'active_event' LIMIT 1), 1) as current_day,
+      COALESCE((SELECT is_event_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), true) as is_event_active,
       COALESCE((SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), true) as is_raffle_active
   `;
 
@@ -92,17 +95,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         `
       : Promise.resolve([]);
 
-  const [statsRows, postRows, taskRows, progressRows, raffleRows] = await Promise.all([
+  const consentPromise =
+    user && isUuid
+      ? checkUserConsent(user.id)
+      : Promise.resolve({ hasConsented: true, consent: null });
+
+  const [statsRows, postRows, taskRows, progressRows, raffleRows, consentResult] = await Promise.all([
     statsPromise,
     postRowsPromise,
     taskRowsPromise,
     progressRowsPromise,
     raffleRowsPromise,
+    consentPromise,
   ]);
+
+  const hasUserConsented = Boolean(consentResult.hasConsented);
 
   const totalSnaps = Number(statsRows[0]?.total_snaps || 0);
   const totalRaffles = Number(statsRows[0]?.total_raffles || 0);
   const currentDay = Number(statsRows[0]?.current_day || 1);
+  const isEventActive = Boolean(statsRows[0]?.is_event_active ?? true);
   const isRaffleActive = Boolean(statsRows[0]?.is_raffle_active ?? true);
 
   const posts: PostRecord[] = postRows.map((r) => ({
@@ -277,6 +289,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             userProgress={userProgress}
             raffleEntries={raffleEntries}
             currentDay={currentDay}
+            isEventActive={isEventActive}
             isRaffleActive={isRaffleActive}
             user={
               user
@@ -291,15 +304,37 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </section>
       </main>
 
+      {/* POST-OAUTH DPA CONSENT GATE MODAL */}
+      {user && !hasUserConsented && (
+        <ConsentModal isOpen={true} userName={user.name} />
+      )}
+
       {/* FOOTER */}
       <footer className="border-t border-[#e8ded5] bg-[#fff8f5] py-8 px-4 text-center text-xs text-[#8e706c] font-body">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="font-display font-bold text-stone-700">
-            Salingkusog 2026 · Collegiate Memory Board & 3x3 Bingo
-          </p>
-          <p className="font-handwriting text-sm text-[#b4281e]">
-            made with warm paper & student spirit
-          </p>
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <p className="font-display font-bold text-stone-700">
+              Salingkusog 2026 · Collegiate Memory Board &amp; 3x3 Bingo
+            </p>
+            <span className="hidden sm:inline text-[#e8ded5]">•</span>
+            <p className="font-handwriting text-sm text-[#b4281e]">
+              made with warm paper &amp; student spirit
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs text-[#8e706c]">
+            <Link href="/privacy" className="hover:text-[#1e1b19] underline decoration-[#e8ded5] hover:decoration-[#ff5e4d] transition-colors">
+              Privacy Notice
+            </Link>
+            <span>•</span>
+            <Link href="/terms" className="hover:text-[#1e1b19] underline decoration-[#e8ded5] hover:decoration-[#ff5e4d] transition-colors">
+              Terms of Use
+            </Link>
+            <span>•</span>
+            <Link href="/rally-rules" className="hover:text-[#1e1b19] underline decoration-[#e8ded5] hover:decoration-[#ff5e4d] transition-colors">
+              Rally Rules
+            </Link>
+          </div>
         </div>
       </footer>
     </div>

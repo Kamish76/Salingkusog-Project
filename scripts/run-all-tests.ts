@@ -19,6 +19,8 @@ import { runModerationTest } from "./tests/test-moderation.ts";
 import { runServerLogBufferTest } from "./tests/test-server-log-buffer.ts";
 import { runHealthProbesTest } from "./tests/test-health-probes.ts";
 import { runPhotoModerationTest } from "./tests/test-photo-moderation.ts";
+import { runConsentDpaTest } from "./tests/test-consent-dpa.ts";
+import { runDayUploadConstraintsTest } from "./tests/test-day-upload-constraints.ts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -32,7 +34,7 @@ interface SuiteResult {
 async function runAllSuites() {
   const startTime = Date.now();
   console.log("===============================================================================");
-  console.log("Ã°Å¸Å¡â‚¬ SALINGKUSOG MASTER INTEGRATION & PRODUCTION VERIFICATION SUITE");
+  console.log("🚀 SALINGKUSOG MASTER INTEGRATION & PRODUCTION VERIFICATION SUITE");
   console.log("===============================================================================\n");
 
   const results: SuiteResult[] = [];
@@ -142,16 +144,34 @@ async function runAllSuites() {
     results.push({ name: "Photo Moderation & Cascades", durationMs: Date.now() - t10, status: "FAILED", error: (err as Error).message });
   }
 
+  // Suite 12: Philippine DPA Legal & Student Consent Layer
+  const t11 = Date.now();
+  try {
+    await runConsentDpaTest();
+    results.push({ name: "Philippine DPA & Student Consent", durationMs: Date.now() - t11, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "Philippine DPA & Student Consent", durationMs: Date.now() - t11, status: "FAILED", error: (err as Error).message });
+  }
+
+  // Suite 13: Day-Based Bingo Constraints & Task Sync
+  const t12 = Date.now();
+  try {
+    await runDayUploadConstraintsTest();
+    results.push({ name: "Day-Based Bingo Constraints", durationMs: Date.now() - t12, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "Day-Based Bingo Constraints", durationMs: Date.now() - t12, status: "FAILED", error: (err as Error).message });
+  }
+
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
   console.log("===============================================================================");
-  console.log("Ã°Å¸â€œÅ  INTEGRATION SUITE RESULTS SUMMARY");
+  console.log("📊 INTEGRATION SUITE RESULTS SUMMARY");
   console.log("===============================================================================");
   for (const r of results) {
-    const icon = r.status === "PASSED" ? "Ã¢Å“â€" : "Ã¢Å“â€“";
+    const icon = r.status === "PASSED" ? "✔" : "✖";
     console.log(` ${icon} ${r.name.padEnd(36)} [${r.status}] (${r.durationMs}ms)`);
     if (r.error) {
-      console.log(`   Ã¢â€â€Ã¢â€â‚¬ Error: ${r.error}`);
+      console.log(`   └── Error: ${r.error}`);
     }
   }
   console.log("-------------------------------------------------------------------------------");
@@ -159,10 +179,10 @@ async function runAllSuites() {
 
   const hasFailures = results.some((r) => r.status === "FAILED");
   if (hasFailures) {
-    console.error("\nÃ¢ÂÅ’ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
+    console.error("\n❌ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
     process.exit(1);
   } else {
-    console.log("\n🎉 ALL 11 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
+    console.log("\n🎉 ALL 13 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
   }
 }
 
