@@ -5,6 +5,7 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import {
   processAndDownscaleImage,
   isHeicFormat,
+  hasHeicMagicBytes,
   type ImageProcessResult,
 } from "@/lib/image-processing";
 import {
@@ -52,12 +53,18 @@ export function StorageTesterClient({
   }, [processed?.previewUrl]);
 
   // Trigger downscaling when file or settings change
-  const handleFileChange = async (file: File) => {
+  const handleFileChange = async (
+    file: File,
+    scale1080p: boolean = enable1080p,
+    maxDim: number = maxDimension,
+    qual: number = quality
+  ) => {
     setSelectedFile(file);
     setUploadStatus({ type: "idle" });
 
     // Validate MIME type or HEIC in browser
-    if (!file.type.startsWith("image/") && !isHeicFormat(file)) {
+    const isHeic = isHeicFormat(file) || (await hasHeicMagicBytes(file));
+    if (!file.type.startsWith("image/") && !isHeic) {
       setUploadStatus({
         type: "error",
         message: "Storage Lock: Only image files are permitted.",
@@ -68,14 +75,22 @@ export function StorageTesterClient({
 
     setIsProcessing(true);
     try {
-      if (enable1080p) {
+      if (scale1080p) {
         const result = await processAndDownscaleImage(
           file,
-          maxDimension,
-          quality
+          maxDim,
+          qual
         );
         setProcessed(result);
       } else {
+        if (isHeic) {
+          setUploadStatus({
+            type: "error",
+            message: "Raw HEIC files cannot be uploaded directly. Keep 'Scale Down to Max 1080p (WebP)' enabled to convert HEIC.",
+          });
+          setProcessed(null);
+          return;
+        }
         // Raw image without resizing
         const previewUrl = URL.createObjectURL(file);
         let originalWidth = 1080;
@@ -121,9 +136,10 @@ export function StorageTesterClient({
       setUploadStatus({ type: "idle" });
 
       const formData = new FormData();
-      // Generate clean filename with .webp extension when scaled
+      // Generate clean filename matching processed output type when scaled
       const cleanName = selectedFile.name.replace(/\.[^/.]+$/, "");
-      const finalFileName = enable1080p ? `${cleanName}.webp` : selectedFile.name;
+      const ext = processed.outputType === "image/jpeg" ? ".jpg" : ".webp";
+      const finalFileName = enable1080p ? `${cleanName}${ext}` : selectedFile.name;
 
       formData.append(
         "file",
@@ -207,8 +223,9 @@ export function StorageTesterClient({
               id="enable1080p"
               checked={enable1080p}
               onChange={(e) => {
-                setEnable1080p(e.target.checked);
-                if (selectedFile) handleFileChange(selectedFile);
+                const checked = e.target.checked;
+                setEnable1080p(checked);
+                if (selectedFile) handleFileChange(selectedFile, checked);
               }}
               className="rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-amber-500 h-4 w-4 cursor-pointer"
             />
@@ -225,7 +242,7 @@ export function StorageTesterClient({
               onChange={(e) => {
                 const val = Number(e.target.value);
                 setMaxDimension(val);
-                if (selectedFile) handleFileChange(selectedFile);
+                if (selectedFile) handleFileChange(selectedFile, enable1080p, val);
               }}
               className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-zinc-200 disabled:opacity-40"
             >
@@ -249,7 +266,7 @@ export function StorageTesterClient({
               onChange={(e) => {
                 const val = Number(e.target.value);
                 setQuality(val);
-                if (selectedFile) handleFileChange(selectedFile);
+                if (selectedFile) handleFileChange(selectedFile, enable1080p, maxDimension, val);
               }}
               className="w-full accent-amber-500 cursor-pointer disabled:opacity-40"
             />
@@ -286,7 +303,7 @@ export function StorageTesterClient({
             {selectedFile ? selectedFile.name : "Click to select or drag & drop an image here"}
           </p>
           <p className="text-xs text-zinc-500 mt-1">
-            Accepts PNG, JPEG, WebP, AVIF • Strictly locked to image files only
+            Accepts PNG, JPEG, WebP, AVIF, HEIC • Strictly locked to image files only
           </p>
         </div>
 
