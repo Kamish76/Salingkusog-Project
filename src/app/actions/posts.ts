@@ -13,6 +13,7 @@ import {
 import {
   generateRaffleCode,
   evaluateRaffleRules,
+  isTaskUnlocked,
   type RaffleRuleRecord,
   type RaffleRuleCategory,
   type ExistingRaffleClaim,
@@ -84,6 +85,61 @@ export async function submitStudentPostAction(
     const caption = (formData.get("caption") as string)?.trim() || "";
     const isAnonymous = formData.get("isAnonymous") === "true";
     const bingoTaskId = (formData.get("bingoTaskId") as string)?.trim() || null;
+
+    let validatedSlotIndex: number | null = null;
+    let validatedTaskTitle: string | null = null;
+
+    // Strict server-side validation for Bingo tasks BEFORE content moderation or storage upload
+    if (bingoTaskId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bingoTaskId);
+      if (!isUuid) {
+        return { success: false, error: "Invalid bingo challenge identifier." };
+      }
+
+      // 1. Check live event status and current day from database
+      const eventConfigRows = await sql`
+        SELECT 
+          COALESCE(current_day, 1) as current_day,
+          COALESCE(is_event_active, true) as is_event_active
+        FROM public.event_config 
+        WHERE key = 'active_event' 
+        LIMIT 1
+      `;
+      const isEventActive = Boolean(eventConfigRows[0]?.is_event_active ?? true);
+      const currentDay = Number(eventConfigRows[0]?.current_day || 1);
+
+      if (!isEventActive) {
+        return { success: false, error: "Bingo uploads are currently paused." };
+      }
+
+      // 2. Check task record, active status, and unlock day
+      const taskRows = await sql`
+        SELECT id, slot_index, title, unlock_day, is_active
+        FROM public.bingo_tasks
+        WHERE id = ${bingoTaskId}::uuid
+        LIMIT 1
+      `;
+
+      if (taskRows.length === 0) {
+        return { success: false, error: "Bingo challenge not found." };
+      }
+
+      const task = taskRows[0];
+      if (!task.is_active) {
+        return { success: false, error: "This bingo challenge is currently inactive." };
+      }
+
+      const taskUnlockDay = Number(task.unlock_day || 1);
+      if (!isTaskUnlocked(taskUnlockDay, currentDay)) {
+        return {
+          success: false,
+          error: `This bingo challenge is locked until Day ${taskUnlockDay}.`,
+        };
+      }
+
+      validatedSlotIndex = Number(task.slot_index);
+      validatedTaskTitle = task.title;
+    }
 
     // Validate magic bytes
     const arrayBuffer = await file.arrayBuffer();
@@ -171,21 +227,11 @@ export async function submitStudentPostAction(
 
     const newPostId = insertedPosts[0]?.id;
     let newRaffleCode: string | undefined = undefined;
-    let slotIndex: number | null = null;
-    let taskTitle: string | null = null;
+    const slotIndex: number | null = validatedSlotIndex;
+    const taskTitle: string | null = validatedTaskTitle;
 
     // If this post fulfills a 3x3 Bingo slot, link or update user_bingo_progress
     if (bingoTaskId && newPostId) {
-      // Lookup bingo task details for audit logs
-      const taskRows = await sql`
-        SELECT slot_index, title FROM public.bingo_tasks
-        WHERE id = ${bingoTaskId}::uuid LIMIT 1
-      `;
-      if (taskRows.length > 0) {
-        slotIndex = Number(taskRows[0].slot_index);
-        taskTitle = taskRows[0].title;
-      }
-
       await sql`
         INSERT INTO public.user_bingo_progress (user_id, task_id, post_id)
         VALUES (${user.id}::uuid, ${bingoTaskId}::uuid, ${newPostId}::uuid)
