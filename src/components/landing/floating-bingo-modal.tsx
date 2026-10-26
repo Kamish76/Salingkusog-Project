@@ -5,6 +5,7 @@ import Link from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { removeBingoTaskPhotoAction } from "@/app/actions/posts";
 import { exportRecaptchaBingoCard } from "@/lib/export-recaptcha-card";
+import { isTaskUnlocked } from "@/lib/bingo-engine";
 
 export interface BingoTaskItem {
   id: string;
@@ -44,6 +45,7 @@ interface FloatingBingoModalProps {
   userProgress: UserProgressItem[];
   raffleEntries: RaffleEntryItem[];
   currentDay: number;
+  isEventActive?: boolean;
   isRaffleActive?: boolean;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -128,6 +130,7 @@ export function FloatingBingoModal({
   userProgress,
   raffleEntries,
   currentDay,
+  isEventActive = true,
   isRaffleActive = true,
   isOpen: externalIsOpen,
   onOpenChange,
@@ -336,8 +339,7 @@ export function FloatingBingoModal({
   const handleTileClick = (task: BingoTaskItem, e: React.MouseEvent<HTMLButtonElement>) => {
     const progress = progressBySlot.get(task.slotIndex);
     const isCompleted = Boolean(progress);
-    // All locks disabled for testing as requested
-    const isLocked = false;
+    const isUnlocked = isTaskUnlocked(task.unlockDay, currentDay);
 
     if (isCompleted && progress) {
       // Capture element rect for Apple fluid zoom from tile origin
@@ -355,8 +357,13 @@ export function FloatingBingoModal({
       return;
     }
 
-    if (isLocked) {
-      setActiveHint(`🔒 Day ${task.unlockDay} challenge.`);
+    if (!isEventActive) {
+      setActiveHint("⏸️ Bingo uploads are currently paused by organizers.");
+      return;
+    }
+
+    if (!isUnlocked) {
+      setActiveHint(`🔒 This challenge unlocks on Day ${task.unlockDay}. Check back then!`);
       return;
     }
 
@@ -597,10 +604,21 @@ export function FloatingBingoModal({
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-200">
                     Day {currentDay}
                   </span>
+                  {!isEventActive && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                      Paused
+                    </span>
+                  )}
                 </div>
                 <p className="font-body text-xs text-[#5a413d] mt-1">
                   Complete all 9 challenges to enter the official stage raffle draw
                 </p>
+                {!isEventActive && (
+                  <div className="mt-2 text-[11px] sm:text-xs text-amber-900 font-body px-2.5 py-1.5 bg-amber-50 border border-amber-200/90 rounded-lg flex items-center gap-1.5">
+                    <span>⏸️</span>
+                    <span>Bingo submissions are currently paused by organizers.</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 -mr-1 -mt-1">
@@ -662,6 +680,8 @@ export function FloatingBingoModal({
                 {tasks.map((task) => {
                   const progress = progressBySlot.get(task.slotIndex);
                   const isCompleted = Boolean(progress && progress.imageUrl);
+                  const isUnlocked = isTaskUnlocked(task.unlockDay, currentDay);
+                  const isLocked = !isUnlocked || !isEventActive;
                   const isCenter = task.slotIndex === 4;
                   const icon = getCategoryIcon(task.category);
                   const rotationClass = POLAROID_ROTATIONS[task.slotIndex % POLAROID_ROTATIONS.length];
@@ -676,25 +696,51 @@ export function FloatingBingoModal({
                       className="relative aspect-square flex items-center justify-center overflow-visible"
                     >
                       {!isCompleted ? (
-                        /* Empty Slot Button: Tap to open upload modal */
-                        <button
-                          onClick={(e) => handleTileClick(task, e)}
-                          type="button"
-                          className={`w-full h-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer select-none sm:hover:active:scale-98 ${
-                            isCenter
-                              ? "bg-[#ffdad5]/30 text-[#630002] border-[#ff5e4d]/60 font-bold"
-                              : "bg-white/80 border-[#e8ded5] hover:border-stone-400 hover:bg-white text-[#1e1b19]"
-                          }`}
-                          style={{ zIndex: 1 }}
-                        >
-                          <span className="mb-1">{icon}</span>
-                          <span className="font-display text-[10px] sm:text-xs font-bold leading-tight truncate w-full text-stone-800">
-                            {task.title}
-                          </span>
-                          <span className="text-[9px] font-bold text-[#ff5e4d] mt-0.5">
-                            + Add Photo
-                          </span>
-                        </button>
+                        isLocked ? (
+                          /* Locked / Teaser Slot Button */
+                          <button
+                            onClick={(e) => handleTileClick(task, e)}
+                            type="button"
+                            aria-label={`${task.title} - ${!isEventActive ? "Paused" : `Unlocks on Day ${task.unlockDay}`}`}
+                            className={`w-full h-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none select-none ${
+                              isCenter
+                                ? "bg-stone-100/50 text-stone-500 border-stone-300/50"
+                                : "bg-stone-50/70 border-stone-200/80 text-stone-500 hover:border-stone-300 hover:bg-stone-100/60"
+                            }`}
+                            style={{ zIndex: 1 }}
+                          >
+                            <span className="mb-0.5 opacity-40">{icon}</span>
+                            <span className="font-display text-[10px] sm:text-xs font-bold leading-tight truncate w-full text-stone-600">
+                              {task.title}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[8.5px] sm:text-[9.5px] font-bold px-1.5 py-0.5 rounded-full mt-1 bg-stone-200/70 text-stone-600">
+                              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                              </svg>
+                              {!isEventActive ? "Paused" : `Day ${task.unlockDay}`}
+                            </span>
+                          </button>
+                        ) : (
+                          /* Empty Slot Button: Tap to open upload modal */
+                          <button
+                            onClick={(e) => handleTileClick(task, e)}
+                            type="button"
+                            className={`w-full h-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer select-none sm:hover:active:scale-98 ${
+                              isCenter
+                                ? "bg-[#ffdad5]/30 text-[#630002] border-[#ff5e4d]/60 font-bold"
+                                : "bg-white/80 border-[#e8ded5] hover:border-stone-400 hover:bg-white text-[#1e1b19]"
+                            }`}
+                            style={{ zIndex: 1 }}
+                          >
+                            <span className="mb-1">{icon}</span>
+                            <span className="font-display text-[10px] sm:text-xs font-bold leading-tight truncate w-full text-stone-800">
+                              {task.title}
+                            </span>
+                            <span className="text-[9px] font-bold text-[#ff5e4d] mt-0.5">
+                              + Add Photo
+                            </span>
+                          </button>
+                        )
                       ) : (
                         <>
                           {/* Ghost Slot Placeholder */}

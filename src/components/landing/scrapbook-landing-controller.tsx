@@ -17,6 +17,7 @@ interface ScrapbookLandingControllerProps {
   userProgress: UserProgressItem[];
   raffleEntries: RaffleEntryItem[];
   currentDay: number;
+  isEventActive?: boolean;
   isRaffleActive?: boolean;
   user: {
     id: string;
@@ -31,6 +32,7 @@ export function ScrapbookLandingController({
   userProgress,
   raffleEntries,
   currentDay,
+  isEventActive = true,
   isRaffleActive = true,
   user,
 }: ScrapbookLandingControllerProps) {
@@ -239,6 +241,7 @@ export function ScrapbookLandingController({
         userProgress={userProgress}
         raffleEntries={raffleEntries}
         currentDay={currentDay}
+        isEventActive={isEventActive}
         isRaffleActive={isRaffleActive}
         isOpen={isBingoOpen}
         onOpenChange={setIsBingoOpen}
@@ -255,6 +258,7 @@ export function ScrapbookLandingController({
         returnToBingo={uploadSource === "bingo"}
         isAuthenticated={Boolean(user)}
         currentDay={currentDay}
+        isEventActive={isEventActive}
         bingoTasks={tasks.map((t) => ({
           id: t.id,
           slotIndex: t.slotIndex,

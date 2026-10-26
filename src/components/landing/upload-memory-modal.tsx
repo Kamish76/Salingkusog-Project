@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, type ChangeEvent, type FormEv
 import { processAndDownscaleImage } from "@/lib/image-processing";
 import { submitStudentPostAction } from "@/app/actions/posts";
 import { authClient } from "@/lib/auth/client";
+import { isTaskUnlocked } from "@/lib/bingo-engine";
 
 export interface BingoTaskOption {
   id: string;
@@ -25,6 +26,7 @@ interface UploadMemoryModalProps {
   onClose: () => void;
   isAuthenticated: boolean;
   currentDay: number;
+  isEventActive?: boolean;
   bingoTasks: BingoTaskOption[];
   preselectedTaskId?: string;
   originRect?: OriginRect | null;
@@ -42,6 +44,7 @@ export function UploadMemoryModal({
   onClose,
   isAuthenticated,
   currentDay,
+  isEventActive = true,
   bingoTasks,
   preselectedTaskId,
   originRect,
@@ -143,6 +146,9 @@ export function UploadMemoryModal({
   if (!isOpen) return null;
 
   const activeTask = bingoTasks.find((t) => t.id === selectedTaskId);
+  const isTaskLockedForUpload = activeTask
+    ? !isTaskUnlocked(activeTask.unlockDay, currentDay) || !isEventActive
+    : false;
 
   const handleSignIn = async () => {
     try {
@@ -209,6 +215,15 @@ export function UploadMemoryModal({
     e.preventDefault();
     if (!selectedFile) {
       setErrorMessage("Please choose or snap a photo before dropping.");
+      return;
+    }
+
+    if (isTaskLockedForUpload) {
+      setErrorMessage(
+        !isEventActive
+          ? "Bingo challenge submissions are currently paused."
+          : `This challenge is locked until Day ${activeTask?.unlockDay}.`
+      );
       return;
     }
 
@@ -471,12 +486,33 @@ export function UploadMemoryModal({
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] text-[#1e1b19] text-xs sm:text-sm font-body focus:outline-none focus:border-[#ff5e4d] focus:bg-white focus:ring-2 focus:ring-[#ff5e4d]/20 transition shadow-2xs"
                   >
                     <option value="">General Memory (No bingo slot)</option>
-                    {bingoTasks.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        Slot #{t.slotIndex + 1}: {t.title}
-                      </option>
-                    ))}
+                    {bingoTasks.map((t) => {
+                      const isUnlocked = isTaskUnlocked(t.unlockDay, currentDay);
+                      const isLocked = !isUnlocked || !isEventActive;
+                      return (
+                        <option key={t.id} value={t.id} disabled={isLocked}>
+                          Slot #{t.slotIndex + 1}: {t.title}{" "}
+                          {isLocked
+                            ? !isEventActive
+                              ? "(Paused)"
+                              : `(Unlocks Day ${t.unlockDay})`
+                            : ""}
+                        </option>
+                      );
+                    })}
                   </select>
+                </div>
+              )}
+
+              {/* Locked Task Notice */}
+              {isTaskLockedForUpload && activeTask && (
+                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-900 text-xs font-body flex items-center gap-2">
+                  <span className="text-sm shrink-0">🔒</span>
+                  <span>
+                    {!isEventActive
+                      ? "Bingo challenge submissions are currently paused."
+                      : `Slot #${activeTask.slotIndex + 1} (${activeTask.title}) unlocks on Day ${activeTask.unlockDay}. Submissions are locked until then.`}
+                  </span>
                 </div>
               )}
 
@@ -521,7 +557,7 @@ export function UploadMemoryModal({
             <button
               onClick={handleSubmit}
               type="button"
-              disabled={submitting || !selectedFile}
+              disabled={submitting || !selectedFile || isTaskLockedForUpload}
               className="flex-1 py-2.5 sm:py-3 px-4 min-h-[44px] rounded-xl bg-[#ff5e4d] hover:bg-[#b4281e] disabled:opacity-40 disabled:hover:bg-[#ff5e4d] text-white font-display font-bold text-xs sm:text-sm shadow-xs transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
             >
               <span>{submitting ? "Dropping..." : "Drop Into Well"}</span>

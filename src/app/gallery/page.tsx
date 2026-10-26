@@ -24,7 +24,9 @@ export default async function PersonalGalleryPage() {
 
   // Fetch initial gallery data concurrently to eliminate sequential waterfall latency
   const configPromise = sql`
-    SELECT COALESCE(current_day, 1) as current_day
+    SELECT 
+      COALESCE(current_day, 1) as current_day,
+      COALESCE(is_event_active, true) as is_event_active
     FROM public.event_config
     WHERE key = 'active_event'
     LIMIT 1
@@ -88,6 +90,7 @@ export default async function PersonalGalleryPage() {
   ]);
 
   const currentDay = Number(configRows[0]?.current_day || 1);
+  const isEventActive = Boolean(configRows[0]?.is_event_active ?? true);
   const agreedPromotionalUse = Boolean(consentRows[0]?.agreed_promotional_use);
 
   const posts: PostRecord[] = postRows.map((r) => ({
@@ -170,6 +173,7 @@ export default async function PersonalGalleryPage() {
             email: user.email ?? "",
           }}
           currentDay={currentDay}
+          isEventActive={isEventActive}
           tasks={tasks}
           userProgress={userProgress}
           agreedPromotionalUse={agreedPromotionalUse}

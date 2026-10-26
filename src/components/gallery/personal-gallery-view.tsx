@@ -10,6 +10,7 @@ import { exportRecaptchaBingoCard } from "@/lib/export-recaptcha-card";
 import { deleteStudentPostAction } from "@/app/actions/posts";
 import { updatePromotionalConsentAction, wipeoutUserAccountAction } from "@/app/actions/consent";
 import { authClient } from "@/lib/auth/client";
+import { isTaskUnlocked } from "@/lib/bingo-engine";
 
 interface PersonalGalleryViewProps {
   posts: PostRecord[];
@@ -19,6 +20,7 @@ interface PersonalGalleryViewProps {
     email: string;
   };
   currentDay: number;
+  isEventActive?: boolean;
   tasks: BingoTaskItem[];
   userProgress: UserProgressItem[];
   agreedPromotionalUse?: boolean;
@@ -28,6 +30,7 @@ export function PersonalGalleryView({
   posts,
   user,
   currentDay,
+  isEventActive = true,
   tasks,
   userProgress,
   agreedPromotionalUse = false,
@@ -332,7 +335,8 @@ export function PersonalGalleryView({
           {Array.from({ length: 9 }).map((_, slotIndex) => {
             const task = tasks.find((t) => t.slotIndex === slotIndex);
             const progress = progressBySlot.get(slotIndex);
-            const isUnlocked = (task?.unlockDay || 1) <= currentDay;
+            const isUnlocked = isTaskUnlocked(task?.unlockDay || 1, currentDay);
+            const isAvailable = isUnlocked && isEventActive;
 
             if (progress && progress.imageUrl) {
               return (
@@ -378,7 +382,7 @@ export function PersonalGalleryView({
               <div
                 key={slotIndex}
                 className={`relative rounded-xl p-3.5 sm:p-4 border border-dashed flex flex-col justify-between min-h-[170px] ${
-                  isUnlocked
+                  isAvailable
                     ? "bg-[#fcf9f5] border-[#ded2c7] hover:border-[#ff5e4d]/60 transition"
                     : "bg-stone-50 border-stone-200 opacity-60"
                 }`}
@@ -403,7 +407,7 @@ export function PersonalGalleryView({
                 </div>
 
                 <div className="mt-3 pt-2 border-t border-[#e8ded5]/60 flex items-center justify-between">
-                  {isUnlocked ? (
+                  {isAvailable ? (
                     <button
                       onClick={(e) => handleOpenUpload(task?.id, e)}
                       type="button"
@@ -419,7 +423,7 @@ export function PersonalGalleryView({
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                       </svg>
-                      <span>Unlocks Day {task?.unlockDay}</span>
+                      <span>{!isEventActive ? "Event Paused" : `Unlocks Day ${task?.unlockDay}`}</span>
                     </span>
                   )}
                 </div>
@@ -684,6 +688,7 @@ export function PersonalGalleryView({
         returnToBingo={false}
         isAuthenticated={true}
         currentDay={currentDay}
+        isEventActive={isEventActive}
         bingoTasks={tasks.map((t) => ({
           id: t.id,
           slotIndex: t.slotIndex,

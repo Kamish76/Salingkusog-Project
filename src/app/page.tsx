@@ -36,6 +36,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       (SELECT count(*) FROM public.posts WHERE status = 'published' AND image_url IS NOT NULL AND TRIM(image_url) != '') as total_snaps,
       (SELECT count(*) FROM public.raffle_entries WHERE status IN ('valid', 'verified')) as total_raffles,
       COALESCE((SELECT current_day FROM public.event_config WHERE key = 'active_event' LIMIT 1), 1) as current_day,
+      COALESCE((SELECT is_event_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), true) as is_event_active,
       COALESCE((SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), true) as is_raffle_active
   `;
 
@@ -113,6 +114,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const totalSnaps = Number(statsRows[0]?.total_snaps || 0);
   const totalRaffles = Number(statsRows[0]?.total_raffles || 0);
   const currentDay = Number(statsRows[0]?.current_day || 1);
+  const isEventActive = Boolean(statsRows[0]?.is_event_active ?? true);
   const isRaffleActive = Boolean(statsRows[0]?.is_raffle_active ?? true);
 
   const posts: PostRecord[] = postRows.map((r) => ({
@@ -287,6 +289,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             userProgress={userProgress}
             raffleEntries={raffleEntries}
             currentDay={currentDay}
+            isEventActive={isEventActive}
             isRaffleActive={isRaffleActive}
             user={
               user
