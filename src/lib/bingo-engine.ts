@@ -22,8 +22,8 @@ export interface BingoTaskRecord {
 export const CANONICAL_BINGO_SEED_TASKS: Omit<BingoTaskRecord, "id">[] = [
   {
     slotIndex: 0,
-    title: "Opening Ceremony Cheer",
-    description: "Snap a selfie cheering at the intramurals parade or opening ceremony.",
+    title: "Field Demo!!!",
+    description: "Capture the opening field demo as students dance.",
     category: "spirit",
     unlockDay: 1,
     requiresSelfie: true,
@@ -31,77 +31,86 @@ export const CANONICAL_BINGO_SEED_TASKS: Omit<BingoTaskRecord, "id">[] = [
   },
   {
     slotIndex: 1,
-    title: "College Booth Selfie",
-    description: "Visit your college or department booth and take a selfie with the booth crew.",
-    category: "booth",
+    title: "High-five with Tonton",
+    description: "Snap a high-five with Tonton, our university mascot!",
+    category: "spirit",
     unlockDay: 1,
     requiresSelfie: true,
     isActive: true,
   },
   {
     slotIndex: 2,
-    title: "Team Mascot High-Five",
-    description: "Find the university or college mascot and snap a selfie or photo high-fiving them.",
-    category: "spirit",
-    unlockDay: 1,
-    requiresSelfie: true,
-    isActive: true,
-  },
-  {
-    slotIndex: 3,
-    title: "Ball Games Sideline Cheer",
-    description: "Watch any basketball, volleyball, or soccer match and snap a courtside selfie.",
+    title: "Sport Events",
+    description: "Capture a moment from any sport event.",
     category: "sports",
     unlockDay: 2,
     requiresSelfie: true,
     isActive: true,
   },
   {
+    slotIndex: 3,
+    title: "Random Groufie",
+    description: "Take a group selfie with random people.",
+    category: "spirit",
+    unlockDay: 3,
+    requiresSelfie: true,
+    isActive: true,
+  },
+  {
     slotIndex: 4,
-    title: "University Color Swag",
-    description: "Wear your college department colors or university shirt and snap a selfie.",
-    category: "culture",
+    title: "Faction Committee Members <3",
+    description: "Take a photo with your faction's committee members.",
+    category: "spirit",
     unlockDay: 2,
     requiresSelfie: true,
     isActive: true,
   },
   {
     slotIndex: 5,
-    title: "Campus Snack Break",
-    description: "Buy a snack or drink from a student-run booth and snap a foodie selfie.",
-    category: "booth",
-    unlockDay: 2,
+    title: "Faction Shirt",
+    description: "Show off your faction shirt.",
+    category: "culture",
+    unlockDay: 1,
     requiresSelfie: true,
     isActive: true,
   },
   {
     slotIndex: 6,
-    title: "Athletic Action Moment",
-    description: "Catch a live sports action moment or cheer on your department athletes.",
-    category: "sports",
+    title: "Snack Time",
+    description: "Capture your snack time moment.",
+    category: "booth",
     unlockDay: 3,
     requiresSelfie: true,
     isActive: true,
   },
   {
     slotIndex: 7,
-    title: "Friendship / Squad Photo",
-    description: "Take a selfie with at least two friends or teammates at the sports complex.",
-    category: "spirit",
-    unlockDay: 3,
+    title: "GMBM",
+    description: "Capture any random photo from the GMBM pageant.",
+    category: "culture",
+    unlockDay: 2,
     requiresSelfie: true,
     isActive: true,
   },
   {
     slotIndex: 8,
-    title: "Championship Trophy / Stage",
-    description: "Snap a selfie in front of the main stage, awards podium, or trophy table.",
-    category: "culture",
+    title: "Nabilad/Nauwanan",
+    description: "Capture a moment braving the elements—under the scorching sun or drenched in rain!",
+    category: "sports",
     unlockDay: 3,
     requiresSelfie: true,
     isActive: true,
   },
 ];
+
+/**
+ * Returns true if a task with the given unlock day is available to upload on currentDay.
+ * Uses cumulative unlock rule (past days remain open for catch-up).
+ */
+export function isTaskUnlocked(unlockDay: number, currentDay: number): boolean {
+  return (unlockDay || 1) <= currentDay;
+}
+
 
 export type LineType = 'row' | 'column' | 'diagonal' | 'blackout';
 
