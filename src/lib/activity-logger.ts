@@ -10,6 +10,7 @@ export type ActivityActionType =
   | "USER_UNBAN"
   | "ROLE_UPDATE"
   | "POST_MODERATE"
+  | "MODERATION_OUTAGE_BYPASS"
   | "RAFFLE_TOGGLE"
   | "BINGO_TASK_UPDATE"
   | "BINGO_TASKS_RESET"

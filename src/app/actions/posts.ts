@@ -18,6 +18,7 @@ import {
   type ExistingRaffleClaim,
 } from "@/lib/bingo-engine";
 import { recordActivityLog } from "@/lib/activity-logger";
+import { moderatePostContent } from "@/lib/moderation";
 
 export interface SubmitPostResult {
   success: boolean;
@@ -79,6 +80,17 @@ export async function submitStudentPostAction(
     }
 
     const contentType = inspection.detectedType || file.type || "image/webp";
+
+    // Automated Content Moderation check via OpenAI omni-moderation-latest
+    const moderation = await moderatePostContent(buffer, contentType, caption);
+    if (moderation.status === "rejected") {
+      return {
+        success: false,
+        error:
+          "Your photo could not be posted because it was flagged by our community safety guidelines. Please choose another photo.",
+      };
+    }
+
     const uploadResult = await uploadImageToBucket(buffer, file.name, contentType);
 
     if (!uploadResult?.url || !uploadResult.url.trim()) {
@@ -336,6 +348,26 @@ export async function submitStudentPostAction(
         newRaffleCode: newRaffleCode || null,
       },
     });
+
+    if (moderation.status === "outage_fallback" && newPostId) {
+      await recordActivityLog({
+        actionType: "MODERATION_OUTAGE_BYPASS",
+        category: "system",
+        actorId: user.id,
+        actorName: user.name,
+        actorEmail: user.email,
+        actorRole: user.role,
+        targetId: newPostId,
+        targetType: "post",
+        description: `Post uploaded during OpenAI moderation service timeout or outage. Manual review recommended. (${moderation.reason || "Upstream unavailable"})`,
+        metadata: {
+          postId: newPostId,
+          imageUrl: uploadResult.url,
+          bingoTaskId,
+          isAnonymous,
+        },
+      });
+    }
 
     revalidatePath("/");
     revalidatePath("/gallery");

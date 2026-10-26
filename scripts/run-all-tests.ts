@@ -15,6 +15,7 @@ import { runAuthModerationTest } from "./tests/test-auth-moderation.ts";
 import { runRaffleConcurrencyTest } from "./tests/test-raffle-concurrency.ts";
 import { runImageProxySecurityTest } from "./tests/test-image-proxy.ts";
 import { runExportEngineTest } from "./tests/test-export-engine.ts";
+import { runModerationTest } from "./tests/test-moderation.ts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -102,6 +103,15 @@ async function runAllSuites() {
     results.push({ name: "reCAPTCHA Bingo Export Engine", durationMs: Date.now() - t6, status: "FAILED", error: (err as Error).message });
   }
 
+  // Suite 8: OpenAI Content Moderation Gate
+  const t7 = Date.now();
+  try {
+    await runModerationTest();
+    results.push({ name: "OpenAI Content Moderation", durationMs: Date.now() - t7, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "OpenAI Content Moderation", durationMs: Date.now() - t7, status: "FAILED", error: (err as Error).message });
+  }
+
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
   console.log("===============================================================================");
@@ -122,7 +132,7 @@ async function runAllSuites() {
     console.error("\n❌ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
     process.exit(1);
   } else {
-    console.log("\n🎉 ALL 7 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
+    console.log("\n🎉 ALL 8 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
   }
 }
 
