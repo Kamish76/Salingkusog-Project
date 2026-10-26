@@ -20,6 +20,7 @@ import { runServerLogBufferTest } from "./tests/test-server-log-buffer.ts";
 import { runHealthProbesTest } from "./tests/test-health-probes.ts";
 import { runPhotoModerationTest } from "./tests/test-photo-moderation.ts";
 import { runConsentDpaTest } from "./tests/test-consent-dpa.ts";
+import { runDayUploadConstraintsTest } from "./tests/test-day-upload-constraints.ts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -152,6 +153,15 @@ async function runAllSuites() {
     results.push({ name: "Philippine DPA & Student Consent", durationMs: Date.now() - t11, status: "FAILED", error: (err as Error).message });
   }
 
+  // Suite 13: Day-Based Bingo Constraints & Task Sync
+  const t12 = Date.now();
+  try {
+    await runDayUploadConstraintsTest();
+    results.push({ name: "Day-Based Bingo Constraints", durationMs: Date.now() - t12, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "Day-Based Bingo Constraints", durationMs: Date.now() - t12, status: "FAILED", error: (err as Error).message });
+  }
+
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
   console.log("===============================================================================");
@@ -172,7 +182,7 @@ async function runAllSuites() {
     console.error("\n❌ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
     process.exit(1);
   } else {
-    console.log("\n🎉 ALL 12 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
+    console.log("\n🎉 ALL 13 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
   }
 }
 
