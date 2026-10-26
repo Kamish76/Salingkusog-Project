@@ -32,6 +32,10 @@ export const metadata: Metadata = {
   title: "Salingkusog | Collegiate Memory Board & 3x3 Intramurals Bingo",
   description:
     "Drop student memories into the infinite campus board, track your 3x3 Intramurals Bingo card, and claim verified stage raffle entries.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
