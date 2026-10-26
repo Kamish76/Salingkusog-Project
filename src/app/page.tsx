@@ -10,13 +10,14 @@ import type {
   RaffleEntryItem,
 } from "@/components/landing/floating-bingo-modal";
 
-export const instant = false;
 
 interface HomePageProps {
   searchParams?: Promise<{
     auth?: string;
   }>;
 }
+
+export const instant = false;
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const user = await getCurrentUser();

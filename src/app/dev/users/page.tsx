@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentUser, isSuperAdmin } from "@/lib/auth";
 import { UserManagementClient } from "./user-management-client";
 
+
 export const instant = false;
 
 export default async function DevUsersPage() {

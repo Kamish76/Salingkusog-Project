@@ -4,7 +4,6 @@ import { updateUserRoleAction } from "@/app/actions/auth-role";
 import { toggleRaffleStatusAction } from "@/app/actions/event-config";
 import { sql } from "@/lib/db";
 
-export const instant = false;
 
 interface DbUserRecord {
   id: string;
@@ -21,6 +20,8 @@ interface UserRow {
   role: string | null;
   createdAt: string | Date | null;
 }
+
+export const instant = false;
 
 export default async function DevPage() {
   const user = await getCurrentUser();

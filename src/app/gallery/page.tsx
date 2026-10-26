@@ -7,6 +7,7 @@ import { PersonalGalleryView } from "@/components/gallery/personal-gallery-view"
 import type { PostRecord } from "@/components/landing/memory-board";
 import type { BingoTaskItem, UserProgressItem } from "@/components/landing/floating-bingo-modal";
 
+
 export const instant = false;
 
 export default async function PersonalGalleryPage() {
@@ -48,6 +49,7 @@ export default async function PersonalGalleryPage() {
       AND p.image_url IS NOT NULL 
       AND TRIM(p.image_url) != ''
     ORDER BY p.created_at DESC
+    LIMIT 50
   `;
 
   const taskRowsPromise = sql`

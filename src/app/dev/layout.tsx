@@ -4,6 +4,7 @@ import { getCurrentUser, isDevAuthorized } from "@/lib/auth";
 import { AuthButton } from "@/components/auth-button";
 import { DevNav } from "@/components/dev-nav";
 
+
 export const instant = false;
 
 export default async function DevLayout({

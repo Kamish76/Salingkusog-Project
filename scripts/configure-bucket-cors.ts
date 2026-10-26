@@ -5,7 +5,7 @@
  */
 
 import { PutBucketCorsCommand, GetBucketCorsCommand } from "@aws-sdk/client-s3";
-import { getStorageClient, STORAGE_BUCKET, isStorageConfigured } from "../src/lib/storage";
+import { getStorageClient, STORAGE_BUCKET, isStorageConfigured } from "../src/lib/storage.ts";
 
 export async function configureStorageCors() {
   if (!isStorageConfigured()) {

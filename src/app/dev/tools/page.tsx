@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { isStorageConfigured, STORAGE_BUCKET } from "@/lib/storage";
 
+
 export const instant = false;
 
 export default async function DevToolsPage() {
