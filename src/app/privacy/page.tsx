@@ -45,9 +45,9 @@ export default function PrivacyNoticePage() {
             </h2>
             <p>
               This Privacy Notice explains how the student technology team behind <strong>Salingkusog Intramurals 2026</strong> (
-              <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1.5 py-0.5 rounded font-semibold text-[#8e4e14]">[STUDENT DEV TEAM NAME]</span>
+              <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1.5 py-0.5 rounded font-semibold text-[#8e4e14] break-words">[STUDENT DEV TEAM NAME]</span>
               ) in official coordination with{" "}
-              <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1.5 py-0.5 rounded font-semibold text-[#8e4e14]">[CAMPUS / UNIVERSITY NAME]</span>
+              <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1.5 py-0.5 rounded font-semibold text-[#8e4e14] break-words">[CAMPUS / UNIVERSITY NAME]</span>
               , collects, processes, and cares for your personal data when you participate in the collegiate photo rally, 3×3 bingo challenge, and stage raffle draws.
             </p>
             <p className="mt-2">
@@ -226,7 +226,7 @@ export default function PrivacyNoticePage() {
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#8e706c] block">
                   Quick Photo Takedown Desk
                 </span>
-                <span className="font-mono text-xs sm:text-sm font-bold text-[#b4281e] select-all block mt-0.5">
+                <span className="font-mono text-xs sm:text-sm font-bold text-[#b4281e] select-all block mt-0.5 break-words">
                   [TAKEDOWN EMAIL]
                 </span>
                 <span className="text-[11px] text-[#8e706c] block mt-1">
@@ -238,7 +238,7 @@ export default function PrivacyNoticePage() {
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#8e706c] block">
                   Data Protection Officer (DPO) Inquiries
                 </span>
-                <span className="font-mono text-xs sm:text-sm font-bold text-[#1e1b19] select-all block mt-0.5">
+                <span className="font-mono text-xs sm:text-sm font-bold text-[#1e1b19] select-all block mt-0.5 break-words">
                   [DPO / CONTACT EMAIL]
                 </span>
                 <span className="text-[11px] text-[#8e706c] block mt-1">
