@@ -61,7 +61,19 @@ export async function runStorageMediaTest() {
   assert.strictEqual(avifResult.valid, true, "AVIF header must be valid");
   assert.strictEqual(avifResult.detectedType, "image/avif");
   assert.strictEqual(avifResult.extension, "avif");
-  console.log("  ✔ Authentic image headers (JPEG, PNG, WebP, GIF, AVIF) identified correctly");
+
+  // HEIC: length (4 bytes) + 'ftyp' (4 bytes) + 'heic' (4 bytes)
+  const validHeic = new Uint8Array([
+    0x00, 0x00, 0x00, 0x18,
+    0x66, 0x74, 0x79, 0x70, // 'ftyp'
+    0x68, 0x65, 0x69, 0x63, // 'heic'
+  ]);
+  const heicResult = validateImageMagicBytes(validHeic);
+  assert.strictEqual(heicResult.valid, true, "HEIC header must be recognized as valid image container");
+  assert.strictEqual(heicResult.detectedType, "image/heic");
+  assert.strictEqual(heicResult.isHeic, true, "isHeic flag must be true");
+
+  console.log("  ✔ Authentic image headers (JPEG, PNG, WebP, GIF, AVIF, HEIC) identified correctly");
 
   // 2. Non-Image Payload Rejection
   const plainText = new TextEncoder().encode("This is a simple text document that must not be accepted as an image.");

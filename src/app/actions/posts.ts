@@ -153,6 +153,13 @@ export async function submitStudentPostAction(
       };
     }
 
+    if (inspection.isHeic) {
+      return {
+        success: false,
+        error: "HEIC photos must be optimized in the browser before submitting. Please re-select your photo.",
+      };
+    }
+
     const contentType = inspection.detectedType || file.type || "image/webp";
 
     // Automated Content Moderation check via OpenAI omni-moderation-latest
