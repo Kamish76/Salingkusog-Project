@@ -74,9 +74,9 @@ export async function getModerationPostsAction(params: {
       LEFT JOIN neon_auth."user" u ON p.user_id = u.id
       LEFT JOIN public.bingo_tasks t ON p.bingo_task_id = t.id
       WHERE 
-        (${statusFilter} = 'all' OR p.status = ${statusFilter})
+        (${statusFilter}::text = 'all' OR p.status = ${statusFilter})
         AND (
-          ${searchPattern} IS NULL 
+          ${searchPattern}::text IS NULL 
           OR LOWER(COALESCE(u.name, '')) LIKE ${searchPattern}
           OR LOWER(COALESCE(u.email, '')) LIKE ${searchPattern}
           OR LOWER(COALESCE(p.caption, '')) LIKE ${searchPattern}

@@ -11,11 +11,13 @@
  */
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { isModerator, isSuperAdmin, type AuthUser } from "../../src/lib/auth-predicates.ts";
 import { extractStorageKey, getPublicObjectUrl } from "../../src/lib/storage.ts";
 
 export async function runPhotoModerationTest() {
-  console.log("▶ [Test Suite] Photo Moderation Actions & Cascades");
+  console.log("â–¶ [Test Suite] Photo Moderation Actions & Cascades");
 
   // 1. Role Predicates
   const guest: AuthUser | null = null;
@@ -30,7 +32,7 @@ export async function runPhotoModerationTest() {
 
   assert.equal(isSuperAdmin(moderator), false, "Moderator is not superadmin");
   assert.equal(isSuperAdmin(superAdmin), true, "Superadmin is superadmin");
-  console.log("  ✔ Role predicate matrix verified");
+  console.log("  âœ” Role predicate matrix verified");
 
   // 2. Hide Post Cascade Simulation
   interface MockPost {
@@ -93,7 +95,7 @@ export async function runPhotoModerationTest() {
   assert.equal(tickets[0].disqualificationReason, "Inappropriate photo content");
   assert.equal(tickets[1].status, "valid", "Unrelated ticket must remain valid");
   assert.equal(progress.length, 1, "Progress for hidden post must be cleared");
-  console.log("  ✔ Hide post cascade & ticket disqualification verified");
+  console.log("  âœ” Hide post cascade & ticket disqualification verified");
 
   // 3. Restore Post Simulation
   function simulateRestorePost(postId: string) {
@@ -103,12 +105,12 @@ export async function runPhotoModerationTest() {
 
   simulateRestorePost("p1");
   assert.equal(posts[0].status, "published");
-  console.log("  ✔ Restore post status verified");
+  console.log("  âœ” Restore post status verified");
 
   // 4. Permanent Delete Simulation (S3 Key Extraction & Purge)
   const key = extractStorageKey(posts[0].imageUrl);
   assert.equal(key, "posts/p1.webp", "Storage key must be correctly extracted");
-  console.log("  ✔ S3 key extraction for permanent deletion verified");
+  console.log("  âœ” S3 key extraction for permanent deletion verified");
 
   // 5. User Ban Cascade Simulation
   function simulateUserBan(target: AuthUser, reason: string) {
@@ -147,7 +149,13 @@ export async function runPhotoModerationTest() {
   simulateUserBan(student, "Community guideline violation");
   assert.ok(posts.every((p) => p.status === "hidden"), "All posts of banned user must be hidden");
   assert.ok(tickets.every((t) => t.status === "disqualified"), "All tickets of banned user must be disqualified");
-  console.log("  ✔ User ban cascading and administrative safety locks verified\n");
+  console.log("  ✔ User ban cascading and administrative safety locks verified");
+
+  // 6. SQL Parameter Type Cast Contract
+  const moderationCode = fs.readFileSync(path.resolve(process.cwd(), "src/app/actions/moderation.ts"), "utf-8");
+  assert.ok(moderationCode.includes("${searchPattern}::text IS NULL"), "Must include explicit ::text cast for null search pattern");
+  assert.ok(moderationCode.includes("${statusFilter}::text = 'all'"), "Must include explicit ::text cast for status filter");
+  console.log("  ✔ SQL parameter type casting contract verified\n");
 }
 
 if (process.argv[1]?.endsWith("test-photo-moderation.ts")) {
