@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { removeBingoTaskPhotoAction } from "@/app/actions/posts";
 import { exportRecaptchaBingoCard } from "@/lib/export-recaptcha-card";
@@ -861,6 +862,16 @@ export function FloatingBingoModal({
                   Return to Memory Board
                 </button>
               )}
+
+              <div className="text-center pt-1">
+                <Link
+                  href="/rally-rules"
+                  target="_blank"
+                  className="inline-flex items-center gap-1 text-[11px] font-body text-[#8e706c] hover:text-[#b4281e] underline decoration-stone-300 hover:decoration-[#b4281e] transition-colors"
+                >
+                  <span>📜 View Official Rally &amp; Raffle Rules</span>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
