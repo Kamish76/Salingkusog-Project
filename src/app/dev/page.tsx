@@ -1,15 +1,10 @@
 import Link from "next/link";
-import { getCurrentUser, isDevAuthorized, isSuperAdmin } from "@/lib/auth";
-import {
-  setDevRoleAction,
-  updateUserRoleAction,
-  elevateToSuperAdminAction,
-} from "@/app/actions/auth-role";
+import { getCurrentUser, isSuperAdmin } from "@/lib/auth";
+import { updateUserRoleAction } from "@/app/actions/auth-role";
 import { toggleRaffleStatusAction } from "@/app/actions/event-config";
-import { AuthButton } from "@/components/auth-button";
 import { sql } from "@/lib/db";
+import { isStorageConfigured } from "@/lib/storage";
 
-export const instant = false;
 
 interface DbUserRecord {
   id: string;
@@ -27,102 +22,14 @@ interface UserRow {
   createdAt: string | Date | null;
 }
 
+export const instant = false;
+
 export default async function DevPage() {
   const user = await getCurrentUser();
-  const authorized = isDevAuthorized(user);
   const superAdmin = isSuperAdmin(user);
   const isDbConfigured = Boolean(process.env.DATABASE_URL);
 
-  // 1. Gate: Unauthorized Visitors (Guests and Standard Users)
-  if (!authorized) {
-    return (
-      <div className="max-w-2xl mx-auto py-12">
-        <div className="p-8 rounded-2xl border border-red-900/50 bg-red-950/20 text-center space-y-6">
-          <div className="w-12 h-12 rounded-full bg-red-900/30 text-red-400 flex items-center justify-center mx-auto text-xl font-bold">
-            !
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-red-200">
-              Access Restricted to Moderator / Admin Accounts
-            </h1>
-            <p className="text-sm text-zinc-400">
-              The <code>/dev</code> route is locked for management and internal system diagnostics. Your current session does not hold the required elevated role.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs font-mono text-left space-y-1">
-            <div className="text-zinc-500">{"// Authorization Check"}</div>
-            <div>
-              Detected Identity:{" "}
-              <span className="text-zinc-200 font-bold">
-                {user ? user.email : "Unauthenticated"}
-              </span>
-            </div>
-            <div>
-              Detected Role:{" "}
-              <span className="text-amber-400 font-bold">
-                {user ? user.role : "none (guest)"}
-              </span>
-            </div>
-            <div>
-              Required Role:{" "}
-              <span className="text-amber-300 font-bold">superadmin</span> or{" "}
-              <span className="text-purple-300 font-bold">admin (moderator)</span>
-            </div>
-            <div>
-              Status: <span className="text-red-400 font-bold">HTTP 403 Forbidden</span>
-            </div>
-          </div>
-
-          {/* Direct Google Login trigger for real accounts */}
-          <div className="pt-2 flex flex-col items-center gap-3">
-            <p className="text-xs text-zinc-400">
-              Sign in with your registered account:
-            </p>
-            <AuthButton user={user} />
-          </div>
-
-          {/* Dev testing role simulator */}
-          <div className="pt-4 border-t border-zinc-800/80 space-y-3">
-            <p className="text-xs text-zinc-500 font-mono">
-              [Dev Simulator] Test authorization states:
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <form action={setDevRoleAction}>
-                <input type="hidden" name="role" value="superadmin" />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition cursor-pointer"
-                >
-                  Simulate SuperAdmin
-                </button>
-              </form>
-
-              <form action={setDevRoleAction}>
-                <input type="hidden" name="role" value="admin" />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition cursor-pointer"
-                >
-                  Simulate Admin (Moderator)
-                </button>
-              </form>
-
-              <Link
-                href="/"
-                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition"
-              >
-                Return Home
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 2. Authorized View: Fetch registered users for Superadmin (max 5, pinned own credential, newest first)
+  // 1. Authorized View: Fetch registered users for Superadmin (max 5, pinned own credential, newest first)
   let registeredUsers: DbUserRecord[] = [];
   let totalRegisteredCount = 0;
 
@@ -199,40 +106,59 @@ export default async function DevPage() {
               Moderator Authorization Confirmed
             </span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             Management & Moderation Console
           </h1>
-          <p className="text-sm text-zinc-400">
+          <p className="text-xs sm:text-sm text-zinc-400">
             System health, database configuration, and management controls for Salingkusog.
           </p>
         </div>
+      </div>
 
-        <div className="flex items-center gap-2">
-          <form action={setDevRoleAction}>
-            <input type="hidden" name="role" value="user" />
-            <button
-              type="submit"
-              className="px-2.5 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs border border-zinc-700 transition cursor-pointer font-mono"
-            >
-              Simulate User
-            </button>
-          </form>
+      {/* API Health & Subsystem Pulse Strip */}
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+              Subsystem Health Pulse
+            </span>
+          </div>
+          <p className="text-xs text-zinc-400">
+            Real-time latency probes, error logging, and failure isolation across 4 core APIs.
+          </p>
+        </div>
 
-          <form action={setDevRoleAction}>
-            <input type="hidden" name="role" value="guest" />
-            <button
-              type="submit"
-              className="px-2.5 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs border border-zinc-700 transition cursor-pointer font-mono"
-            >
-              Simulate Guest
-            </button>
-          </form>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+          <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${isDbConfigured ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+            Postgres
+          </span>
+          <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${isStorageConfigured() ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+            S3 Storage
+          </span>
+          <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Auth
+          </span>
+          <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${process.env.OPENAI_API_KEY ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+            OpenAI
+          </span>
+          <Link
+            href="/dev/health"
+            className="px-3 py-1.5 rounded-md bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition flex items-center gap-1"
+          >
+            <span>Live Diagnostics</span>
+            <span>→</span>
+          </Link>
         </div>
       </div>
 
       {/* Event & Raffle System Control Panel */}
       <div
-        className={`p-6 rounded-2xl border transition shadow-lg ${
+        className={`p-4 sm:p-6 rounded-2xl border transition shadow-lg ${
           isRaffleActive
             ? "border-emerald-500/30 bg-emerald-950/10"
             : "border-amber-500/30 bg-amber-950/10"
@@ -268,7 +194,7 @@ export default async function DevPage() {
 
           <div>
             <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <span>🎟️</span>
+              <span>ðŸŽŸï¸</span>
               <span>Campus Raffle Drawings & Claim Engine</span>
             </h2>
             <p className="text-xs text-zinc-400 max-w-xl">
@@ -277,9 +203,9 @@ export default async function DevPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-start md:self-center">
+        <div className="flex items-center gap-3 w-full sm:w-auto self-start md:self-center">
           {superAdmin ? (
-            <form action={toggleRaffleStatusAction}>
+            <form action={toggleRaffleStatusAction} className="w-full sm:w-auto">
               <input
                 type="hidden"
                 name="enabled"
@@ -287,28 +213,55 @@ export default async function DevPage() {
               />
               <button
                 type="submit"
-                className={`px-4 py-2.5 rounded-xl font-mono text-xs font-bold tracking-wide shadow-md transition cursor-pointer flex items-center gap-2 ${
+                className={`w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-mono text-xs font-bold tracking-wide shadow-md transition cursor-pointer flex items-center justify-center gap-2 active:scale-95 ${
                   isRaffleActive
                     ? "bg-amber-600 hover:bg-amber-500 text-white border border-amber-500/50"
                     : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/50"
                 }`}
               >
-                <span>{isRaffleActive ? "⏸ Pause Raffle System" : "▶ Activate Raffle System"}</span>
+                <span>{isRaffleActive ? "â¸ Pause Raffle System" : "â–¶ Activate Raffle System"}</span>
               </button>
             </form>
           ) : (
-            <div className="text-xs font-mono px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-500 flex items-center gap-1.5">
-              <span>🔒</span>
+            <div className="text-xs font-mono px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-500 flex items-center gap-1.5 w-full sm:w-auto justify-center">
+              <span>ðŸ”’</span>
               <span>Switch Locked (SuperAdmin Required)</span>
             </div>
           )}
         </div>
       </div>
 
+      {/* Audit & Activity Logs Quick Banner */}
+      <div className="p-5 rounded-2xl border border-indigo-500/30 bg-indigo-950/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase font-bold font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              AUDIT TRAIL
+            </span>
+            <span className="text-xs text-zinc-400 font-mono">Live Activity Monitoring</span>
+          </div>
+          <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+            <span>ðŸ“‹</span>
+            <span>SuperAdmin Activity & System Logs</span>
+          </h2>
+          <p className="text-xs text-zinc-400 max-w-xl">
+            Track new users, photo submissions, user bans, and admin actions across the entire platform in real time.
+          </p>
+        </div>
+
+        <Link
+          href="/dev/logs"
+          className="self-start sm:self-center px-4 py-2.5 rounded-xl font-mono text-xs font-bold tracking-wide bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition flex items-center gap-2 cursor-pointer"
+        >
+          <span>Open Activity Logs Console</span>
+          <span>â†’</span>
+        </Link>
+      </div>
+
       {/* Grid of Diagnostics & Management Panels */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Active Session Card */}
-        <div className="p-5 rounded-xl border border-zinc-800 bg-zinc-900/60 space-y-4">
+        <div className="p-4 sm:p-5 rounded-xl border border-zinc-800 bg-zinc-900/60 space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 font-mono">
             Active Management Session
           </h3>
@@ -349,7 +302,7 @@ export default async function DevPage() {
         </div>
 
         {/* Database Status Card */}
-        <div className="p-5 rounded-xl border border-zinc-800 bg-zinc-900/60 space-y-4">
+        <div className="p-4 sm:p-5 rounded-xl border border-zinc-800 bg-zinc-900/60 space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 font-mono">
             Neon Lakebase Postgres
           </h3>
@@ -376,7 +329,7 @@ export default async function DevPage() {
         </div>
 
         {/* Environment & Runtime Card */}
-        <div className="p-5 rounded-xl border border-zinc-800 bg-zinc-900/60 space-y-4">
+        <div className="p-4 sm:p-5 rounded-xl border border-zinc-800 bg-zinc-900/60 space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 font-mono">
             Framework & Runtime
           </h3>
@@ -403,7 +356,7 @@ export default async function DevPage() {
 
       {/* 3. Exclusive SuperAdmin User & Role Management Console */}
       {superAdmin ? (
-        <div className="p-6 rounded-2xl border border-amber-500/20 bg-zinc-900/60 shadow-xl space-y-5">
+        <div className="p-4 sm:p-6 rounded-2xl border border-amber-500/20 bg-zinc-900/60 shadow-xl space-y-5">
           {/* Section Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-800/80">
             <div className="space-y-1">
@@ -433,7 +386,7 @@ export default async function DevPage() {
                 className="group text-xs font-mono px-3.5 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 transition flex items-center gap-1.5 font-medium shadow-sm whitespace-nowrap"
               >
                 <span>Full Directory & Filter</span>
-                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                <span className="group-hover:translate-x-0.5 transition-transform">â†’</span>
               </Link>
             </div>
           </div>
@@ -504,14 +457,14 @@ export default async function DevPage() {
                                 <select
                                   name="newRole"
                                   defaultValue={u.role}
-                                  className="bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 cursor-pointer"
+                                  className="bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-base sm:text-xs text-zinc-200 focus:outline-none focus:border-amber-500 cursor-pointer min-h-[36px]"
                                 >
                                   <option value="user">user</option>
                                   <option value="admin">admin (moderator)</option>
                                 </select>
                                 <button
                                   type="submit"
-                                  className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-semibold transition cursor-pointer"
+                                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition cursor-pointer min-h-[36px] active:scale-95"
                                 >
                                   Update
                                 </button>
@@ -543,13 +496,13 @@ export default async function DevPage() {
                 className="text-amber-400/90 hover:text-amber-300 transition flex items-center gap-1 hover:underline"
               >
                 <span>Open Full Directory with Search & Filter</span>
-                <span>→</span>
+                <span>â†’</span>
               </Link>
             </div>
           </div>
         </div>
       ) : user?.role === "admin" ? (
-        <div className="p-6 rounded-xl border border-purple-500/40 bg-purple-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-4 sm:p-6 rounded-xl border border-purple-500/40 bg-purple-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-purple-400"></span>
@@ -561,21 +514,13 @@ export default async function DevPage() {
               You are assigned as an Admin (Moderator) in Neon Better Auth. Elevate your session to the sole SuperAdmin to unlock the full User & Role Assignment console.
             </p>
           </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto w-full sm:w-auto">
             <Link
               href="/dev/users"
-              className="px-3 py-2 rounded-lg border border-purple-500/50 bg-purple-900/40 hover:bg-purple-900/60 text-purple-200 text-xs font-medium transition cursor-pointer whitespace-nowrap"
+              className="px-3 py-2 min-h-[38px] rounded-lg border border-purple-500/50 bg-purple-900/40 hover:bg-purple-900/60 text-purple-200 text-xs font-medium transition cursor-pointer whitespace-nowrap active:scale-95 flex items-center justify-center flex-1 sm:flex-initial"
             >
-              View User Directory →
+              View User Directory â†’
             </Link>
-            <form action={elevateToSuperAdminAction}>
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition cursor-pointer whitespace-nowrap"
-              >
-                ★ Elevate to SuperAdmin
-              </button>
-            </form>
           </div>
         </div>
       ) : (

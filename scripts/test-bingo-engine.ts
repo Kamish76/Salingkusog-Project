@@ -18,8 +18,10 @@ import {
   isLineCompleted,
   isValidRaffleCodeFormat,
   validateLineClaim,
+  evaluateRaffleRules,
   type ClaimedLine,
   type LineType,
+  type RaffleRuleRecord,
 } from '../src/lib/bingo-engine.ts';
 
 function runTestSuite() {
@@ -227,7 +229,56 @@ function runTestSuite() {
   }
   console.log(`  ✔ Generated ${ITERATIONS} codes with 0 collisions and uniform distribution`);
 
-  console.log('\n🎉 ALL 9 TEST SUITES PASSED CLEANLY!\n');
+  // --------------------------------------------------------------------------
+  // TEST 10: evaluateRaffleRules Dynamic Multi-Rule Evaluation
+  // --------------------------------------------------------------------------
+  console.log('▶ Test 10: evaluateRaffleRules dynamic multi-rule evaluation');
+  const sampleRules: RaffleRuleRecord[] = [
+    { id: '1', ruleKey: 'line_row', name: 'Row Completion', category: 'bingo_line', description: '', ticketsAwarded: 1, isActive: true },
+    { id: '2', ruleKey: 'line_column', name: 'Column Completion', category: 'bingo_line', description: '', ticketsAwarded: 1, isActive: true },
+    { id: '3', ruleKey: 'line_diagonal', name: 'Diagonal Completion', category: 'bingo_line', description: '', ticketsAwarded: 1, isActive: true },
+    { id: '4', ruleKey: 'line_blackout', name: 'Full Blackout', category: 'bingo_line', description: '', ticketsAwarded: 2, isActive: true },
+    { id: '5', ruleKey: 'milestone_3', name: 'Milestone 3', category: 'milestone', description: '', ticketsAwarded: 1, isActive: true },
+    { id: '6', ruleKey: 'milestone_6', name: 'Milestone 6', category: 'milestone', description: '', ticketsAwarded: 1, isActive: true },
+    { id: '7', ruleKey: 'memory_drop', name: 'Memory Drop', category: 'memory_drop', description: '', ticketsAwarded: 1, isActive: true },
+  ];
+
+  // 10a: Row 0 completed with memory drop
+  const eval1 = evaluateRaffleRules(sampleRules, {
+    completedSlotIndexes: [0, 1, 2],
+    memoryDropCount: 1,
+    existingClaims: [],
+    maxTicketsPerUser: 0,
+  });
+  assert.strictEqual(eval1.eligibleRewards.length, 3, 'Should trigger row_0, milestone_3, and memory_drop');
+  assert.strictEqual(eval1.totalNewTickets, 3, 'Total tickets should be 3');
+
+  // 10b: Idempotency with existing claim on row 0 and milestone 3
+  const eval2 = evaluateRaffleRules(sampleRules, {
+    completedSlotIndexes: [0, 1, 2],
+    memoryDropCount: 1,
+    existingClaims: [
+      { lineType: 'row', lineIndex: 0, ruleKey: 'line_row' },
+      { lineType: 'milestone', lineIndex: 0, ruleKey: 'milestone_3' },
+    ],
+    maxTicketsPerUser: 0,
+  });
+  assert.strictEqual(eval2.eligibleRewards.length, 1, 'Only memory_drop should remain claimable');
+  assert.strictEqual(eval2.eligibleRewards[0].ruleKey, 'memory_drop');
+
+  // 10c: Student ticket cap enforcement
+  const eval3 = evaluateRaffleRules(sampleRules, {
+    completedSlotIndexes: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    memoryDropCount: 0,
+    existingClaims: [],
+    maxTicketsPerUser: 2,
+  });
+  assert.strictEqual(eval3.totalNewTickets, 2, 'Must strictly cap at maxTicketsPerUser');
+  assert.strictEqual(eval3.isCapped, true, 'isCapped flag must be true');
+
+  console.log('  ✔ evaluateRaffleRules multi-rule, idempotency, and limits verified');
+
+  console.log('\n🎉 ALL 10 TEST SUITES PASSED CLEANLY!\n');
 }
 
 runTestSuite();

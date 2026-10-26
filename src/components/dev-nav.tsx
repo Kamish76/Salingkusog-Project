@@ -8,13 +8,15 @@ export function DevNav() {
 
   const navItems = [
     { label: "System Overview", href: "/dev" },
+    { label: "API Health & Diagnostics", href: "/dev/health", badge: "LIVE" },
     { label: "User & Role Management", href: "/dev/users" },
-    { label: "Developer Tools", href: "/dev/tools", badge: "STORAGE" },
+    { label: "Audit & Activity Logs", href: "/dev/logs", badge: "SUPERADMIN" },
+    { label: "Developer Tools", href: "/dev/tools", badge: "SUITE" },
   ];
 
   return (
     <div className="border-b border-zinc-800/80 bg-zinc-900/40">
-      <div className="max-w-6xl mx-auto px-6 flex items-center gap-1 text-xs font-mono">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-6 flex items-center gap-1 text-xs font-mono overflow-x-auto no-scrollbar whitespace-nowrap">
         {navItems.map((item) => {
           const isActive =
             item.href === "/dev"

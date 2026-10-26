@@ -48,6 +48,7 @@ export async function processAndDownscaleImage(
   }
 
   ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
 
   const blob: Blob = await new Promise((resolve, reject) => {
     canvas.toBlob(

@@ -7,12 +7,18 @@ import {
   isStorageConfigured,
   validateImageMagicBytes,
   uploadImageToBucket,
+  deleteBucketObject,
+  extractStorageKey,
 } from "@/lib/storage";
 import {
-  evaluateBingoLines,
   generateRaffleCode,
-  type ClaimedLine,
+  evaluateRaffleRules,
+  type RaffleRuleRecord,
+  type RaffleRuleCategory,
+  type ExistingRaffleClaim,
 } from "@/lib/bingo-engine";
+import { recordActivityLog } from "@/lib/activity-logger";
+import { moderatePostContent } from "@/lib/moderation";
 
 export interface SubmitPostResult {
   success: boolean;
@@ -30,6 +36,9 @@ export async function submitStudentPostAction(
   const user = await getCurrentUser();
   if (!user) {
     return { success: false, error: "Please sign in with Google to post." };
+  }
+  if (user.banned) {
+    return { success: false, error: "Your account is suspended." };
   }
 
   if (!isStorageConfigured()) {
@@ -71,11 +80,27 @@ export async function submitStudentPostAction(
     }
 
     const contentType = inspection.detectedType || file.type || "image/webp";
+
+    // Automated Content Moderation check via OpenAI omni-moderation-latest
+    const moderation = await moderatePostContent(buffer, contentType, caption);
+    if (moderation.status === "rejected") {
+      return {
+        success: false,
+        error:
+          "Your photo could not be posted because it was flagged by our community safety guidelines. Please choose another photo.",
+      };
+    }
+
     const uploadResult = await uploadImageToBucket(buffer, file.name, contentType);
+
+    if (!uploadResult?.url || !uploadResult.url.trim()) {
+      return { success: false, error: "Failed to obtain a valid photo URL from storage." };
+    }
 
     const displayName = isAnonymous ? "Anonymous Student" : user.name;
 
     // Check if replacing an existing photo for this bingo task
+    let replacedPostId: string | null = null;
     if (bingoTaskId) {
       const existingSlot = await sql`
         SELECT post_id FROM public.user_bingo_progress
@@ -83,11 +108,19 @@ export async function submitStudentPostAction(
         LIMIT 1
       `;
       if (existingSlot.length > 0 && existingSlot[0].post_id) {
-        // Delete the previous post to prevent orphan duplicates
-        await sql`
+        replacedPostId = existingSlot[0].post_id;
+        // Delete the previous post and remove storage blob to prevent orphan duplicates
+        const deleted = await sql`
           DELETE FROM public.posts
-          WHERE id = ${existingSlot[0].post_id}::uuid AND user_id = ${user.id}::uuid
+          WHERE id = ${replacedPostId}::uuid AND user_id = ${user.id}::uuid
+          RETURNING image_url
         `;
+        if (deleted.length > 0 && deleted[0].image_url) {
+          const key = extractStorageKey(deleted[0].image_url);
+          if (key) {
+            deleteBucketObject(key).catch((err) => console.error("Failed to delete replaced blob:", err));
+          }
+        }
       }
     }
 
@@ -120,9 +153,21 @@ export async function submitStudentPostAction(
 
     const newPostId = insertedPosts[0]?.id;
     let newRaffleCode: string | undefined = undefined;
+    let slotIndex: number | null = null;
+    let taskTitle: string | null = null;
 
     // If this post fulfills a 3x3 Bingo slot, link or update user_bingo_progress
     if (bingoTaskId && newPostId) {
+      // Lookup bingo task details for audit logs
+      const taskRows = await sql`
+        SELECT slot_index, title FROM public.bingo_tasks
+        WHERE id = ${bingoTaskId}::uuid LIMIT 1
+      `;
+      if (taskRows.length > 0) {
+        slotIndex = Number(taskRows[0].slot_index);
+        taskTitle = taskRows[0].title;
+      }
+
       await sql`
         INSERT INTO public.user_bingo_progress (user_id, task_id, post_id)
         VALUES (${user.id}::uuid, ${bingoTaskId}::uuid, ${newPostId}::uuid)
@@ -131,77 +176,203 @@ export async function submitStudentPostAction(
           completed_at = now()
       `;
 
-      // Check for newly completed lines
-      const userProgressRows = await sql`
-        SELECT bt.slot_index, ubp.task_id, ubp.post_id
-        FROM public.user_bingo_progress ubp
-        JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
-        WHERE ubp.user_id = ${user.id}::uuid
-      `;
-
-      const existingRaffles = await sql`
-        SELECT line_type, line_index
-        FROM public.raffle_entries
-        WHERE user_id = ${user.id}::uuid
-      `;
-
-      const completedSlots = userProgressRows.map((r) => Number(r.slot_index));
-      const claimedLines: ClaimedLine[] = existingRaffles.map((r) => ({
-        lineType: r.line_type as ClaimedLine["lineType"],
-        lineIndex: Number(r.line_index),
-      }));
-
-      const evaluation = evaluateBingoLines(completedSlots, claimedLines);
-
-      // Check if raffle system is active before claiming raffle entries
-      const configRows = await sql`
-        SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1
-      `;
-      const isRaffleActive = configRows[0]?.is_raffle_active ?? true;
-
-      // If raffle is active and there's an unclaimed completed line, claim the first one
-      if (isRaffleActive && evaluation.claimableLines.length > 0) {
-        const lineToClaim = evaluation.claimableLines[0].line;
-        const generatedCode = generateRaffleCode();
-
-        // Get task and post IDs for this line
-        const lineTaskIds = lineToClaim.slots.map((slot: number) => {
-          const match = userProgressRows.find((r) => Number(r.slot_index) === slot);
-          return match?.task_id;
-        }).filter(Boolean);
-
-        const linePostIds = lineToClaim.slots.map((slot: number) => {
-          const match = userProgressRows.find((r) => Number(r.slot_index) === slot);
-          return match?.post_id;
-        }).filter(Boolean);
-
+      if (replacedPostId) {
         await sql`
-          INSERT INTO public.raffle_entries (
-            raffle_code,
-            user_id,
-            line_type,
-            line_index,
-            task_ids,
-            post_ids,
-            status
-          )
-          VALUES (
-            ${generatedCode},
-            ${user.id}::uuid,
-            ${lineToClaim.type},
-            ${lineToClaim.index},
-            ${lineTaskIds}::uuid[],
-            ${linePostIds}::uuid[],
-            'valid'
-          )
-          ON CONFLICT (user_id, line_type, line_index) DO NOTHING
+          UPDATE public.raffle_entries
+          SET post_ids = array_replace(post_ids, ${replacedPostId}::uuid, ${newPostId}::uuid)
+          WHERE user_id = ${user.id}::uuid AND ${replacedPostId}::uuid = ANY(post_ids)
         `;
-
-        newRaffleCode = generatedCode;
       }
     }
 
+    // Evaluate dynamic raffle rules (Bingo lines, Milestones, and Memory Drops)
+    const userProgressRows = await sql`
+      SELECT bt.slot_index, ubp.task_id, ubp.post_id
+      FROM public.user_bingo_progress ubp
+      JOIN public.bingo_tasks bt ON ubp.task_id = bt.id
+      WHERE ubp.user_id = ${user.id}::uuid
+    `;
+
+    const memoryDropCountRows = await sql`
+      SELECT count(*)::int as count
+      FROM public.posts p
+      WHERE p.user_id = ${user.id}::uuid
+        AND p.status = 'published'
+        AND p.id NOT IN (
+          SELECT post_id FROM public.user_bingo_progress WHERE post_id IS NOT NULL AND user_id = ${user.id}::uuid
+        )
+    `;
+    const memoryDropCount = Number(memoryDropCountRows[0]?.count || 0);
+
+    const existingRaffles = await sql`
+      SELECT rule_key, line_type, line_index
+      FROM public.raffle_entries
+      WHERE user_id = ${user.id}::uuid
+        AND status != 'disqualified'
+    `;
+
+    const completedSlots = userProgressRows.map((r) => Number(r.slot_index));
+    const existingClaims: ExistingRaffleClaim[] = existingRaffles.map((r) => ({
+      ruleKey: r.rule_key,
+      lineType: r.line_type,
+      lineIndex: Number(r.line_index),
+    }));
+
+    // Check if raffle system is active and student ticket cap
+    const configRows = await sql`
+      SELECT is_raffle_active, max_tickets_per_user FROM public.event_config WHERE key = 'active_event' LIMIT 1
+    `;
+    const isRaffleActive = configRows[0]?.is_raffle_active ?? true;
+    const maxTicketsPerUser = Number(configRows[0]?.max_tickets_per_user || 0);
+
+    // Fetch active rules from database
+    const ruleRows = await sql`
+      SELECT id, rule_key, name, category, description, tickets_awarded, is_active
+      FROM public.raffle_rules
+      WHERE is_active = true
+    `;
+    const rules: RaffleRuleRecord[] = ruleRows.map((r) => ({
+      id: r.id,
+      ruleKey: r.rule_key,
+      name: r.name,
+      category: r.category as RaffleRuleCategory,
+      description: r.description,
+      ticketsAwarded: Number(r.tickets_awarded),
+      isActive: Boolean(r.is_active),
+    }));
+
+    if (isRaffleActive && rules.length > 0) {
+      const evaluation = evaluateRaffleRules(rules, {
+        completedSlotIndexes: completedSlots,
+        memoryDropCount,
+        existingClaims,
+        maxTicketsPerUser,
+      });
+
+      for (const reward of evaluation.eligibleRewards) {
+        let taskIds: string[] = [];
+        let postIds: string[] = [];
+
+        if (reward.category === "bingo_line" && reward.taskSlotIndexes) {
+          taskIds = reward.taskSlotIndexes
+            .map((slot) => userProgressRows.find((r) => Number(r.slot_index) === slot)?.task_id)
+            .filter(Boolean);
+          postIds = reward.taskSlotIndexes
+            .map((slot) => userProgressRows.find((r) => Number(r.slot_index) === slot)?.post_id)
+            .filter(Boolean);
+        } else if (reward.category === "milestone") {
+          taskIds = userProgressRows.map((r) => r.task_id).filter(Boolean);
+          postIds = userProgressRows.map((r) => r.post_id).filter(Boolean);
+        } else if (reward.category === "memory_drop") {
+          postIds = [newPostId];
+        }
+
+        for (let i = 0; i < reward.ticketsAwarded; i++) {
+          const generatedCode = generateRaffleCode();
+          const claimIndex = i === 0 ? reward.lineIndex : 100 * i + reward.lineIndex;
+
+          await sql`
+            DELETE FROM public.raffle_entries
+            WHERE user_id = ${user.id}::uuid
+              AND line_type = ${reward.lineType}
+              AND line_index = ${claimIndex}
+              AND status = 'disqualified'
+          `;
+
+          const insertRes = await sql`
+            WITH user_lock AS (
+              SELECT pg_advisory_xact_lock(hashtext('raffle_' || ${user.id}::text))
+            ),
+            user_ticket_count AS (
+              SELECT count(*)::int AS total
+              FROM public.raffle_entries, user_lock
+              WHERE user_id = ${user.id}::uuid
+                AND status != 'disqualified'
+            )
+            INSERT INTO public.raffle_entries (
+              raffle_code,
+              user_id,
+              line_type,
+              line_index,
+              task_ids,
+              post_ids,
+              rule_key,
+              status
+            )
+            SELECT
+              ${generatedCode},
+              ${user.id}::uuid,
+              ${reward.lineType},
+              ${claimIndex},
+              ${taskIds}::uuid[],
+              ${postIds}::uuid[],
+              ${reward.ruleKey},
+              'valid'
+            FROM user_ticket_count
+            WHERE (${maxTicketsPerUser}::int <= 0 OR user_ticket_count.total < ${maxTicketsPerUser}::int)
+            ON CONFLICT (user_id, line_type, line_index) DO NOTHING
+            RETURNING id
+          `;
+
+          if (insertRes.length > 0) {
+            newRaffleCode = generatedCode;
+          }
+        }
+      }
+    }
+
+    // Record audit log distinguishing Bingo Card vs Drop a Memory
+    const uploadChannel = bingoTaskId ? "bingo_card" : "drop_a_memory";
+    const description = bingoTaskId
+      ? `[Bingo Card] Uploaded photo proof for Slot #${slotIndex !== null ? slotIndex + 1 : "?"} (${taskTitle || "Challenge"})${caption ? ` · "${caption.slice(0, 50)}"` : ""}`
+      : `[Drop a Memory] Dropped a campus memory to the public board${caption ? ` · "${caption.slice(0, 50)}"` : ""}`;
+
+    await recordActivityLog({
+      actionType: "POST_SUBMIT",
+      category: "user",
+      actorId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetId: newPostId,
+      targetType: "post",
+      description,
+      metadata: {
+        postId: newPostId,
+        uploadChannel,
+        isBingoEntry: Boolean(bingoTaskId),
+        bingoTaskId: bingoTaskId || null,
+        slotIndex,
+        taskTitle,
+        isAnonymous,
+        newRaffleCode: newRaffleCode || null,
+      },
+    });
+
+    if (moderation.status === "outage_fallback" && newPostId) {
+      await recordActivityLog({
+        actionType: "MODERATION_OUTAGE_BYPASS",
+        category: "system",
+        actorId: user.id,
+        actorName: user.name,
+        actorEmail: user.email,
+        actorRole: user.role,
+        targetId: newPostId,
+        targetType: "post",
+        description: `Post uploaded during OpenAI moderation service timeout or outage. Manual review recommended. (${moderation.reason || "Upstream unavailable"})`,
+        metadata: {
+          postId: newPostId,
+          imageUrl: uploadResult.url,
+          bingoTaskId,
+          isAnonymous,
+        },
+      });
+    }
+
     revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev");
+    revalidatePath("/dev/logs");
 
     return {
       success: true,
@@ -217,50 +388,6 @@ export async function submitStudentPostAction(
   }
 }
 
-/**
- * Toggle a reaction (heart, fire, trophy) on a post.
- */
-export async function togglePostReactionAction(
-  postId: string,
-  reactionType: "heart" | "fire" | "trophy"
-): Promise<{ success: boolean; error?: string }> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "Please sign in to react." };
-  }
-
-  try {
-    const existing = await sql`
-      SELECT id FROM public.post_reactions
-      WHERE post_id = ${postId}::uuid
-        AND user_id = ${user.id}::uuid
-        AND reaction_type = ${reactionType}
-      LIMIT 1
-    `;
-
-    if (existing.length > 0) {
-      await sql`
-        DELETE FROM public.post_reactions
-        WHERE id = ${existing[0].id}::uuid
-      `;
-    } else {
-      await sql`
-        INSERT INTO public.post_reactions (post_id, user_id, reaction_type)
-        VALUES (${postId}::uuid, ${user.id}::uuid, ${reactionType})
-        ON CONFLICT (post_id, user_id, reaction_type) DO NOTHING
-      `;
-    }
-
-    revalidatePath("/");
-    return { success: true };
-  } catch (err: unknown) {
-    console.error("togglePostReactionAction error:", err);
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to toggle reaction",
-    };
-  }
-}
 
 /**
  * Remove an uploaded photo from a 3x3 Bingo slot.
@@ -271,6 +398,9 @@ export async function removeBingoTaskPhotoAction(
   const user = await getCurrentUser();
   if (!user) {
     return { success: false, error: "Please sign in to modify your bingo card." };
+  }
+  if (user.banned) {
+    return { success: false, error: "Your account is suspended." };
   }
 
   try {
@@ -292,15 +422,64 @@ export async function removeBingoTaskPhotoAction(
       WHERE user_id = ${user.id}::uuid AND task_id = ${taskId}::uuid
     `;
 
-    // Also delete the linked post
+    // Also delete the linked post, remove storage blob, and invalidate linked raffle tickets
     if (postId) {
-      await sql`
+      const deleted = await sql`
         DELETE FROM public.posts
         WHERE id = ${postId}::uuid AND user_id = ${user.id}::uuid
+        RETURNING image_url
+      `;
+      if (deleted.length > 0 && deleted[0].image_url) {
+        const key = extractStorageKey(deleted[0].image_url);
+        if (key) {
+          deleteBucketObject(key).catch((err) => console.error("Failed to delete removed blob:", err));
+        }
+      }
+
+      await sql`
+        DELETE FROM public.raffle_entries
+        WHERE user_id = ${user.id}::uuid
+          AND ${postId}::uuid = ANY(post_ids)
       `;
     }
 
+    // Lookup task title for audit logs
+    let slotIndex: number | null = null;
+    let taskTitle: string | null = null;
+    if (taskId) {
+      const taskRows = await sql`
+        SELECT slot_index, title FROM public.bingo_tasks
+        WHERE id = ${taskId}::uuid LIMIT 1
+      `;
+      if (taskRows.length > 0) {
+        slotIndex = Number(taskRows[0].slot_index);
+        taskTitle = taskRows[0].title;
+      }
+    }
+
+    await recordActivityLog({
+      actionType: "POST_SUBMIT",
+      category: "user",
+      actorId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetId: postId || null,
+      targetType: "post",
+      description: `[Bingo Card] Removed photo proof from Slot #${slotIndex !== null ? slotIndex + 1 : "?"} (${taskTitle || "Challenge"})`,
+      metadata: {
+        action: "remove_bingo_photo",
+        taskId,
+        postId,
+        slotIndex,
+        taskTitle,
+      },
+    });
+
     revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev");
+    revalidatePath("/dev/logs");
     return { success: true };
   } catch (err: unknown) {
     console.error("removeBingoTaskPhotoAction error:", err);
@@ -310,3 +489,103 @@ export async function removeBingoTaskPhotoAction(
     };
   }
 }
+
+/**
+ * Permanently delete a student post owned by the active user.
+ * Cleans up linked bingo slot progress, invalidates dependent raffle tickets,
+ * removes the image from storage, and writes an audit log.
+ */
+export async function deleteStudentPostAction(
+  postId: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "Please sign in to delete this memory." };
+  }
+  if (user.banned) {
+    return { success: false, error: "Your account is suspended." };
+  }
+
+  try {
+    // 1. Verify ownership
+    const existing = await sql`
+      SELECT p.id, p.user_id, p.image_url, p.caption, bt.slot_index, bt.title as task_title
+      FROM public.posts p
+      LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
+      WHERE p.id = ${postId}::uuid
+      LIMIT 1
+    `;
+
+    if (existing.length === 0) {
+      return { success: false, error: "Memory not found." };
+    }
+
+    if (existing[0].user_id !== user.id) {
+      return { success: false, error: "You can only delete memories that you own." };
+    }
+
+    const post = existing[0];
+
+    // 2. Clear any bingo progress linked to this post
+    await sql`
+      DELETE FROM public.user_bingo_progress
+      WHERE user_id = ${user.id}::uuid AND post_id = ${postId}::uuid
+    `;
+
+    // 3. Invalidate/delete any raffle tickets earned using this post
+    await sql`
+      DELETE FROM public.raffle_entries
+      WHERE user_id = ${user.id}::uuid
+        AND ${postId}::uuid = ANY(post_ids)
+    `;
+
+    // 4. Delete the post row
+    await sql`
+      DELETE FROM public.posts
+      WHERE id = ${postId}::uuid AND user_id = ${user.id}::uuid
+    `;
+
+    // 5. Delete storage blob if present
+    if (post.image_url) {
+      const key = extractStorageKey(post.image_url);
+      if (key) {
+        deleteBucketObject(key).catch((err) =>
+          console.error("Failed to delete removed memory blob:", err)
+        );
+      }
+    }
+
+    // 6. Record audit log
+    await recordActivityLog({
+      actionType: "POST_DELETE",
+      category: "user",
+      actorId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetId: postId,
+      targetType: "post",
+      description: `[Memory Board] Deleted memory${post.caption ? ` · "${post.caption.slice(0, 50)}"` : ""}`,
+      metadata: {
+        action: "delete_memory",
+        postId,
+        slotIndex: post.slot_index,
+        taskTitle: post.task_title,
+      },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev");
+    revalidatePath("/dev/logs");
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("deleteStudentPostAction error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to delete memory",
+    };
+  }
+}
+

@@ -50,6 +50,16 @@ export function getPublicObjectUrl(key: string): string {
   return `${endpoint}/${STORAGE_BUCKET}/${key}`;
 }
 
+export function extractStorageKey(url: string): string | null {
+  if (!url) return null;
+  const bucketSegment = `/${STORAGE_BUCKET}/`;
+  const idx = url.indexOf(bucketSegment);
+  if (idx !== -1) {
+    return url.slice(idx + bucketSegment.length);
+  }
+  return null;
+}
+
 /**
  * Validates file magic bytes to guarantee file is an authentic image
  * and prevent disguised non-image files from uploading to the bucket.
@@ -143,7 +153,15 @@ export async function uploadImageToBucket(
     .replace(/[^a-z0-9._-]/g, "_")
     .replace(/\.[^/.]+$/, "");
   
-  const ext = contentType === "image/webp" ? "webp" : "jpg";
+  const EXTENSION_MAP: Record<string, string> = {
+    "image/webp": "webp",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/avif": "avif",
+  };
+  const ext = EXTENSION_MAP[contentType] || "jpg";
   const key = `uploads/${Date.now()}-${cleanBase}.${ext}`;
 
   await s3.send(

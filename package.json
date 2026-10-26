@@ -8,17 +8,21 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:bingo": "node --no-warnings scripts/test-bingo-engine.ts"
+    "test:bingo": "node --no-warnings --experimental-strip-types scripts/test-bingo-engine.ts",
+    "test:schema": "node --no-warnings --experimental-strip-types scripts/tests/test-schema-migrations.ts",
+    "test:storage": "node --no-warnings --experimental-strip-types scripts/tests/test-storage-media.ts",
+    "test:auth": "node --no-warnings --experimental-strip-types scripts/tests/test-auth-moderation.ts",
+    "test:raffle": "node --no-warnings --experimental-strip-types scripts/tests/test-raffle-concurrency.ts",
+    "test:integration": "node --no-warnings --experimental-strip-types scripts/run-all-tests.ts",
+    "test": "node --no-warnings --experimental-strip-types scripts/run-all-tests.ts",
+    "setup:cors": "node --no-warnings --env-file-if-exists=.env.local --experimental-strip-types scripts/configure-bucket-cors.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1156.0",
-    "@aws-sdk/s3-request-presigner": "^3.1156.0",
     "@neon/config": "^1.9.3",
-    "@neon/env": "^1.6.4",
     "@neondatabase/auth": "^0.6.0-beta",
     "@neondatabase/serverless": "^1.2.0",
     "next": "16.4.2",
-    "openai": "^7.43.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

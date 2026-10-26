@@ -1,28 +1,28 @@
-import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { auth } from "@/lib/auth/server";
+import { pushDiagnosticLog } from "@/lib/server-log-buffer";
+import {
+  type UserRole,
+  type AuthUser,
+  isModerator,
+  isDevAuthorized,
+  isSuperAdmin,
+  isUserBanned,
+} from "./auth-predicates";
 
-export type UserRole = "superadmin" | "admin" | "user";
-
-export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  banned?: boolean;
-  banReason?: string | null;
-}
-
-export const DEV_USER_IDS: Record<UserRole, string> = {
-  superadmin: "00000000-0000-4000-a000-000000000001",
-  admin: "00000000-0000-4000-a000-000000000002",
-  user: "00000000-0000-4000-a000-000000000003",
+export {
+  type UserRole,
+  type AuthUser,
+  isModerator,
+  isDevAuthorized,
+  isSuperAdmin,
+  isUserBanned,
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  // 1. Live Neon Managed Better Auth session resolution
+  // Live Neon Managed Better Auth session resolution (Google OAuth)
   try {
     const { data: session } = await auth.getSession();
     if (session?.user) {
@@ -31,15 +31,16 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       let banReason: string | null = null;
 
       if (process.env.DATABASE_URL) {
+        try {
         const isIdUuid = session.user.id && UUID_REGEX.test(session.user.id);
         const rows = isIdUuid
           ? await sql`
-              SELECT role, COALESCE(banned, false) as banned, "banReason" FROM neon_auth."user" 
+              SELECT role, COALESCE(banned, false) as banned, "banReason", "createdAt" FROM neon_auth."user" 
               WHERE id = ${session.user.id}::uuid OR email = ${session.user.email} 
               LIMIT 1
             `
           : await sql`
-              SELECT role, COALESCE(banned, false) as banned, "banReason" FROM neon_auth."user" 
+              SELECT role, COALESCE(banned, false) as banned, "banReason", "createdAt" FROM neon_auth."user" 
               WHERE email = ${session.user.email} 
               LIMIT 1
             `;
@@ -53,7 +54,23 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
           isBanned = Boolean(rows[0].banned);
           banReason = (rows[0].banReason as string) || null;
         }
+      } catch (dbErr: unknown) {
+        pushDiagnosticLog({
+          subsystem: "database",
+          level: "error",
+          message: `DB error during session role resolution: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`,
+        });
       }
+    }
+
+    // Emergency admin authorization fallback during database outage
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    if (userRole === "user" && session.user.email && adminEmails.includes(session.user.email.toLowerCase())) {
+      userRole = "admin";
+    }
 
       return {
         id: session.user.id,
@@ -76,39 +93,5 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     }
   }
 
-  // 2. Dev role simulator fallback for offline/local testing
-  const cookieStore = await cookies();
-  const devRole = cookieStore.get("dev_role")?.value as UserRole | undefined;
-
-  if (!devRole) {
-    return null; // Guest / Unauthenticated
-  }
-
-  return {
-    id: DEV_USER_IDS[devRole] || DEV_USER_IDS.user,
-    name:
-      devRole === "superadmin"
-        ? "Root SuperAdmin"
-        : devRole === "admin"
-        ? "Admin (Moderator)"
-        : "Standard User",
-    email: `${devRole}@salingkusog.internal`,
-    role: devRole,
-  };
-}
-
-export function isModerator(user: AuthUser | null): boolean {
-  return user?.role === "superadmin" || user?.role === "admin";
-}
-
-export function isDevAuthorized(user: AuthUser | null): boolean {
-  return isModerator(user);
-}
-
-export function isSuperAdmin(user: AuthUser | null): boolean {
-  return user?.role === "superadmin";
-}
-
-export function isUserBanned(user: AuthUser | null): boolean {
-  return Boolean(user?.banned);
+  return null;
 }

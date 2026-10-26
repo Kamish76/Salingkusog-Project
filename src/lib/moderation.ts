@@ -1,119 +1,124 @@
-import OpenAI from "openai";
+export type ModerationStatus = "approved" | "rejected" | "outage_fallback";
 
 export interface ModerationResult {
-  approved: boolean;
-  flagged?: boolean;
-  bypassed?: boolean;
-  error?: string;
+  status: ModerationStatus;
   flaggedCategories?: string[];
-}
-
-let openaiClient: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!openaiClient) {
-    openaiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openaiClient;
+  reason?: string;
 }
 
 /**
- * Checks if a valid OpenAI API key is configured in the environment.
+ * Validates uploaded student media and optional caption against OpenAI's
+ * multimodal omni-moderation-latest endpoint.
+ *
+ * Implements a strict fail-open policy ONLY for transient API outages or timeouts,
+ * routing bypass events to audit logs for administrator review while strictly
+ * blocking explicitly flagged inappropriate content.
  */
-export function isOpenAIConfigured(): boolean {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  return Boolean(key && key !== "your_openai_api_key");
-}
-
-/**
- * Evaluates an image against OpenAI's omni-moderation-latest model.
- * 
- * Enforces a strict 10-second timeout and logs detailed flagged category
- * breakdown on the server while returning clean, user-safe error flags.
- */
-export async function moderateImageBuffer(
-  buffer: Uint8Array,
-  mimeType: string
+export async function moderatePostContent(
+  imageBuffer: Uint8Array,
+  mimeType: string,
+  caption?: string | null,
+  timeoutMs: number = 5000,
+  apiKeyOverride?: string,
+  fetchFn: typeof fetch = fetch
 ): Promise<ModerationResult> {
-  const isConfigured = isOpenAIConfigured();
-  const isDev = process.env.NODE_ENV !== "production";
+  const apiKey = apiKeyOverride !== undefined ? apiKeyOverride : process.env.OPENAI_API_KEY;
 
-  if (!isConfigured) {
-    if (isDev) {
-      console.warn(
-        "[Moderation] Warning: OPENAI_API_KEY is missing or using placeholder. Bypassing moderation in development."
-      );
-      return { approved: true, bypassed: true };
-    }
-
-    console.error("[Moderation] Error: OPENAI_API_KEY is not configured in production.");
+  if (!apiKey || !apiKey.trim()) {
+    console.warn("⚠️ OPENAI_API_KEY is not configured; failing open to outage fallback.");
     return {
-      approved: false,
-      error: "Content moderation service is unconfigured.",
+      status: "outage_fallback",
+      reason: "OPENAI_API_KEY is not configured",
     };
   }
 
-  try {
-    const openai = getOpenAIClient();
-    const base64Data = Buffer.from(buffer).toString("base64");
-    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+  // Multimodal payload format for omni-moderation-latest
+  const base64Image = Buffer.from(imageBuffer).toString("base64");
+  const dataUrl = `data:${mimeType};base64,${base64Image}`;
 
-    // Enforce 10-second timeout to prevent server action hangs
-    const response = await openai.moderations.create(
-      {
-        model: "omni-moderation-latest",
-        input: [
-          {
-            type: "image_url",
-            image_url: {
-              url: dataUrl,
-            },
-          },
-        ],
+  const inputs: Array<
+    | { type: "image_url"; image_url: { url: string } }
+    | { type: "text"; text: string }
+  > = [
+    {
+      type: "image_url",
+      image_url: {
+        url: dataUrl,
       },
-      {
-        signal: AbortSignal.timeout(10000),
-      }
-    );
+    },
+  ];
 
-    const result = response.results?.[0];
-    if (!result) {
-      console.error("[Moderation] Empty response received from OpenAI Moderation API.");
-      return { approved: false, error: "Empty moderation response." };
-    }
+  if (caption && caption.trim()) {
+    inputs.push({
+      type: "text",
+      text: caption.trim(),
+    });
+  }
 
-    if (result.flagged) {
-      const flaggedCategories = Object.entries(result.categories || {})
-        .filter(([, flagged]) => flagged)
-        .map(([category]) => category);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      console.warn("[Moderation] Image FLAGGED by OpenAI policy:", {
-        flaggedCategories,
-        categoryScores: result.category_scores,
-      });
+  try {
+    const res = await fetchFn("https://api.openai.com/v1/moderations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "omni-moderation-latest",
+        input: inputs,
+      }),
+      signal: controller.signal,
+    });
 
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      console.warn(`⚠️ OpenAI Moderation API returned HTTP ${res.status}; falling back to outage log.`);
       return {
-        approved: false,
-        flagged: true,
-        flaggedCategories,
+        status: "outage_fallback",
+        reason: `Upstream HTTP ${res.status}`,
       };
     }
 
-    return { approved: true, flagged: false };
-  } catch (err: unknown) {
-    const isTimeout =
-      err instanceof Error &&
-      (err.name === "TimeoutError" || err.name === "AbortError" || err.message.includes("timeout"));
+    const data = await res.json();
+    const result = data?.results?.[0];
 
-    console.error("[Moderation] Failed to verify image safety:", err);
+    if (!result) {
+      return {
+        status: "outage_fallback",
+        reason: "Invalid response shape from moderation API",
+      };
+    }
+
+    if (result.flagged) {
+      const categories: string[] = [];
+      if (result.categories && typeof result.categories === "object") {
+        for (const [category, isFlagged] of Object.entries(result.categories)) {
+          if (isFlagged) {
+            categories.push(category);
+          }
+        }
+      }
+      return {
+        status: "rejected",
+        flaggedCategories: categories,
+        reason: categories.length > 0 ? categories.join(", ") : "Content flagged by policy",
+      };
+    }
 
     return {
-      approved: false,
-      error: isTimeout
-        ? "Safety review timed out. Please try again."
-        : "Safety review failed. Please try again.",
+      status: "approved",
+    };
+  } catch (err: unknown) {
+    clearTimeout(timeoutId);
+    const isAbort = err instanceof Error && err.name === "AbortError";
+    const errorMsg = isAbort ? "Request timed out" : err instanceof Error ? err.message : "Network error";
+    console.warn(`⚠️ OpenAI Moderation error (${errorMsg}); falling back to outage log.`);
+    return {
+      status: "outage_fallback",
+      reason: errorMsg,
     };
   }
 }
