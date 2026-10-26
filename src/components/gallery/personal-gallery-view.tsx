@@ -197,7 +197,7 @@ export function PersonalGalleryView({
       const res = await wipeoutUserAccountAction();
       if (res.success) {
         await authClient.signOut();
-        window.location.href = "/";
+        window.location.replace("/");
       } else {
         setWipeoutError(res.error || "Account wipeout failed. Please try again.");
         setIsWipingOut(false);

@@ -42,10 +42,10 @@ export function ConsentModal({ isOpen, userName }: ConsentModalProps) {
     setIsSigningOut(true);
     try {
       await authClient.signOut();
-      window.location.href = "/";
+      window.location.replace("/");
     } catch (err) {
       console.error("Sign out error:", err);
-      window.location.href = "/";
+      window.location.replace("/");
     }
   };
 
