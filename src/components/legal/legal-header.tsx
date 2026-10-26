@@ -2,13 +2,18 @@ import Link from "next/link";
 
 interface LegalHeaderProps {
   currentTab: "privacy" | "terms" | "rally-rules";
+  isRaffleActive?: boolean;
 }
 
-export function LegalHeader({ currentTab }: LegalHeaderProps) {
+export function LegalHeader({ currentTab, isRaffleActive }: LegalHeaderProps) {
   const tabs = [
     { id: "privacy", label: "Privacy Notice", href: "/privacy" },
     { id: "terms", label: "Terms of Use", href: "/terms" },
-    { id: "rally-rules", label: "Rally & Raffle Rules", href: "/rally-rules" },
+    {
+      id: "rally-rules",
+      label: isRaffleActive === false ? "Rally Rules" : "Rally & Raffle Rules",
+      href: "/rally-rules",
+    },
   ];
 
   return (

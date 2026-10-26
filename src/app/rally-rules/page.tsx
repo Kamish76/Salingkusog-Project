@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { sql } from "@/lib/db";
 import { LegalHeader, LegalAdvisoryBanner } from "@/components/legal/legal-header";
+
+export const instant = false;
 
 export const metadata: Metadata = {
   title: "Rally & Raffle Rules | Salingkusog Intramurals 2026",
@@ -12,10 +15,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RallyRulesPage() {
+export default async function RallyRulesPage() {
+  const configRows = await sql`
+    SELECT COALESCE(is_raffle_active, false) as is_raffle_active 
+    FROM public.event_config 
+    WHERE key = 'active_event' 
+    LIMIT 1
+  `;
+  const isRaffleActive = Boolean(configRows[0]?.is_raffle_active);
+
   return (
     <div className="min-h-[100dvh] bg-[#fcf9f5] text-[#1e1b19] flex flex-col font-body selection:bg-[#ffdcc4] selection:text-[#6f3800]">
-      <LegalHeader currentTab="rally-rules" />
+      <LegalHeader currentTab="rally-rules" isRaffleActive={isRaffleActive} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 flex-1 w-full">
         {/* Document Header */}
@@ -23,11 +34,15 @@ export default function RallyRulesPage() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-white border border-[#e8ded5] text-stone-600 text-xs font-medium shadow-2xs mb-3">
             <span className="w-2 h-2 rounded-full bg-[#588157]"></span>
             <span className="font-display font-semibold text-[#588157]">
-              Official Event Regulations &amp; Stage Drawing
+              {isRaffleActive
+                ? "Official Event Regulations & Stage Drawing"
+                : "Official Event Regulations & Challenge Mechanics"}
             </span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-display font-extrabold text-[#1e1b19] tracking-tight">
-            Intramurals 3×3 Bingo &amp; Stage Raffle Rules
+            {isRaffleActive
+              ? "Intramurals 3×3 Bingo & Stage Raffle Rules"
+              : "Intramurals 3×3 Bingo Rally Rules"}
           </h1>
           <p className="text-xs sm:text-sm text-[#8e706c] font-body mt-1">
             Active for Event Dates: <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1 py-0.5 rounded font-bold text-[#8e4e14]">[EVENT DATES]</span>
@@ -51,7 +66,7 @@ export default function RallyRulesPage() {
                 <strong>Original Live Photography:</strong> Photos submitted to stamp bingo challenge slots must be captured during official Intramurals 2026 activities.
               </li>
               <li>
-                <strong>No Stock or Duplicate Snaps:</strong> Re-uploading internet screenshots, stock imagery, or submitting the exact same photo into multiple challenge slots will invalidate associated tickets.
+                <strong>No Stock or Duplicate Snaps:</strong> Re-uploading internet screenshots, stock imagery, or submitting the exact same photo into multiple challenge slots will invalidate associated {isRaffleActive ? "tickets" : "challenge stamps"}.
               </li>
             </ul>
           </section>
@@ -67,65 +82,86 @@ export default function RallyRulesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-3">
               <div className="p-3 rounded-xl bg-[#fcf9f5] border border-[#e8ded5]">
                 <strong className="font-display font-bold text-xs text-[#1e1b19] block">Line Combinations</strong>
-                <p className="text-[11px] text-[#5a413d] mt-1">Completing any 3 slots in a row, column, or diagonal line earns 1 standard raffle ticket.</p>
+                <p className="text-[11px] text-[#5a413d] mt-1">
+                  {isRaffleActive
+                    ? "Completing any 3 slots in a row, column, or diagonal line earns 1 standard raffle ticket."
+                    : "Completing any 3 slots in a row, column, or diagonal line completes a standard bingo line."}
+                </p>
               </div>
               <div className="p-3 rounded-xl bg-[#fcf9f5] border border-[#e8ded5]">
                 <strong className="font-display font-bold text-xs text-[#1e1b19] block">Milestone Challenges</strong>
-                <p className="text-[11px] text-[#5a413d] mt-1">Completing designated milestone slots unlocks bonus entry codes as configured by event organizers.</p>
+                <p className="text-[11px] text-[#5a413d] mt-1">
+                  {isRaffleActive
+                    ? "Completing designated milestone slots unlocks bonus entry codes as configured by event organizers."
+                    : "Completing designated milestone slots stamps your challenge board and unlocks event achievements."}
+                </p>
               </div>
               <div className="p-3 rounded-xl bg-[#fcf9f5] border border-[#e8ded5]">
-                <strong className="font-display font-bold text-xs text-[#1e1b19] block">Full Blackout Grand Prize</strong>
-                <p className="text-[11px] text-[#5a413d] mt-1">Stamping all 9 slots completes a Full Blackout, qualifying you for the Grand Finale stage drawing.</p>
+                <strong className="font-display font-bold text-xs text-[#1e1b19] block">
+                  {isRaffleActive ? "Full Blackout Grand Prize" : "Full Blackout"}
+                </strong>
+                <p className="text-[11px] text-[#5a413d] mt-1">
+                  {isRaffleActive
+                    ? "Stamping all 9 slots completes a Full Blackout, qualifying you for the Grand Finale stage drawing."
+                    : "Stamping all 9 slots completes a Full Blackout on your campus challenge card."}
+                </p>
               </div>
             </div>
             <p className="text-[11px] text-stone-500">
-              Note: If you delete a photo linked to a bingo slot, any raffle tickets dependent on that slot are automatically cancelled to maintain cryptographic fairness for all students.
+              {isRaffleActive
+                ? "Note: If you delete a photo linked to a bingo slot, any raffle tickets dependent on that slot are automatically cancelled to maintain cryptographic fairness for all students."
+                : "Note: If you delete a photo linked to a bingo slot, that slot returns to uncompleted status."}
             </p>
           </section>
 
-          {/* Section 3 */}
-          <section className="p-5 sm:p-6 rounded-2xl bg-white border border-[#e8ded5] shadow-xs">
-            <h2 className="font-display font-bold text-base sm:text-lg text-[#1e1b19] mb-2 flex items-center gap-2">
-              <span className="text-[#ff5e4d]">3.</span> Cryptographic Ticket Verification
-            </h2>
-            <p>
-              Every earned ticket is generated using high-entropy alphanumeric codes (e.g. <code className="font-mono font-bold text-[#b4281e]">SK-RFL-XXXXXX</code>) stored in our tamper-evident audit ledger:
-            </p>
-            <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li>Tickets cannot be forged, transferred, or assigned to other student accounts.</li>
-              <li>You can view all your earned ticket codes at any time inside the 3×3 Bingo Modal or in <Link href="/gallery" className="text-[#ff5e4d] underline font-semibold">My Gallery</Link>.</li>
-              <li>Tickets remain valid throughout event days unless disqualified for non-original photos.</li>
-            </ul>
-          </section>
+          {/* Section 3 & 4 (Raffle-specific) */}
+          {isRaffleActive && (
+            <>
+              {/* Section 3 */}
+              <section className="p-5 sm:p-6 rounded-2xl bg-white border border-[#e8ded5] shadow-xs">
+                <h2 className="font-display font-bold text-base sm:text-lg text-[#1e1b19] mb-2 flex items-center gap-2">
+                  <span className="text-[#ff5e4d]">3.</span> Cryptographic Ticket Verification
+                </h2>
+                <p>
+                  Every earned ticket is generated using high-entropy alphanumeric codes (e.g. <code className="font-mono font-bold text-[#b4281e]">SK-RFL-XXXXXX</code>) stored in our tamper-evident audit ledger:
+                </p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li>Tickets cannot be forged, transferred, or assigned to other student accounts.</li>
+                  <li>You can view all your earned ticket codes at any time inside the 3×3 Bingo Modal or in <Link href="/gallery" className="text-[#ff5e4d] underline font-semibold">My Gallery</Link>.</li>
+                  <li>Tickets remain valid throughout event days unless disqualified for non-original photos.</li>
+                </ul>
+              </section>
 
-          {/* Section 4 */}
-          <section className="p-5 sm:p-6 rounded-2xl bg-white border border-[#e8ded5] shadow-xs">
-            <h2 className="font-display font-bold text-base sm:text-lg text-[#1e1b19] mb-2 flex items-center gap-2">
-              <span className="text-[#ff5e4d]">4.</span> In-Person Stage Prize Claiming Process
-            </h2>
-            <div className="p-3.5 rounded-xl bg-[#fff8f5] border border-[#ffdad5] text-xs font-body mb-3">
-              <strong className="font-display font-bold text-[#b4281e] block mb-1">
-                Zero Financial or Sensitive Info Collected:
-              </strong>
-              Salingkusog never asks for your bank details, credit card numbers, or mobile wallet pins. Prizes are physical awards distributed live in person on campus.
-            </div>
-            <p className="mb-2">
-              When winning numbers are drawn live at the main stage:
-            </p>
-            <ol className="list-decimal pl-5 space-y-1.5">
-              <li>
-                <strong>Physical Appearance:</strong> The student winner must be physically present at the live drawing or arrive at{" "}
-                <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1 py-0.5 rounded font-bold text-[#8e4e14]">[PRIZE CLAIM BOOTH LOCATION]</span>{" "}
-                within the designated grace period announced by stage emcees.
-              </li>
-              <li>
-                <strong>Live Device Verification:</strong> Winner must present their active mobile device showing the signed-in Salingkusog account with the matching ticket code.
-              </li>
-              <li>
-                <strong>Student Identification:</strong> Present your valid school ID matching the Google account display name for final stage redemption.
-              </li>
-            </ol>
-          </section>
+              {/* Section 4 */}
+              <section className="p-5 sm:p-6 rounded-2xl bg-white border border-[#e8ded5] shadow-xs">
+                <h2 className="font-display font-bold text-base sm:text-lg text-[#1e1b19] mb-2 flex items-center gap-2">
+                  <span className="text-[#ff5e4d]">4.</span> In-Person Stage Prize Claiming Process
+                </h2>
+                <div className="p-3.5 rounded-xl bg-[#fff8f5] border border-[#ffdad5] text-xs font-body mb-3">
+                  <strong className="font-display font-bold text-[#b4281e] block mb-1">
+                    Zero Financial or Sensitive Info Collected:
+                  </strong>
+                  Salingkusog never asks for your bank details, credit card numbers, or mobile wallet pins. Prizes are physical awards distributed live in person on campus.
+                </div>
+                <p className="mb-2">
+                  When winning numbers are drawn live at the main stage:
+                </p>
+                <ol className="list-decimal pl-5 space-y-1.5">
+                  <li>
+                    <strong>Physical Appearance:</strong> The student winner must be physically present at the live drawing or arrive at{" "}
+                    <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1 py-0.5 rounded font-bold text-[#8e4e14]">[PRIZE CLAIM BOOTH LOCATION]</span>{" "}
+                    within the designated grace period announced by stage emcees.
+                  </li>
+                  <li>
+                    <strong>Live Device Verification:</strong> Winner must present their active mobile device showing the signed-in Salingkusog account with the matching ticket code.
+                  </li>
+                  <li>
+                    <strong>Student Identification:</strong> Present your valid school ID matching the Google account display name for final stage redemption.
+                  </li>
+                </ol>
+              </section>
+            </>
+          )}
         </article>
       </main>
 
