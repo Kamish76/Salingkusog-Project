@@ -19,6 +19,13 @@ import {
 } from "@/lib/bingo-engine";
 import { recordActivityLog } from "@/lib/activity-logger";
 import { moderatePostContent } from "@/lib/moderation";
+import { checkUserConsent } from "@/app/actions/consent";
+import {
+  type ReportReason,
+  VALID_REPORT_REASONS,
+} from "@/lib/consent-predicates";
+
+export type { ReportReason };
 
 export interface SubmitPostResult {
   success: boolean;
@@ -39,6 +46,17 @@ export async function submitStudentPostAction(
   }
   if (user.banned) {
     return { success: false, error: "Your account is suspended." };
+  }
+
+  // Verify Philippine DPA compliance & student consent layer
+  if (process.env.DATABASE_URL) {
+    const { hasConsented } = await checkUserConsent(user.id);
+    if (!hasConsented) {
+      return {
+        success: false,
+        error: "Consent required. Please review and agree to our Terms of Use and Privacy Notice before posting.",
+      };
+    }
   }
 
   if (!isStorageConfigured()) {
@@ -588,4 +606,104 @@ export async function deleteStudentPostAction(
     };
   }
 }
+
+/**
+ * Flag / Report a photo memory for non-consensual appearance or guideline violations.
+ * Inserts a report into public.photo_reports, flags the post status to 'flagged' for review,
+ * and records an activity audit trail.
+ */
+export async function reportPhotoAction(
+  postId: string,
+  reason: ReportReason,
+  details?: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!postId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId)) {
+    return { success: false, error: "Invalid post ID." };
+  }
+
+  if (!VALID_REPORT_REASONS.includes(reason)) {
+    return { success: false, error: "Invalid report reason provided." };
+  }
+
+  const user = await getCurrentUser();
+  const sanitizedDetails = (details || "").trim().slice(0, 500);
+
+  try {
+    // 1. Verify post exists
+    const postRows = await sql`
+      SELECT id, status, caption, display_name FROM public.posts
+      WHERE id = ${postId}::uuid
+      LIMIT 1
+    `;
+
+    if (postRows.length === 0) {
+      return { success: false, error: "Photo memory no longer exists." };
+    }
+
+    const post = postRows[0];
+
+    // 2. Insert report
+    const reporterId = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+      ? user.id
+      : null;
+
+    await sql`
+      INSERT INTO public.photo_reports (
+        post_id,
+        reporter_id,
+        reason,
+        details,
+        status,
+        created_at
+      )
+      VALUES (
+        ${postId}::uuid,
+        ${reporterId ? sql`${reporterId}::uuid` : null},
+        ${reason},
+        ${sanitizedDetails || null},
+        'pending',
+        now()
+      );
+    `;
+
+    // 3. Update post status to 'flagged' for review
+    await sql`
+      UPDATE public.posts
+      SET status = 'flagged'
+      WHERE id = ${postId}::uuid;
+    `;
+
+    // 4. Record activity audit log
+    await recordActivityLog({
+      actionType: "PHOTO_REPORT",
+      category: "user",
+      actorId: user?.id || null,
+      actorName: user?.name || "Guest Visitor",
+      actorEmail: user?.email || null,
+      actorRole: user?.role || "user",
+      targetId: postId,
+      targetType: "post",
+      description: `[Content Report] Post flagged for "${reason}"${sanitizedDetails ? `: ${sanitizedDetails}` : ""}`,
+      metadata: {
+        postId,
+        reason,
+        details: sanitizedDetails,
+        postAuthor: post.display_name,
+      },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/gallery");
+    revalidatePath("/dev/logs");
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("reportPhotoAction error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to submit photo report",
+    };
+  }
+}
+
 

@@ -18,6 +18,7 @@ import { runExportEngineTest } from "./tests/test-export-engine.ts";
 import { runModerationTest } from "./tests/test-moderation.ts";
 import { runServerLogBufferTest } from "./tests/test-server-log-buffer.ts";
 import { runHealthProbesTest } from "./tests/test-health-probes.ts";
+import { runConsentDpaTest } from "./tests/test-consent-dpa.ts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -132,6 +133,15 @@ async function runAllSuites() {
     results.push({ name: "Isolated API Health Probes", durationMs: Date.now() - t9, status: "FAILED", error: (err as Error).message });
   }
 
+  // Suite 11: Philippine DPA Legal & Student Consent Layer
+  const t10 = Date.now();
+  try {
+    await runConsentDpaTest();
+    results.push({ name: "Philippine DPA & Student Consent", durationMs: Date.now() - t10, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "Philippine DPA & Student Consent", durationMs: Date.now() - t10, status: "FAILED", error: (err as Error).message });
+  }
+
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
   console.log("===============================================================================");
@@ -152,7 +162,7 @@ async function runAllSuites() {
     console.error("\nâŒ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
     process.exit(1);
   } else {
-    console.log("\n🎉 ALL 10 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
+    console.log("\n🎉 ALL 11 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
   }
 }
 
