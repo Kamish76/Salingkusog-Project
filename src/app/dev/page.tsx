@@ -3,6 +3,7 @@ import { getCurrentUser, isSuperAdmin } from "@/lib/auth";
 import { updateUserRoleAction } from "@/app/actions/auth-role";
 import { toggleRaffleStatusAction } from "@/app/actions/event-config";
 import { sql } from "@/lib/db";
+import { isStorageConfigured } from "@/lib/storage";
 
 
 interface DbUserRecord {
@@ -114,6 +115,47 @@ export default async function DevPage() {
         </div>
       </div>
 
+      {/* API Health & Subsystem Pulse Strip */}
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-300">
+              Subsystem Health Pulse
+            </span>
+          </div>
+          <p className="text-xs text-zinc-400">
+            Real-time latency probes, error logging, and failure isolation across 4 core APIs.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+          <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${isDbConfigured ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+            Postgres
+          </span>
+          <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${isStorageConfigured() ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+            S3 Storage
+          </span>
+          <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Auth
+          </span>
+          <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${process.env.OPENAI_API_KEY ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+            OpenAI
+          </span>
+          <Link
+            href="/dev/health"
+            className="px-3 py-1.5 rounded-md bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition flex items-center gap-1"
+          >
+            <span>Live Diagnostics</span>
+            <span>→</span>
+          </Link>
+        </div>
+      </div>
+
       {/* Event & Raffle System Control Panel */}
       <div
         className={`p-4 sm:p-6 rounded-2xl border transition shadow-lg ${
@@ -152,7 +194,7 @@ export default async function DevPage() {
 
           <div>
             <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <span>🎟️</span>
+              <span>ðŸŽŸï¸</span>
               <span>Campus Raffle Drawings & Claim Engine</span>
             </h2>
             <p className="text-xs text-zinc-400 max-w-xl">
@@ -177,12 +219,12 @@ export default async function DevPage() {
                     : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/50"
                 }`}
               >
-                <span>{isRaffleActive ? "⏸ Pause Raffle System" : "▶ Activate Raffle System"}</span>
+                <span>{isRaffleActive ? "â¸ Pause Raffle System" : "â–¶ Activate Raffle System"}</span>
               </button>
             </form>
           ) : (
             <div className="text-xs font-mono px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-500 flex items-center gap-1.5 w-full sm:w-auto justify-center">
-              <span>🔒</span>
+              <span>ðŸ”’</span>
               <span>Switch Locked (SuperAdmin Required)</span>
             </div>
           )}
@@ -199,7 +241,7 @@ export default async function DevPage() {
             <span className="text-xs text-zinc-400 font-mono">Live Activity Monitoring</span>
           </div>
           <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-            <span>📋</span>
+            <span>ðŸ“‹</span>
             <span>SuperAdmin Activity & System Logs</span>
           </h2>
           <p className="text-xs text-zinc-400 max-w-xl">
@@ -212,7 +254,7 @@ export default async function DevPage() {
           className="self-start sm:self-center px-4 py-2.5 rounded-xl font-mono text-xs font-bold tracking-wide bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition flex items-center gap-2 cursor-pointer"
         >
           <span>Open Activity Logs Console</span>
-          <span>→</span>
+          <span>â†’</span>
         </Link>
       </div>
 
@@ -344,7 +386,7 @@ export default async function DevPage() {
                 className="group text-xs font-mono px-3.5 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 transition flex items-center gap-1.5 font-medium shadow-sm whitespace-nowrap"
               >
                 <span>Full Directory & Filter</span>
-                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                <span className="group-hover:translate-x-0.5 transition-transform">â†’</span>
               </Link>
             </div>
           </div>
@@ -454,7 +496,7 @@ export default async function DevPage() {
                 className="text-amber-400/90 hover:text-amber-300 transition flex items-center gap-1 hover:underline"
               >
                 <span>Open Full Directory with Search & Filter</span>
-                <span>→</span>
+                <span>â†’</span>
               </Link>
             </div>
           </div>
@@ -477,7 +519,7 @@ export default async function DevPage() {
               href="/dev/users"
               className="px-3 py-2 min-h-[38px] rounded-lg border border-purple-500/50 bg-purple-900/40 hover:bg-purple-900/60 text-purple-200 text-xs font-medium transition cursor-pointer whitespace-nowrap active:scale-95 flex items-center justify-center flex-1 sm:flex-initial"
             >
-              View User Directory →
+              View User Directory â†’
             </Link>
           </div>
         </div>

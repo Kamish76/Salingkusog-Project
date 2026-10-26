@@ -16,6 +16,8 @@ import { runRaffleConcurrencyTest } from "./tests/test-raffle-concurrency.ts";
 import { runImageProxySecurityTest } from "./tests/test-image-proxy.ts";
 import { runExportEngineTest } from "./tests/test-export-engine.ts";
 import { runModerationTest } from "./tests/test-moderation.ts";
+import { runServerLogBufferTest } from "./tests/test-server-log-buffer.ts";
+import { runHealthProbesTest } from "./tests/test-health-probes.ts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -29,7 +31,7 @@ interface SuiteResult {
 async function runAllSuites() {
   const startTime = Date.now();
   console.log("===============================================================================");
-  console.log("🚀 SALINGKUSOG MASTER INTEGRATION & PRODUCTION VERIFICATION SUITE");
+  console.log("ðŸš€ SALINGKUSOG MASTER INTEGRATION & PRODUCTION VERIFICATION SUITE");
   console.log("===============================================================================\n");
 
   const results: SuiteResult[] = [];
@@ -112,16 +114,34 @@ async function runAllSuites() {
     results.push({ name: "OpenAI Content Moderation", durationMs: Date.now() - t7, status: "FAILED", error: (err as Error).message });
   }
 
+  // Suite 9: In-Memory Server Log Buffer
+  const t8 = Date.now();
+  try {
+    await runServerLogBufferTest();
+    results.push({ name: "In-Memory Server Log Buffer", durationMs: Date.now() - t8, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "In-Memory Server Log Buffer", durationMs: Date.now() - t8, status: "FAILED", error: (err as Error).message });
+  }
+
+  // Suite 10: Isolated API Health Probes
+  const t9 = Date.now();
+  try {
+    await runHealthProbesTest();
+    results.push({ name: "Isolated API Health Probes", durationMs: Date.now() - t9, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "Isolated API Health Probes", durationMs: Date.now() - t9, status: "FAILED", error: (err as Error).message });
+  }
+
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
   console.log("===============================================================================");
-  console.log("📊 INTEGRATION SUITE RESULTS SUMMARY");
+  console.log("ðŸ“Š INTEGRATION SUITE RESULTS SUMMARY");
   console.log("===============================================================================");
   for (const r of results) {
-    const icon = r.status === "PASSED" ? "✔" : "✖";
+    const icon = r.status === "PASSED" ? "âœ”" : "âœ–";
     console.log(` ${icon} ${r.name.padEnd(36)} [${r.status}] (${r.durationMs}ms)`);
     if (r.error) {
-      console.log(`   └─ Error: ${r.error}`);
+      console.log(`   â””â”€ Error: ${r.error}`);
     }
   }
   console.log("-------------------------------------------------------------------------------");
@@ -129,10 +149,10 @@ async function runAllSuites() {
 
   const hasFailures = results.some((r) => r.status === "FAILED");
   if (hasFailures) {
-    console.error("\n❌ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
+    console.error("\nâŒ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
     process.exit(1);
   } else {
-    console.log("\n🎉 ALL 8 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
+    console.log("\n🎉 ALL 10 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
   }
 }
 
