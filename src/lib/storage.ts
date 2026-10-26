@@ -68,6 +68,7 @@ export function validateImageMagicBytes(buffer: Uint8Array): {
   valid: boolean;
   detectedType?: string;
   extension?: string;
+  isHeic?: boolean;
 } {
   if (buffer.length < 12) {
     return { valid: false };
@@ -103,9 +104,27 @@ export function validateImageMagicBytes(buffer: Uint8Array): {
 
   // AVIF: ....ftypavif or ftypavis
   const ftyp = String.fromCharCode(...buffer.slice(4, 8));
-  const brand = String.fromCharCode(...buffer.slice(8, 12));
+  const brand = String.fromCharCode(...buffer.slice(8, 12)).toLowerCase();
   if (ftyp === "ftyp" && (brand === "avif" || brand === "avis")) {
     return { valid: true, detectedType: "image/avif", extension: "avif" };
+  }
+
+  // HEIC / HEIF container: ....ftypheic, ftypmif1, ftypmsf1, ftypheix, ftyphevc
+  if (
+    ftyp === "ftyp" &&
+    (brand === "heic" ||
+      brand === "heix" ||
+      brand === "mif1" ||
+      brand === "msf1" ||
+      brand === "hevc" ||
+      brand === "hevx")
+  ) {
+    return {
+      valid: true,
+      detectedType: "image/heic",
+      extension: "heic",
+      isHeic: true,
+    };
   }
 
   return { valid: false };
