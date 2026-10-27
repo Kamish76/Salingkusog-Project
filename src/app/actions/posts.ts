@@ -19,6 +19,7 @@ import {
   type ExistingRaffleClaim,
 } from "@/lib/bingo-engine";
 import { recordActivityLog } from "@/lib/activity-logger";
+import { pushDiagnosticLog, type SubsystemType } from "@/lib/server-log-buffer";
 import { moderatePostContent } from "@/lib/moderation";
 import { checkUserConsent } from "@/app/actions/consent";
 import {
@@ -31,8 +32,91 @@ export type { ReportReason };
 export interface SubmitPostResult {
   success: boolean;
   error?: string;
+  errorCode?: string;
+  stage?: string;
   postId?: string;
   newRaffleCode?: string;
+}
+
+function makeUploadErrorCode(prefix = "UPL"): string {
+  return `ERR-${prefix}-${Date.now().toString(36).slice(-5).toUpperCase()}`;
+}
+
+async function logUploadFailure(params: {
+  errorCode: string;
+  stage: string;
+  subsystem: SubsystemType;
+  userMessage: string;
+  rawError?: string;
+  user?: { id: string; name?: string | null; email?: string | null; role?: string | null } | null;
+  meta?: Record<string, unknown>;
+}): Promise<void> {
+  const details = {
+    errorCode: params.errorCode,
+    stage: params.stage,
+    userId: params.user?.id || null,
+    userEmail: params.user?.email || null,
+    rawError: params.rawError || params.userMessage,
+    ...params.meta,
+  };
+
+  console.error("[upload-error] %s (%s): %s", params.errorCode, params.stage, params.userMessage, details);
+
+  pushDiagnosticLog({
+    subsystem: params.subsystem,
+    level: "error",
+    message: `[${params.errorCode}] Upload failed at ${params.stage}: ${params.rawError || params.userMessage}`,
+    details,
+  });
+
+  await recordActivityLog({
+    actionType: "POST_UPLOAD_ERROR",
+    category: "system",
+    actorId: params.user?.id || null,
+    actorName: params.user?.name || "Guest / Unknown",
+    actorEmail: params.user?.email || null,
+    actorRole: params.user?.role || "user",
+    targetId: params.errorCode,
+    targetType: "post",
+    description: `[Upload Error ${params.errorCode}] Stage "${params.stage}": ${params.rawError || params.userMessage}`,
+    metadata: details,
+  });
+}
+
+/**
+ * Allows the client upload modal to report transport/framework or image-optimization
+ * errors that occur outside `submitStudentPostAction` (e.g. HTTP 413/502 or Next.js RSC failure).
+ */
+export async function reportClientUploadErrorAction(payload: {
+  errorCode: string;
+  stage: string;
+  message: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  bingoTaskId?: string | null;
+  route?: string;
+}): Promise<void> {
+  try {
+    const user = await getCurrentUser();
+    await logUploadFailure({
+      errorCode: (payload.errorCode || makeUploadErrorCode("CLI")).slice(0, 32),
+      stage: (payload.stage || "client_transport").slice(0, 48),
+      subsystem: "system",
+      userMessage: (payload.message || "Client upload transport error").slice(0, 300),
+      rawError: (payload.message || "Client upload transport error").slice(0, 500),
+      user,
+      meta: {
+        fileName: payload.fileName?.slice(0, 120) || null,
+        fileSize: payload.fileSize ?? null,
+        fileType: payload.fileType?.slice(0, 64) || null,
+        bingoTaskId: payload.bingoTaskId || null,
+        route: payload.route?.slice(0, 120) || null,
+      },
+    });
+  } catch (err) {
+    console.error("[upload-error] Failed to record client upload error:", err);
+  }
 }
 
 /**
@@ -41,62 +125,124 @@ export interface SubmitPostResult {
 export async function submitStudentPostAction(
   formData: FormData
 ): Promise<SubmitPostResult> {
+  let stage = "auth";
   const user = await getCurrentUser();
   if (!user) {
-    return { success: false, error: "Please sign in with Google to post." };
+    const errorCode = makeUploadErrorCode();
+    await logUploadFailure({
+      errorCode,
+      stage,
+      subsystem: "auth",
+      userMessage: "Please sign in with Google to post.",
+      rawError: "Session missing or expired during submitStudentPostAction",
+    });
+    return { success: false, error: "Please sign in with Google to post.", errorCode, stage };
   }
   if (user.banned) {
-    return { success: false, error: "Your account is suspended." };
+    return { success: false, error: "Your account is suspended.", stage };
   }
 
   // Verify Philippine DPA compliance & student consent layer
+  stage = "consent";
   if (process.env.DATABASE_URL) {
     const { hasConsented } = await checkUserConsent(user.id);
     if (!hasConsented) {
       return {
         success: false,
         error: "Consent required. Please review and agree to our Terms of Use and Privacy Notice before posting.",
+        stage,
       };
     }
   }
 
+  stage = "storage_config";
   if (!isStorageConfigured()) {
+    const errorCode = makeUploadErrorCode();
+    await logUploadFailure({
+      errorCode,
+      stage,
+      subsystem: "storage",
+      userMessage: "Storage is not configured on this environment.",
+      user,
+    });
     return {
       success: false,
       error: "Storage is not configured on this environment.",
+      errorCode,
+      stage,
     };
   }
 
+  let fileMeta: Record<string, unknown> = {};
+
   try {
+    stage = "file_validation";
     const file = formData.get("file");
     if (!file || !(file instanceof File)) {
-      return { success: false, error: "No photo file provided." };
+      const errorCode = makeUploadErrorCode();
+      await logUploadFailure({
+        errorCode,
+        stage,
+        subsystem: "storage",
+        userMessage: "No photo file provided.",
+        user,
+      });
+      return { success: false, error: "No photo file provided.", errorCode, stage };
     }
 
+    const bingoTaskId = (formData.get("bingoTaskId") as string)?.trim() || null;
+    fileMeta = {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      bingoTaskId,
+    };
+
     if (file.size === 0) {
-      return { success: false, error: "The selected photo is empty." };
+      const errorCode = makeUploadErrorCode();
+      await logUploadFailure({
+        errorCode,
+        stage,
+        subsystem: "storage",
+        userMessage: "The selected photo is empty.",
+        user,
+        meta: fileMeta,
+      });
+      return { success: false, error: "The selected photo is empty.", errorCode, stage };
     }
 
     // Safety hard cap (4 MB)
     if (file.size > 4 * 1024 * 1024) {
+      const errorCode = makeUploadErrorCode();
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+      await logUploadFailure({
+        errorCode,
+        stage,
+        subsystem: "storage",
+        userMessage: `Photo exceeds 4MB (${sizeMb} MB). Please compress or downscale your photo before uploading.`,
+        user,
+        meta: fileMeta,
+      });
       return {
         success: false,
-        error: "Photo exceeds 4MB. Please compress or downscale your photo before uploading.",
+        error: `Photo exceeds 4MB (${sizeMb} MB). Please compress or downscale your photo before uploading.`,
+        errorCode,
+        stage,
       };
     }
 
     const caption = (formData.get("caption") as string)?.trim() || "";
     const isAnonymous = formData.get("isAnonymous") === "true";
-    const bingoTaskId = (formData.get("bingoTaskId") as string)?.trim() || null;
 
     let validatedSlotIndex: number | null = null;
     let validatedTaskTitle: string | null = null;
 
     // Strict server-side validation for Bingo tasks BEFORE content moderation or storage upload
     if (bingoTaskId) {
+      stage = "bingo_validation";
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bingoTaskId);
       if (!isUuid) {
-        return { success: false, error: "Invalid bingo challenge identifier." };
+        return { success: false, error: "Invalid bingo challenge identifier.", stage };
       }
 
       // 1. Check live event status and current day from database
@@ -112,7 +258,7 @@ export async function submitStudentPostAction(
       const currentDay = Number(eventConfigRows[0]?.current_day || 1);
 
       if (!isEventActive) {
-        return { success: false, error: "Bingo uploads are currently paused." };
+        return { success: false, error: "Bingo uploads are currently paused.", stage };
       }
 
       // 2. Check task record, active status, and unlock day
@@ -124,12 +270,12 @@ export async function submitStudentPostAction(
       `;
 
       if (taskRows.length === 0) {
-        return { success: false, error: "Bingo challenge not found." };
+        return { success: false, error: "Bingo challenge not found.", stage };
       }
 
       const task = taskRows[0];
       if (!task.is_active) {
-        return { success: false, error: "This bingo challenge is currently inactive." };
+        return { success: false, error: "This bingo challenge is currently inactive.", stage };
       }
 
       const taskUnlockDay = Number(task.unlock_day || 1);
@@ -137,55 +283,111 @@ export async function submitStudentPostAction(
         return {
           success: false,
           error: `This bingo challenge is locked until Day ${taskUnlockDay}.`,
+          stage,
         };
       }
 
       validatedSlotIndex = Number(task.slot_index);
       validatedTaskTitle = task.title;
+      fileMeta.slotIndex = validatedSlotIndex;
+      fileMeta.taskTitle = validatedTaskTitle;
     }
 
     // Validate magic bytes
+    stage = "magic_bytes";
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
     const inspection = validateImageMagicBytes(buffer);
 
     if (!inspection.valid) {
+      const errorCode = makeUploadErrorCode();
+      await logUploadFailure({
+        errorCode,
+        stage,
+        subsystem: "storage",
+        userMessage: "Only valid photos (JPEG, PNG, WebP, GIF, AVIF, or iOS HEIC) can be posted.",
+        user,
+        meta: fileMeta,
+      });
       return {
         success: false,
         error: "Only valid photos (JPEG, PNG, WebP, GIF, AVIF, or iOS HEIC) can be posted.",
+        errorCode,
+        stage,
       };
     }
 
     if (inspection.isHeic) {
+      const errorCode = makeUploadErrorCode();
+      await logUploadFailure({
+        errorCode,
+        stage,
+        subsystem: "storage",
+        userMessage: "This HEIC photo could not be optimized by your browser. Please try selecting it again or use a JPEG/PNG photo.",
+        user,
+        meta: fileMeta,
+      });
       return {
         success: false,
         error: "This HEIC photo could not be optimized by your browser. Please try selecting it again or use a JPEG/PNG photo.",
+        errorCode,
+        stage,
       };
     }
 
     const contentType = inspection.detectedType || file.type || "image/webp";
+    fileMeta.detectedType = contentType;
 
     // Automated Content Moderation check via OpenAI omni-moderation-latest
+    stage = "moderation";
     const moderation = await moderatePostContent(buffer, contentType, caption);
     if (moderation.status === "rejected") {
+      const errorCode = makeUploadErrorCode("MOD");
+      const userMessage = moderation.reason?.includes("4MB")
+        ? moderation.reason
+        : "Your photo could not be posted because it was flagged by our community safety guidelines. Please choose another photo.";
+      await logUploadFailure({
+        errorCode,
+        stage,
+        subsystem: "moderation",
+        userMessage,
+        rawError: moderation.reason || "Flagged by content moderation",
+        user,
+        meta: { ...fileMeta, flaggedCategories: moderation.flaggedCategories || [] },
+      });
       return {
         success: false,
-        error:
-          moderation.reason?.includes("4MB")
-            ? moderation.reason
-            : "Your photo could not be posted because it was flagged by our community safety guidelines. Please choose another photo.",
+        error: userMessage,
+        errorCode,
+        stage,
       };
     }
 
+    stage = "s3_upload";
     const uploadResult = await uploadImageToBucket(buffer, file.name, contentType);
 
     if (!uploadResult?.url || !uploadResult.url.trim()) {
-      return { success: false, error: "Failed to obtain a valid photo URL from storage." };
+      const errorCode = makeUploadErrorCode("S3");
+      await logUploadFailure({
+        errorCode,
+        stage,
+        subsystem: "storage",
+        userMessage: "Failed to obtain a valid photo URL from storage.",
+        user,
+        meta: fileMeta,
+      });
+      return {
+        success: false,
+        error: "Failed to obtain a valid photo URL from storage.",
+        errorCode,
+        stage,
+      };
     }
 
     const displayName = isAnonymous ? "Anonymous Student" : user.name;
 
     // Check if replacing an existing photo for this bingo task
+    stage = "database_insert";
     let replacedPostId: string | null = null;
     if (bingoTaskId) {
       const existingSlot = await sql`
@@ -244,6 +446,7 @@ export async function submitStudentPostAction(
 
     // If this post fulfills a 3x3 Bingo slot, link or update user_bingo_progress
     if (bingoTaskId && newPostId) {
+      stage = "bingo_progress";
       await sql`
         INSERT INTO public.user_bingo_progress (user_id, task_id, post_id)
         VALUES (${user.id}::uuid, ${bingoTaskId}::uuid, ${newPostId}::uuid)
@@ -262,6 +465,7 @@ export async function submitStudentPostAction(
     }
 
     // Evaluate dynamic raffle rules (Bingo lines, Milestones, and Memory Drops)
+    stage = "raffle_evaluation";
     const userProgressRows = await sql`
       SELECT bt.slot_index, ubp.task_id, ubp.post_id
       FROM public.user_bingo_progress ubp
@@ -445,6 +649,7 @@ export async function submitStudentPostAction(
       });
     }
 
+    stage = "revalidate";
     revalidatePath("/");
     revalidatePath("/gallery");
     revalidatePath("/dev");
@@ -456,10 +661,27 @@ export async function submitStudentPostAction(
       newRaffleCode,
     };
   } catch (err: unknown) {
-    console.error("submitStudentPostAction error:", err);
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    const errorCode = makeUploadErrorCode();
+    const subsystem: SubsystemType =
+      stage === "s3_upload" ? "storage" : stage === "moderation" ? "moderation" : "database";
+    await logUploadFailure({
+      errorCode,
+      stage,
+      subsystem,
+      userMessage: `Upload failed at ${stage}: ${rawMsg}`,
+      rawError: rawMsg,
+      user,
+      meta: {
+        ...fileMeta,
+        stack: err instanceof Error ? err.stack?.slice(0, 500) : undefined,
+      },
+    });
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to submit post",
+      error: `Upload failed (${stage}): ${rawMsg}`,
+      errorCode,
+      stage,
     };
   }
 }

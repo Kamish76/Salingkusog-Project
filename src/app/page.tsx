@@ -37,7 +37,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       (SELECT count(*) FROM public.raffle_entries WHERE status IN ('valid', 'verified')) as total_raffles,
       COALESCE((SELECT current_day FROM public.event_config WHERE key = 'active_event' LIMIT 1), 1) as current_day,
       COALESCE((SELECT is_event_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), true) as is_event_active,
-      COALESCE((SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), true) as is_raffle_active
+      COALESCE((SELECT is_raffle_active FROM public.event_config WHERE key = 'active_event' LIMIT 1), false) as is_raffle_active
   `;
 
   const postRowsPromise = sql`
@@ -62,7 +62,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   `;
 
   const taskRowsPromise = sql`
-    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
+    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie, is_active
     FROM public.bingo_tasks
     ORDER BY slot_index ASC
   `;
@@ -115,7 +115,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const totalRaffles = Number(statsRows[0]?.total_raffles || 0);
   const currentDay = Number(statsRows[0]?.current_day || 1);
   const isEventActive = Boolean(statsRows[0]?.is_event_active ?? true);
-  const isRaffleActive = Boolean(statsRows[0]?.is_raffle_active ?? true);
+  const isRaffleActive = Boolean(statsRows[0]?.is_raffle_active);
 
   const posts: PostRecord[] = postRows.map((r) => ({
     id: r.id,
@@ -138,6 +138,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     category: r.category,
     unlockDay: Number(r.unlock_day),
     requiresSelfie: Boolean(r.requires_selfie),
+    isActive: Boolean(r.is_active ?? true),
   }));
 
   const userProgress: UserProgressItem[] = (progressRows as Record<string, unknown>[]).map((r) => ({
@@ -248,7 +249,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </h1>
 
           <p className="mt-3 sm:mt-4 text-[#5a413d] font-body text-xs sm:text-base max-w-xl mx-auto font-normal leading-relaxed px-2">
-            Join the 3×3 live photo rally: snap student moments, stamp your card, and earn your ticket into the stage raffle draw.
+            {isRaffleActive
+              ? "Join the 3×3 live photo rally: snap student moments, stamp your card, and earn your ticket into the stage raffle draw."
+              : "Join the 3×3 live photo rally: snap student moments, stamp your card, and share memories on the campus board."}
           </p>
 
           {/* Real Live Stats Bar */}
@@ -261,15 +264,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 {totalSnaps === 1 ? "Photo Snapped" : "Photos Snapped"}
               </span>
             </div>
-            <span className="text-[#e8ded5]">•</span>
-            <div className="flex items-center gap-1.5 sm:gap-2 text-[#1e1b19]">
-              <span className="font-display font-bold text-xs sm:text-sm text-[#8e4e14]">
-                {totalRaffles}
-              </span>
-              <span className="text-[#8e706c] text-[11px] sm:text-xs">
-                {totalRaffles === 1 ? "Stage Raffle Entry" : "Stage Raffle Entries"}
-              </span>
-            </div>
+            {isRaffleActive && (
+              <>
+                <span className="text-[#e8ded5]">•</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 text-[#1e1b19]">
+                  <span className="font-display font-bold text-xs sm:text-sm text-[#8e4e14]">
+                    {totalRaffles}
+                  </span>
+                  <span className="text-[#8e706c] text-[11px] sm:text-xs">
+                    {totalRaffles === 1 ? "Stage Raffle Entry" : "Stage Raffle Entries"}
+                  </span>
+                </div>
+              </>
+            )}
             <span className="text-[#e8ded5] hidden sm:inline">•</span>
             <div className="hidden sm:flex items-center gap-2 text-[#1e1b19]">
               <span className="w-2 h-2 rounded-full bg-[#588157]"></span>

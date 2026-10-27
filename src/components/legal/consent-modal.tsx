@@ -74,7 +74,7 @@ export function ConsentModal({ isOpen, userName }: ConsentModalProps) {
             Welcome, {firstName}!
           </h2>
           <p className="text-xs sm:text-[13px] text-[#5a413d] font-body mt-1 leading-relaxed max-w-md mx-auto">
-            Before you start sharing snaps and earning stage raffle tickets, please review how we care for your privacy under the Philippine Data Privacy Act (RA 10173).
+            Before you start sharing snaps and participating in the 3×3 bingo challenge, please review how we care for your privacy under the Philippine Data Privacy Act (RA 10173).
           </p>
         </div>
 

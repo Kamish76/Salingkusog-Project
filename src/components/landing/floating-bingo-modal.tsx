@@ -15,6 +15,7 @@ export interface BingoTaskItem {
   category: string;
   unlockDay: number;
   requiresSelfie: boolean;
+  isActive?: boolean;
 }
 
 export interface UserProgressItem {
@@ -131,7 +132,7 @@ export function FloatingBingoModal({
   raffleEntries,
   currentDay,
   isEventActive = true,
-  isRaffleActive = true,
+  isRaffleActive = false,
   isOpen: externalIsOpen,
   onOpenChange,
   onSelectTaskToUpload,
@@ -340,6 +341,7 @@ export function FloatingBingoModal({
     const progress = progressBySlot.get(task.slotIndex);
     const isCompleted = Boolean(progress);
     const isUnlocked = isTaskUnlocked(task.unlockDay, currentDay);
+    const isTaskActive = task.isActive !== false;
 
     if (isCompleted && progress) {
       // Capture element rect for Apple fluid zoom from tile origin
@@ -359,6 +361,11 @@ export function FloatingBingoModal({
 
     if (!isEventActive) {
       setActiveHint("⏸️ Bingo uploads are currently paused by organizers.");
+      return;
+    }
+
+    if (!isTaskActive) {
+      setActiveHint("⏸️ This challenge slot is currently paused by organizers.");
       return;
     }
 
@@ -409,7 +416,15 @@ export function FloatingBingoModal({
 
   const handleChangePhoto = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!selectedSlotDetail) return;
-    const taskId = selectedSlotDetail.task.id;
+    const detailTask = selectedSlotDetail.task;
+    if (
+      !isTaskUnlocked(detailTask.unlockDay, currentDay) ||
+      !isEventActive ||
+      detailTask.isActive === false
+    ) {
+      return;
+    }
+    const taskId = detailTask.id;
     const rect = e.currentTarget.getBoundingClientRect();
     setSelectedSlotDetail(null);
     setOriginRect(null);
@@ -611,7 +626,9 @@ export function FloatingBingoModal({
                   )}
                 </div>
                 <p className="font-body text-xs text-[#5a413d] mt-1">
-                  Complete all 9 challenges to enter the official stage raffle draw
+                  {isRaffleActive
+                    ? "Complete all 9 challenges to enter the official stage raffle draw"
+                    : "Complete all 9 challenges to finish your 3×3 card"}
                 </p>
                 {!isEventActive && (
                   <div className="mt-2 text-[11px] sm:text-xs text-amber-900 font-body px-2.5 py-1.5 bg-amber-50 border border-amber-200/90 rounded-lg flex items-center gap-1.5">
@@ -681,7 +698,8 @@ export function FloatingBingoModal({
                   const progress = progressBySlot.get(task.slotIndex);
                   const isCompleted = Boolean(progress && progress.imageUrl);
                   const isUnlocked = isTaskUnlocked(task.unlockDay, currentDay);
-                  const isLocked = !isUnlocked || !isEventActive;
+                  const isTaskActive = task.isActive !== false;
+                  const isLocked = !isUnlocked || !isEventActive || !isTaskActive;
                   const isCenter = task.slotIndex === 4;
                   const icon = getCategoryIcon(task.category);
                   const rotationClass = POLAROID_ROTATIONS[task.slotIndex % POLAROID_ROTATIONS.length];
@@ -701,11 +719,11 @@ export function FloatingBingoModal({
                           <button
                             onClick={(e) => handleTileClick(task, e)}
                             type="button"
-                            aria-label={`${task.title} - ${!isEventActive ? "Paused" : `Unlocks on Day ${task.unlockDay}`}`}
-                            className={`w-full h-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none select-none ${
+                            aria-label={`${task.title} - ${!isEventActive || !isTaskActive ? "Paused" : `Unlocks on Day ${task.unlockDay}`}`}
+                            className={`w-full h-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none select-none opacity-60 cursor-not-allowed ${
                               isCenter
                                 ? "bg-stone-100/50 text-stone-500 border-stone-300/50"
-                                : "bg-stone-50/70 border-stone-200/80 text-stone-500 hover:border-stone-300 hover:bg-stone-100/60"
+                                : "bg-stone-50/70 border-stone-200/80 text-stone-500"
                             }`}
                             style={{ zIndex: 1 }}
                           >
@@ -717,7 +735,7 @@ export function FloatingBingoModal({
                               <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                               </svg>
-                              {!isEventActive ? "Paused" : `Day ${task.unlockDay}`}
+                              {!isEventActive || !isTaskActive ? "Paused" : `Unlocks Day ${task.unlockDay}`}
                             </span>
                           </button>
                         ) : (
@@ -816,76 +834,49 @@ export function FloatingBingoModal({
             </div>
 
             {/* Real Claimed Raffle Ticket Box */}
-            {!isRaffleActive ? (
+            {isRaffleActive && (
               raffleEntries.length > 0 ? (
-                <div className="mt-3 p-3 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center justify-between gap-2">
+                <div className="mt-3 p-3 rounded-xl bg-[#fff8f5] border border-[#f4a261]/40 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <svg className="w-5 h-5 text-stone-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-[#8e4e14]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z" />
                     </svg>
                     <div>
-                      <span className="font-display text-xs font-bold text-stone-700 block leading-tight">
-                        Raffle Drawings on Standby
+                      <span className="font-display text-xs font-bold text-[#8e4e14] block leading-tight">
+                        Raffle Ticket Earned
                       </span>
-                      <span className="font-mono text-[10px] text-stone-500 block">
-                        {raffleEntries.length} ticket{raffleEntries.length === 1 ? "" : "s"} saved · {raffleEntries[0].raffleCode}
+                      <span className="font-mono text-[10px] text-stone-600 block">
+                        Code: {raffleEntries[0].raffleCode} ({
+                          raffleEntries[0].lineType === "row"
+                            ? "Row Line"
+                            : raffleEntries[0].lineType === "column"
+                            ? "Column Line"
+                            : raffleEntries[0].lineType === "diagonal"
+                            ? "Diagonal Line"
+                            : raffleEntries[0].lineType === "blackout"
+                            ? "Full Blackout"
+                            : raffleEntries[0].lineType === "milestone"
+                            ? "Milestone"
+                            : raffleEntries[0].lineType === "memory_drop"
+                            ? "Campus Memory"
+                            : raffleEntries[0].lineType
+                        })
                       </span>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-md bg-stone-200 text-stone-600 font-bold text-[10px]">
-                    Standby
+
+                  <span className="px-2 py-0.5 rounded-md bg-[#f4a261]/20 text-[#8e4e14] font-bold text-[10px]">
+                    Valid Entry
                   </span>
                 </div>
               ) : (
                 <div className="mt-3 p-3 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center gap-2 text-stone-600 text-xs font-body">
                   <svg className="w-4 h-4 text-stone-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" />
-                  </svg>
-                  <span>Raffle drawings are temporarily on pause while event setup is underway. Bingo stamps are active.</span>
-                </div>
-              )
-            ) : raffleEntries.length > 0 ? (
-              <div className="mt-3 p-3 rounded-xl bg-[#fff8f5] border border-[#f4a261]/40 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-5 h-5 text-[#8e4e14]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z" />
                   </svg>
-                  <div>
-                    <span className="font-display text-xs font-bold text-[#8e4e14] block leading-tight">
-                      Raffle Ticket Earned
-                    </span>
-                    <span className="font-mono text-[10px] text-stone-600 block">
-                      Code: {raffleEntries[0].raffleCode} ({
-                        raffleEntries[0].lineType === "row"
-                          ? "Row Line"
-                          : raffleEntries[0].lineType === "column"
-                          ? "Column Line"
-                          : raffleEntries[0].lineType === "diagonal"
-                          ? "Diagonal Line"
-                          : raffleEntries[0].lineType === "blackout"
-                          ? "Full Blackout"
-                          : raffleEntries[0].lineType === "milestone"
-                          ? "Milestone"
-                          : raffleEntries[0].lineType === "memory_drop"
-                          ? "Campus Memory"
-                          : raffleEntries[0].lineType
-                      })
-                    </span>
-                  </div>
+                  <span>Complete any 3-slot row, column, or diagonal line to earn a verifiable stage raffle entry.</span>
                 </div>
-
-                <span className="px-2 py-0.5 rounded-md bg-[#f4a261]/20 text-[#8e4e14] font-bold text-[10px]">
-                  Valid Entry
-                </span>
-              </div>
-            ) : (
-              <div className="mt-3 p-3 rounded-xl bg-[#fcf9f5] border border-[#e8ded5] flex items-center gap-2 text-stone-600 text-xs font-body">
-                <svg className="w-4 h-4 text-stone-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z" />
-                </svg>
-                <span>Complete any 3-slot row, column, or diagonal line to earn a verifiable stage raffle entry.</span>
-              </div>
+              )
             )}
 
             {/* Action Buttons */}
@@ -915,7 +906,7 @@ export function FloatingBingoModal({
                   target="_blank"
                   className="inline-flex items-center gap-1 text-[11px] font-body text-[#8e706c] hover:text-[#b4281e] underline decoration-stone-300 hover:decoration-[#b4281e] transition-colors"
                 >
-                  <span>📜 View Official Rally &amp; Raffle Rules</span>
+                  <span>{isRaffleActive ? "📜 View Official Rally & Raffle Rules" : "📜 View Official Rally Rules"}</span>
                 </Link>
               </div>
             </div>
@@ -1016,17 +1007,36 @@ export function FloatingBingoModal({
             )}
 
             <div className="grid grid-cols-2 gap-2.5">
-              <button
-                onClick={handleChangePhoto}
-                type="button"
-                disabled={isRemoving}
-                className="py-3 px-4 min-h-[44px] rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-display font-bold text-xs border border-stone-700 transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center justify-center gap-2 active:scale-95"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-                <span>Change Photo</span>
-              </button>
+              {(!isTaskUnlocked(selectedSlotDetail.task.unlockDay, currentDay) ||
+                !isEventActive ||
+                selectedSlotDetail.task.isActive === false) ? (
+                <button
+                  type="button"
+                  disabled
+                  className="py-3 px-4 min-h-[44px] rounded-lg bg-stone-900/60 text-stone-400 font-display font-bold text-xs border border-stone-800 flex items-center justify-center gap-1.5 cursor-not-allowed opacity-70"
+                >
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                  </svg>
+                  <span>
+                    {!isEventActive || selectedSlotDetail.task.isActive === false
+                      ? "Paused"
+                      : `Locked (Day ${selectedSlotDetail.task.unlockDay})`}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleChangePhoto}
+                  type="button"
+                  disabled={isRemoving}
+                  className="py-3 px-4 min-h-[44px] rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-display font-bold text-xs border border-stone-700 transition focus-visible:ring-2 focus-visible:ring-[#ff5e4d] focus-visible:outline-none cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                  <span>Change Photo</span>
+                </button>
+              )}
 
               <button
                 onClick={handleRemovePhoto}

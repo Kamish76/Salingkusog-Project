@@ -26,7 +26,8 @@ export default async function PersonalGalleryPage() {
   const configPromise = sql`
     SELECT 
       COALESCE(current_day, 1) as current_day,
-      COALESCE(is_event_active, true) as is_event_active
+      COALESCE(is_event_active, true) as is_event_active,
+      COALESCE(is_raffle_active, false) as is_raffle_active
     FROM public.event_config
     WHERE key = 'active_event'
     LIMIT 1
@@ -55,7 +56,7 @@ export default async function PersonalGalleryPage() {
   `;
 
   const taskRowsPromise = sql`
-    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie
+    SELECT id, slot_index, title, description, category, unlock_day, requires_selfie, is_active
     FROM public.bingo_tasks
     ORDER BY slot_index ASC
   `;
@@ -91,6 +92,7 @@ export default async function PersonalGalleryPage() {
 
   const currentDay = Number(configRows[0]?.current_day || 1);
   const isEventActive = Boolean(configRows[0]?.is_event_active ?? true);
+  const isRaffleActive = Boolean(configRows[0]?.is_raffle_active);
   const agreedPromotionalUse = Boolean(consentRows[0]?.agreed_promotional_use);
 
   const posts: PostRecord[] = postRows.map((r) => ({
@@ -114,6 +116,7 @@ export default async function PersonalGalleryPage() {
     category: r.category,
     unlockDay: Number(r.unlock_day),
     requiresSelfie: Boolean(r.requires_selfie),
+    isActive: Boolean(r.is_active ?? true),
   }));
 
   const userProgress: UserProgressItem[] = progressRows.map((r) => ({
@@ -174,6 +177,7 @@ export default async function PersonalGalleryPage() {
           }}
           currentDay={currentDay}
           isEventActive={isEventActive}
+          isRaffleActive={isRaffleActive}
           tasks={tasks}
           userProgress={userProgress}
           agreedPromotionalUse={agreedPromotionalUse}

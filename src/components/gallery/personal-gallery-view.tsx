@@ -21,6 +21,7 @@ interface PersonalGalleryViewProps {
   };
   currentDay: number;
   isEventActive?: boolean;
+  isRaffleActive?: boolean;
   tasks: BingoTaskItem[];
   userProgress: UserProgressItem[];
   agreedPromotionalUse?: boolean;
@@ -31,6 +32,7 @@ export function PersonalGalleryView({
   user,
   currentDay,
   isEventActive = true,
+  isRaffleActive = false,
   tasks,
   userProgress,
   agreedPromotionalUse = false,
@@ -336,7 +338,8 @@ export function PersonalGalleryView({
             const task = tasks.find((t) => t.slotIndex === slotIndex);
             const progress = progressBySlot.get(slotIndex);
             const isUnlocked = isTaskUnlocked(task?.unlockDay || 1, currentDay);
-            const isAvailable = isUnlocked && isEventActive;
+            const isTaskActive = task?.isActive !== false;
+            const isAvailable = isUnlocked && isEventActive && isTaskActive;
 
             if (progress && progress.imageUrl) {
               return (
@@ -365,14 +368,23 @@ export function PersonalGalleryView({
                     <span className="font-display font-bold text-xs text-[#1e1b19] truncate">
                       {task?.title || `Slot #${slotIndex + 1}`}
                     </span>
-                    <button
-                      onClick={(e) => handleOpenUpload(task?.id, e)}
-                      type="button"
-                      aria-label={`Replace photo for ${task?.title || "slot"}`}
-                      className="text-xs font-display font-bold text-[#8e4e14] hover:text-[#ff5e4d] underline cursor-pointer shrink-0 min-h-[44px] min-w-[44px] inline-flex items-center justify-end p-1"
-                    >
-                      Replace
-                    </button>
+                    {isAvailable ? (
+                      <button
+                        onClick={(e) => handleOpenUpload(task?.id, e)}
+                        type="button"
+                        aria-label={`Replace photo for ${task?.title || "slot"}`}
+                        className="text-xs font-display font-bold text-[#8e4e14] hover:text-[#ff5e4d] underline cursor-pointer shrink-0 min-h-[44px] min-w-[44px] inline-flex items-center justify-end p-1"
+                      >
+                        Replace
+                      </button>
+                    ) : (
+                      <span className="text-[11px] font-body font-semibold text-stone-500 flex items-center gap-1 shrink-0 min-h-[44px] p-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                        </svg>
+                        <span>{!isEventActive || !isTaskActive ? "Paused" : `Day ${task?.unlockDay}`}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               );
@@ -423,7 +435,7 @@ export function PersonalGalleryView({
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                       </svg>
-                      <span>{!isEventActive ? "Event Paused" : `Unlocks Day ${task?.unlockDay}`}</span>
+                      <span>{!isEventActive || !isTaskActive ? "Event Paused" : `Unlocks Day ${task?.unlockDay}`}</span>
                     </span>
                   )}
                 </div>
@@ -649,7 +661,7 @@ export function PersonalGalleryView({
             </Link>
             <span className="text-[#e8ded5]">•</span>
             <Link href="/rally-rules" target="_blank" className="text-[#b4281e] font-bold underline">
-              Rally Rules
+              {isRaffleActive ? "Rally & Raffle Rules" : "Rally Rules"}
             </Link>
           </div>
         </div>
@@ -662,7 +674,9 @@ export function PersonalGalleryView({
               <span>Right to Erasure: Delete Account &amp; All Memories</span>
             </span>
             <p className="font-body text-xs text-red-800/80 mt-1 leading-relaxed max-w-xl">
-              Permanently purges all your uploaded photos from cloud storage, clears all your 3×3 bingo progress, voids your earned raffle tickets, and revokes your consent record under RA 10173.
+              {isRaffleActive
+                ? "Permanently purges all your uploaded photos from cloud storage, clears all your 3×3 bingo progress, voids your earned raffle tickets, and revokes your consent record under RA 10173."
+                : "Permanently purges all your uploaded photos from cloud storage, clears all your 3×3 bingo progress, and revokes your consent record under RA 10173."}
             </p>
           </div>
 
@@ -689,12 +703,14 @@ export function PersonalGalleryView({
         isAuthenticated={true}
         currentDay={currentDay}
         isEventActive={isEventActive}
+        isRaffleActive={isRaffleActive}
         bingoTasks={tasks.map((t) => ({
           id: t.id,
           slotIndex: t.slotIndex,
           title: t.title,
           description: t.description,
           unlockDay: t.unlockDay,
+          isActive: t.isActive,
         }))}
         preselectedTaskId={preselectedTaskId}
       />
@@ -717,7 +733,15 @@ export function PersonalGalleryView({
                 Permanently Delete Everything?
               </h3>
               <p className="text-xs text-[#5a413d] font-body mt-1.5 leading-relaxed">
-                This will instantly delete <strong>all {validPosts.length} of your memories</strong>, discard all storage photos, remove your 3×3 bingo progress, and void all your stage raffle codes. This cannot be undone.
+                {isRaffleActive ? (
+                  <>
+                    This will instantly delete <strong>all {validPosts.length} of your memories</strong>, discard all storage photos, remove your 3×3 bingo progress, and void all your stage raffle codes. This cannot be undone.
+                  </>
+                ) : (
+                  <>
+                    This will instantly delete <strong>all {validPosts.length} of your memories</strong>, discard all storage photos, and remove your 3×3 bingo progress. This cannot be undone.
+                  </>
+                )}
               </p>
             </div>
 

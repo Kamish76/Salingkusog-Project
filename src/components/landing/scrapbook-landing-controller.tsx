@@ -116,12 +116,15 @@ export function ScrapbookLandingController({
             <p className="text-xs font-body text-[#5a413d] leading-relaxed">
               {completedCount >= 9 ? (
                 <span className="text-[#2b6127] font-semibold">
-                  🎉 Card completed! You have earned your entry into the Stage Raffle Draw.
+                  {isRaffleActive
+                    ? "🎉 Card completed! You have earned your entry into the Stage Raffle Draw."
+                    : "🎉 Card completed! You have stamped all 9 campus challenges."}
                 </span>
               ) : (
                 <>
                   Snap <strong className="font-bold text-[#b4281e]">{remainingTasks} more</strong>{" "}
-                  {remainingTasks === 1 ? "campus photo" : "campus photos"} to complete your card and enter the stage raffle draw!
+                  {remainingTasks === 1 ? "campus photo" : "campus photos"} to complete your card
+                  {isRaffleActive ? " and enter the stage raffle draw!" : "!"}
                 </>
               )}
             </p>
@@ -154,7 +157,9 @@ export function ScrapbookLandingController({
                 Ready to start your 3×3 Card?
               </h2>
               <p className="text-xs font-body text-[#5a413d] mt-1 leading-relaxed">
-                Sign in with your Google account to snap challenges, stamp your board, and win stage raffle prizes.
+                {isRaffleActive
+                  ? "Sign in with your Google account to snap challenges, stamp your board, and win stage raffle prizes."
+                  : "Sign in with your Google account to snap challenges, stamp your board, and share memories on the campus board."}
               </p>
             </div>
 
@@ -215,11 +220,13 @@ export function ScrapbookLandingController({
                 3
               </span>
               <h3 className="font-display font-bold text-sm text-[#1e1b19]">
-                Win Stage Prizes
+                {isRaffleActive ? "Win Stage Prizes" : "Complete Your Board"}
               </h3>
             </div>
             <p className="font-body text-xs text-[#5a413d] leading-relaxed pl-10">
-              Complete all 9 squares to earn your verified raffle code for the official stage draw!
+              {isRaffleActive
+                ? "Complete all 9 squares to earn your verified raffle code for the official stage draw!"
+                : "Complete all 9 challenges to fill your memory card and celebrate with campus spirit!"}
             </p>
           </div>
         </div>
@@ -259,12 +266,14 @@ export function ScrapbookLandingController({
         isAuthenticated={Boolean(user)}
         currentDay={currentDay}
         isEventActive={isEventActive}
+        isRaffleActive={isRaffleActive}
         bingoTasks={tasks.map((t) => ({
           id: t.id,
           slotIndex: t.slotIndex,
           title: t.title,
           description: t.description,
           unlockDay: t.unlockDay,
+          isActive: t.isActive,
         }))}
         preselectedTaskId={preselectedTaskId}
       />
