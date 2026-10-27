@@ -11,6 +11,8 @@ import type {
 } from "@/components/landing/floating-bingo-modal";
 import { checkUserConsent } from "@/app/actions/consent";
 import { ConsentModal } from "@/components/legal/consent-modal";
+import { realtimeServer, livePostsQuery } from "@/lib/realtime";
+import type { SealedLiveQuery } from "@neon/realtime/client";
 
 
 interface HomePageProps {
@@ -58,8 +60,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       AND p.image_url IS NOT NULL
       AND TRIM(p.image_url) != ''
     ORDER BY p.created_at DESC
-    LIMIT 60
+    LIMIT 10
   `;
+
+  const sealedPromise: Promise<SealedLiveQuery<PostRecord> | null> = realtimeServer
+    ? realtimeServer.seal({ query: livePostsQuery }).catch((err) => {
+        console.warn("Could not seal live posts query:", err);
+        return null;
+      })
+    : Promise.resolve(null);
 
   const taskRowsPromise = sql`
     SELECT id, slot_index, title, description, category, unlock_day, requires_selfie, is_active
@@ -100,13 +109,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       ? checkUserConsent(user.id)
       : Promise.resolve({ hasConsented: true, consent: null });
 
-  const [statsRows, postRows, taskRows, progressRows, raffleRows, consentResult] = await Promise.all([
+  const [statsRows, postRows, taskRows, progressRows, raffleRows, consentResult, sealedPostsQuery] = await Promise.all([
     statsPromise,
     postRowsPromise,
     taskRowsPromise,
     progressRowsPromise,
     raffleRowsPromise,
     consentPromise,
+    sealedPromise,
   ]);
 
   const hasUserConsented = Boolean(consentResult.hasConsented);
@@ -292,6 +302,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <section aria-label="Campus Memory Board" className="w-full">
           <ScrapbookLandingController
             posts={posts}
+            sealedPostsQuery={sealedPostsQuery}
             tasks={tasks}
             userProgress={userProgress}
             raffleEntries={raffleEntries}

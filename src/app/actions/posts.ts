@@ -986,4 +986,85 @@ export async function reportPhotoAction(
   }
 }
 
+export interface LoadMorePostsResult {
+  success: boolean;
+  posts: Array<{
+    id: string;
+    userId: string;
+    displayName: string;
+    collegeDept: string | null;
+    imageUrl: string;
+    caption: string | null;
+    isBingoEntry: boolean;
+    taskTitle: string | null;
+    slotIndex: number | null;
+    createdAt: string;
+  }>;
+  hasMore: boolean;
+  error?: string;
+}
+
+export async function loadMorePostsAction(
+  cursorCreatedAt: string,
+  cursorId: string,
+  limit = 10
+): Promise<LoadMorePostsResult> {
+  try {
+    if (!cursorCreatedAt || !cursorId) {
+      return { success: false, posts: [], hasMore: false, error: "Missing pagination cursor" };
+    }
+
+    const safeLimit = Math.min(Math.max(1, limit), 20);
+
+    const rows = await sql`
+      SELECT 
+        p.id,
+        p.user_id,
+        COALESCE(p.display_name, 'Student') as display_name,
+        p.college_dept,
+        p.image_url,
+        p.caption,
+        p.is_bingo_entry,
+        p.created_at,
+        bt.title as task_title,
+        bt.slot_index
+      FROM public.posts p
+      LEFT JOIN public.bingo_tasks bt ON p.bingo_task_id = bt.id
+      WHERE p.status = 'published'
+        AND p.image_url IS NOT NULL 
+        AND TRIM(p.image_url) != ''
+        AND (p.created_at, p.id) < (${cursorCreatedAt}::timestamptz, ${cursorId}::uuid)
+      ORDER BY p.created_at DESC, p.id DESC
+      LIMIT ${safeLimit}
+    `;
+
+    const posts = rows.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      displayName: r.display_name,
+      collegeDept: r.college_dept,
+      imageUrl: r.image_url,
+      caption: r.caption,
+      isBingoEntry: Boolean(r.is_bingo_entry),
+      taskTitle: r.task_title,
+      slotIndex: r.slot_index !== null ? Number(r.slot_index) : null,
+      createdAt: typeof r.created_at === "string" ? r.created_at : new Date(r.created_at).toISOString(),
+    }));
+
+    return {
+      success: true,
+      posts,
+      hasMore: posts.length === safeLimit,
+    };
+  } catch (err: unknown) {
+    console.error("loadMorePostsAction error:", err);
+    return {
+      success: false,
+      posts: [],
+      hasMore: false,
+      error: err instanceof Error ? err.message : "Failed to load more posts",
+    };
+  }
+}
+
 
