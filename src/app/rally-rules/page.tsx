@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { sql } from "@/lib/db";
 import { LegalHeader, LegalAdvisoryBanner } from "@/components/legal/legal-header";
 
@@ -16,13 +17,18 @@ export const metadata: Metadata = {
 };
 
 export default async function RallyRulesPage() {
-  const configRows = await sql`
-    SELECT COALESCE(is_raffle_active, false) as is_raffle_active 
-    FROM public.event_config 
-    WHERE key = 'active_event' 
-    LIMIT 1
-  `;
-  const isRaffleActive = Boolean(configRows[0]?.is_raffle_active);
+  await connection();
+
+  let isRaffleActive = false;
+  if (process.env.DATABASE_URL) {
+    const configRows = await sql`
+      SELECT COALESCE(is_raffle_active, false) as is_raffle_active 
+      FROM public.event_config 
+      WHERE key = 'active_event' 
+      LIMIT 1
+    `;
+    isRaffleActive = Boolean(configRows[0]?.is_raffle_active);
+  }
 
   return (
     <div className="min-h-[100dvh] bg-[#fcf9f5] text-[#1e1b19] flex flex-col font-body selection:bg-[#ffdcc4] selection:text-[#6f3800]">
