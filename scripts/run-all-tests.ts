@@ -21,6 +21,7 @@ import { runHealthProbesTest } from "./tests/test-health-probes.ts";
 import { runPhotoModerationTest } from "./tests/test-photo-moderation.ts";
 import { runConsentDpaTest } from "./tests/test-consent-dpa.ts";
 import { runDayUploadConstraintsTest } from "./tests/test-day-upload-constraints.ts";
+import { runPostsPaginationTest } from "./tests/test-posts-pagination.ts";
 import { runLegalHeaderResponsiveTest } from "./tests/test-legal-header-responsive.ts";
 import { runLegalTokenWrappingTest } from "./tests/test-legal-token-wrapping.ts";
 import { spawnSync } from "node:child_process";
@@ -162,6 +163,15 @@ async function runAllSuites() {
     results.push({ name: "Day-Based Bingo Constraints", durationMs: Date.now() - t12, status: "PASSED" });
   } catch (err) {
     results.push({ name: "Day-Based Bingo Constraints", durationMs: Date.now() - t12, status: "FAILED", error: (err as Error).message });
+  }
+
+  // Suite 14: Posts Keyset Pagination & Cursor Validation
+  const t13 = Date.now();
+  try {
+    await runPostsPaginationTest();
+    results.push({ name: "Posts Keyset Pagination & Cursors", durationMs: Date.now() - t13, status: "PASSED" });
+  } catch (err) {
+    results.push({ name: "Posts Keyset Pagination & Cursors", durationMs: Date.now() - t13, status: "FAILED", error: (err as Error).message });
   }
 
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);

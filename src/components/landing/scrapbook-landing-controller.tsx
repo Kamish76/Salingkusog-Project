@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MemoryBoard, type PostRecord } from "./memory-board";
+import type { SealedLiveQuery } from "@neon/realtime/client";
 import {
   FloatingBingoModal,
   type BingoTaskItem,
@@ -13,6 +14,7 @@ import { AuthButton } from "@/components/auth-button";
 
 interface ScrapbookLandingControllerProps {
   posts: PostRecord[];
+  sealedPostsQuery?: SealedLiveQuery<PostRecord> | null;
   tasks: BingoTaskItem[];
   userProgress: UserProgressItem[];
   raffleEntries: RaffleEntryItem[];
@@ -28,6 +30,7 @@ interface ScrapbookLandingControllerProps {
 
 export function ScrapbookLandingController({
   posts,
+  sealedPostsQuery,
   tasks,
   userProgress,
   raffleEntries,
@@ -235,6 +238,7 @@ export function ScrapbookLandingController({
       {/* 3. CENTRAL POLAROID MEMORY BOARD */}
       <MemoryBoard
         posts={posts}
+        sealedPostsQuery={sealedPostsQuery}
         isAuthenticated={Boolean(user)}
         currentUserId={user?.id}
         onOpenUpload={(rect) => handleOpenUpload(undefined, rect, "board")}

@@ -2,8 +2,11 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { ROTATIONS, TAPES, PHOTO_ASPECTS, formatTimeAgo } from "@/lib/polaroid";
-import { deleteStudentPostAction } from "@/app/actions/posts";
+import { deleteStudentPostAction, loadMorePostsAction } from "@/app/actions/posts";
 import { ReportPhotoModal } from "@/components/legal/report-photo-modal";
+import { RealtimePostsProvider } from "./realtime-posts-provider";
+import { useLiveQuery } from "@neon/realtime-react";
+import type { SealedLiveQuery } from "@neon/realtime/client";
 
 export interface PostRecord {
   id: string;
@@ -18,8 +21,36 @@ export interface PostRecord {
   createdAt: string | Date;
 }
 
+interface LiveSubscriberProps {
+  sealedQuery: SealedLiveQuery<PostRecord>;
+  onLivePosts: (posts: readonly PostRecord[]) => void;
+}
+
+function LiveMemoryBoardSubscriber({ sealedQuery, onLivePosts }: LiveSubscriberProps) {
+  const refreshQuery = useCallback(async () => {
+    const res = await fetch("/api/realtime/posts", { method: "POST" });
+    if (!res.ok) throw new Error("Failed to renew live posts query");
+    return (await res.json()) as SealedLiveQuery<PostRecord>;
+  }, []);
+
+  const { data, error } = useLiveQuery(sealedQuery, { refreshQuery });
+
+  useEffect(() => {
+    if (data && data.length > 0) {
+      onLivePosts(data);
+    }
+  }, [data, onLivePosts]);
+
+  if (error) {
+    console.warn("Neon Realtime notice:", error);
+  }
+
+  return null;
+}
+
 interface MemoryBoardProps {
   posts: PostRecord[];
+  sealedPostsQuery?: SealedLiveQuery<PostRecord> | null;
   isAuthenticated: boolean;
   currentUserId?: string;
   onOpenUpload: (originRect?: { top: number; left: number; width: number; height: number }) => void;
@@ -28,10 +59,187 @@ interface MemoryBoardProps {
 
 export function MemoryBoard({
   posts,
+  sealedPostsQuery,
   currentUserId,
   onOpenUpload,
   onOpenBingo,
 }: MemoryBoardProps) {
+  // Prepended realtime posts and dynamically loaded older posts
+  const [prependedPosts, setPrependedPosts] = useState<PostRecord[]>([]);
+  const [appendedPosts, setAppendedPosts] = useState<PostRecord[]>([]);
+  const [pendingRealtimePosts, setPendingRealtimePosts] = useState<PostRecord[]>([]);
+  const [remotelyDeletedIds, setRemotelyDeletedIds] = useState<Set<string>>(new Set());
+  const lastLiveRowIdsRef = useRef<Set<string> | null>(null);
+
+  // Combined posts stream
+  const allPosts = useMemo(() => {
+    const map = new Map<string, PostRecord>();
+    for (const p of prependedPosts) {
+      map.set(p.id, p);
+    }
+    for (const p of posts) {
+      if (!map.has(p.id)) {
+        map.set(p.id, p);
+      }
+    }
+    for (const p of appendedPosts) {
+      if (!map.has(p.id)) {
+        map.set(p.id, p);
+      }
+    }
+    return Array.from(map.values());
+  }, [prependedPosts, posts, appendedPosts]);
+
+  // Keyset pagination / infinite scroll state
+  const [hasMore, setHasMore] = useState<boolean>(posts.length >= 10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Handle incoming live rows from Neon Realtime
+  const handleLivePostsUpdate = useCallback(
+    (liveRows: readonly PostRecord[]) => {
+      if (!liveRows) return;
+
+      const liveIds = new Set(liveRows.map((r) => r.id));
+
+      // Reconcile deletions / moderations: if a post was previously in the live top-window
+      // but is now absent from liveRows, mark it as remotely deleted.
+      if (lastLiveRowIdsRef.current) {
+        const deletedIds: string[] = [];
+        for (const prevId of lastLiveRowIdsRef.current) {
+          if (!liveIds.has(prevId)) {
+            deletedIds.push(prevId);
+          }
+        }
+        if (deletedIds.length > 0) {
+          setRemotelyDeletedIds((prev) => {
+            const next = new Set(prev);
+            deletedIds.forEach((id) => next.add(id));
+            return next;
+          });
+        }
+      }
+      lastLiveRowIdsRef.current = liveIds;
+
+      if (liveRows.length === 0) return;
+
+      const isScrolledDown = typeof window !== "undefined" && window.scrollY > 200;
+
+      const knownIds = new Set([
+        ...posts.map((p) => p.id),
+        ...prependedPosts.map((p) => p.id),
+        ...appendedPosts.map((p) => p.id),
+      ]);
+
+      const incomingNew = liveRows.filter((row) => !knownIds.has(row.id));
+
+      if (incomingNew.length > 0) {
+        if (isScrolledDown) {
+          setPendingRealtimePosts((curr) => {
+            const pendingIds = new Set(curr.map((p) => p.id));
+            const toAdd = incomingNew.filter((p) => !pendingIds.has(p.id));
+            return [...toAdd, ...curr];
+          });
+        } else {
+          setPrependedPosts((prev) => {
+            const prevIds = new Set(prev.map((p) => p.id));
+            const uniqueToAdd = incomingNew.filter((p) => !prevIds.has(p.id));
+            return [...uniqueToAdd, ...prev];
+          });
+        }
+      }
+    },
+    [posts, prependedPosts, appendedPosts]
+  );
+
+  const handleShowPendingPosts = useCallback(() => {
+    if (pendingRealtimePosts.length === 0) return;
+    setPrependedPosts((prev) => {
+      const existing = new Set(prev.map((p) => p.id));
+      const toPrepend = pendingRealtimePosts.filter((p) => !existing.has(p.id));
+      return [...toPrepend, ...prev];
+    });
+    setPendingRealtimePosts([]);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [pendingRealtimePosts]);
+
+  // Auto-reveal pending posts when user scrolls back to the very top
+  useEffect(() => {
+    if (pendingRealtimePosts.length === 0) return;
+    const handleScroll = () => {
+      if (window.scrollY < 60) {
+        handleShowPendingPosts();
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [pendingRealtimePosts.length, handleShowPendingPosts]);
+
+  // Dynamic infinite scroll load more
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore || allPosts.length === 0) return;
+    setIsLoadingMore(true);
+
+    const oldestPost = allPosts[allPosts.length - 1];
+    if (!oldestPost) {
+      setIsLoadingMore(false);
+      return;
+    }
+
+    const cursorCreatedAt =
+      typeof oldestPost.createdAt === "string"
+        ? oldestPost.createdAt
+        : oldestPost.createdAt.toISOString();
+    const cursorId = oldestPost.id;
+
+    try {
+      const res = await loadMorePostsAction(cursorCreatedAt, cursorId, 10);
+      if (res.success && res.posts) {
+        if (!res.hasMore || res.posts.length < 10) {
+          setHasMore(false);
+        }
+        if (res.posts.length > 0) {
+          setAppendedPosts((prev) => {
+            const existing = new Set([
+              ...prev.map((p) => p.id),
+              ...posts.map((p) => p.id),
+              ...prependedPosts.map((p) => p.id),
+            ]);
+            const uniqueNew = res.posts.filter((p) => !existing.has(p.id));
+            return [...prev, ...uniqueNew];
+          });
+        }
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error("Failed to load more posts:", err);
+      setHasMore(false);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, allPosts, posts, prependedPosts]);
+
+  useEffect(() => {
+    if (!hasMore || isLoadingMore) return;
+    const target = sentinelRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "300px" }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [loadMore, hasMore, isLoadingMore]);
+
   // Track failed / missing images to exclude them from the memory board
   const [failedPostIds, setFailedPostIds] = useState<Set<string>>(new Set());
 
@@ -56,13 +264,14 @@ export function MemoryBoard({
   // Only display posts that have a valid non-empty photo, have not failed to load, and haven't been deleted
   const validPosts = useMemo(
     () =>
-      posts.filter(
+      allPosts.filter(
         (p) =>
           Boolean(p.imageUrl && p.imageUrl.trim()) &&
           !failedPostIds.has(p.id) &&
-          !locallyDeletedIds.has(p.id)
+          !locallyDeletedIds.has(p.id) &&
+          !remotelyDeletedIds.has(p.id)
       ),
-    [posts, failedPostIds, locallyDeletedIds]
+    [allPosts, failedPostIds, locallyDeletedIds, remotelyDeletedIds]
   );
 
   // Track natural image aspect ratio to adapt polaroid orientation (landscape vs portrait vs square)
@@ -219,8 +428,38 @@ export function MemoryBoard({
 
 
 
+  const isRealtimeActive = Boolean(
+    sealedPostsQuery && process.env.NEXT_PUBLIC_NEON_REALTIME_URL
+  );
+
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
+    <RealtimePostsProvider>
+      {isRealtimeActive && sealedPostsQuery && (
+        <LiveMemoryBoardSubscriber
+          sealedQuery={sealedPostsQuery}
+          onLivePosts={handleLivePostsUpdate}
+        />
+      )}
+
+      {/* FLOATING REALTIME PILL */}
+      {pendingRealtimePosts.length > 0 && (
+        <div className="sticky top-20 z-40 flex justify-center w-full pointer-events-none -mb-3">
+          <button
+            onClick={handleShowPendingPosts}
+            type="button"
+            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ff5e4d] hover:bg-[#b4281e] text-white font-display font-bold text-xs shadow-lg transition active:scale-95 cursor-pointer animate-in fade-in slide-in-from-top-4 duration-300"
+          >
+            <svg className="w-3.5 h-3.5 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+            </svg>
+            <span>
+              {pendingRealtimePosts.length} new {pendingRealtimePosts.length === 1 ? "memory" : "memories"} shared · View
+            </span>
+          </button>
+        </div>
+      )}
+
+      <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
       {/* CLEAN SCRAPBOOK ACTION & TITLE BAR */}
       <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-[#e8ded5]">
         <div className="flex items-center gap-3">
@@ -348,7 +587,9 @@ export function MemoryBoard({
                           <img
                             src={post.imageUrl}
                             alt={post.caption || "Student memory"}
-                            loading="lazy"
+                            loading={idx < 4 ? "eager" : "lazy"}
+                            fetchPriority={idx < 2 ? "high" : "auto"}
+                            decoding="async"
                             onError={() => {
                               setFailedPostIds((prev) => {
                                 if (prev.has(post.id)) return prev;
@@ -439,7 +680,9 @@ export function MemoryBoard({
                           <img
                             src={post.imageUrl}
                             alt={post.caption || "Student memory"}
-                            loading="lazy"
+                            loading={idx < 4 ? "eager" : "lazy"}
+                            fetchPriority={idx < 2 ? "high" : "auto"}
+                            decoding="async"
                             onError={() => {
                               setFailedPostIds((prev) => {
                                 if (prev.has(post.id)) return prev;
@@ -533,7 +776,9 @@ export function MemoryBoard({
                       <img
                         src={post.imageUrl}
                         alt={post.caption || "Student memory"}
-                        loading="lazy"
+                        loading={idx < 4 ? "eager" : "lazy"}
+                        fetchPriority={idx < 2 ? "high" : "auto"}
+                        decoding="async"
                         onError={() => {
                           setFailedPostIds((prev) => {
                             if (prev.has(post.id)) return prev;
@@ -588,6 +833,23 @@ export function MemoryBoard({
             })}
           </div>
         </>
+      )}
+
+      {/* INFINITE SCROLL / LOAD MORE SENTINEL */}
+      {validPosts.length > 0 && (
+        <div ref={sentinelRef} className="w-full py-8 flex flex-col items-center justify-center">
+          {isLoadingMore && (
+            <div className="flex items-center gap-2.5 text-stone-600 font-display text-xs bg-white/80 backdrop-blur-xs px-4 py-2 rounded-full border border-[#e8ded5] shadow-2xs">
+              <div className="w-3.5 h-3.5 border-2 border-[#ff5e4d] border-t-transparent rounded-full animate-spin" />
+              <span>Loading more memories...</span>
+            </div>
+          )}
+          {!hasMore && validPosts.length >= 10 && (
+            <p className="font-body text-xs text-[#8e706c]">
+              You&apos;ve reached the beginning of the rally board ✨
+            </p>
+          )}
+        </div>
       )}
 
       {/* EXPANDED POLAROID POST DETAIL MODAL */}
@@ -771,5 +1033,6 @@ export function MemoryBoard({
         />
       )}
     </div>
-  );
+  </RealtimePostsProvider>
+);
 }
