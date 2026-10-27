@@ -5,7 +5,6 @@ import { ROTATIONS, TAPES, PHOTO_ASPECTS, formatTimeAgo } from "@/lib/polaroid";
 import { deleteStudentPostAction, loadMorePostsAction } from "@/app/actions/posts";
 import { ReportPhotoModal } from "@/components/legal/report-photo-modal";
 import { RealtimePostsProvider } from "./realtime-posts-provider";
-import { useLiveQuery } from "@neon/realtime-react";
 import type { SealedLiveQuery } from "@neon/realtime/client";
 
 export interface PostRecord {
@@ -19,33 +18,6 @@ export interface PostRecord {
   taskTitle: string | null;
   slotIndex: number | null;
   createdAt: string | Date;
-}
-
-interface LiveSubscriberProps {
-  sealedQuery: SealedLiveQuery<PostRecord>;
-  onLivePosts: (posts: readonly PostRecord[]) => void;
-}
-
-function LiveMemoryBoardSubscriber({ sealedQuery, onLivePosts }: LiveSubscriberProps) {
-  const refreshQuery = useCallback(async () => {
-    const res = await fetch("/api/realtime/posts", { method: "POST" });
-    if (!res.ok) throw new Error("Failed to renew live posts query");
-    return (await res.json()) as SealedLiveQuery<PostRecord>;
-  }, []);
-
-  const { data, error } = useLiveQuery(sealedQuery, { refreshQuery });
-
-  useEffect(() => {
-    if (data && data.length > 0) {
-      onLivePosts(data);
-    }
-  }, [data, onLivePosts]);
-
-  if (error) {
-    console.warn("Neon Realtime notice:", error);
-  }
-
-  return null;
 }
 
 interface MemoryBoardProps {
@@ -428,19 +400,11 @@ export function MemoryBoard({
 
 
 
-  const isRealtimeActive = Boolean(
-    sealedPostsQuery && process.env.NEXT_PUBLIC_NEON_REALTIME_URL
-  );
-
   return (
-    <RealtimePostsProvider>
-      {isRealtimeActive && sealedPostsQuery && (
-        <LiveMemoryBoardSubscriber
-          sealedQuery={sealedPostsQuery}
-          onLivePosts={handleLivePostsUpdate}
-        />
-      )}
-
+    <RealtimePostsProvider
+      sealedQuery={sealedPostsQuery}
+      onLivePosts={handleLivePostsUpdate}
+    >
       {/* FLOATING REALTIME PILL */}
       {pendingRealtimePosts.length > 0 && (
         <div className="sticky top-20 z-40 flex justify-center w-full pointer-events-none -mb-3">
