@@ -28,6 +28,7 @@ interface UploadMemoryModalProps {
   isAuthenticated: boolean;
   currentDay: number;
   isEventActive?: boolean;
+  isRaffleActive?: boolean;
   bingoTasks: BingoTaskOption[];
   preselectedTaskId?: string;
   originRect?: OriginRect | null;
@@ -46,6 +47,7 @@ export function UploadMemoryModal({
   isAuthenticated,
   currentDay,
   isEventActive = true,
+  isRaffleActive = false,
   bingoTasks,
   preselectedTaskId,
   originRect,
@@ -264,9 +266,9 @@ export function UploadMemoryModal({
       }
 
       setSuccessInfo(
-        res.newRaffleCode
+        res.newRaffleCode && isRaffleActive
           ? `🎉 Bingo line complete! Claimed Raffle Ticket: ${res.newRaffleCode}`
-          : "Photo dropped into the memory well!"
+          : "🎉 Memory uploaded successfully!"
       );
 
       setTimeout(() => {
@@ -369,7 +371,9 @@ export function UploadMemoryModal({
                 Sign in to Drop Memories
               </h3>
               <p className="font-body text-xs text-[#5a413d] max-w-xs leading-relaxed">
-                Sign in with your student Google account to upload photos, earn bingo stamps, and enter stage raffle drawings.
+                {isRaffleActive
+                  ? "Sign in with your student Google account to upload photos, earn bingo stamps, and enter stage raffle drawings."
+                  : "Sign in with your student Google account to upload photos and earn bingo stamps."}
               </p>
               <button
                 onClick={handleSignIn}

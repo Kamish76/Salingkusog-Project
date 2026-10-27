@@ -21,6 +21,7 @@ interface PersonalGalleryViewProps {
   };
   currentDay: number;
   isEventActive?: boolean;
+  isRaffleActive?: boolean;
   tasks: BingoTaskItem[];
   userProgress: UserProgressItem[];
   agreedPromotionalUse?: boolean;
@@ -31,6 +32,7 @@ export function PersonalGalleryView({
   user,
   currentDay,
   isEventActive = true,
+  isRaffleActive = false,
   tasks,
   userProgress,
   agreedPromotionalUse = false,
@@ -659,7 +661,7 @@ export function PersonalGalleryView({
             </Link>
             <span className="text-[#e8ded5]">•</span>
             <Link href="/rally-rules" target="_blank" className="text-[#b4281e] font-bold underline">
-              Rally Rules
+              {isRaffleActive ? "Rally & Raffle Rules" : "Rally Rules"}
             </Link>
           </div>
         </div>
@@ -672,7 +674,9 @@ export function PersonalGalleryView({
               <span>Right to Erasure: Delete Account &amp; All Memories</span>
             </span>
             <p className="font-body text-xs text-red-800/80 mt-1 leading-relaxed max-w-xl">
-              Permanently purges all your uploaded photos from cloud storage, clears all your 3×3 bingo progress, voids your earned raffle tickets, and revokes your consent record under RA 10173.
+              {isRaffleActive
+                ? "Permanently purges all your uploaded photos from cloud storage, clears all your 3×3 bingo progress, voids your earned raffle tickets, and revokes your consent record under RA 10173."
+                : "Permanently purges all your uploaded photos from cloud storage, clears all your 3×3 bingo progress, and revokes your consent record under RA 10173."}
             </p>
           </div>
 
@@ -699,6 +703,7 @@ export function PersonalGalleryView({
         isAuthenticated={true}
         currentDay={currentDay}
         isEventActive={isEventActive}
+        isRaffleActive={isRaffleActive}
         bingoTasks={tasks.map((t) => ({
           id: t.id,
           slotIndex: t.slotIndex,
@@ -728,7 +733,15 @@ export function PersonalGalleryView({
                 Permanently Delete Everything?
               </h3>
               <p className="text-xs text-[#5a413d] font-body mt-1.5 leading-relaxed">
-                This will instantly delete <strong>all {validPosts.length} of your memories</strong>, discard all storage photos, remove your 3×3 bingo progress, and void all your stage raffle codes. This cannot be undone.
+                {isRaffleActive ? (
+                  <>
+                    This will instantly delete <strong>all {validPosts.length} of your memories</strong>, discard all storage photos, remove your 3×3 bingo progress, and void all your stage raffle codes. This cannot be undone.
+                  </>
+                ) : (
+                  <>
+                    This will instantly delete <strong>all {validPosts.length} of your memories</strong>, discard all storage photos, and remove your 3×3 bingo progress. This cannot be undone.
+                  </>
+                )}
               </p>
             </div>
 

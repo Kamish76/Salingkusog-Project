@@ -31,7 +31,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Salingkusog | Collegiate Memory Board & 3x3 Intramurals Bingo",
   description:
-    "Drop student memories into the infinite campus board, track your 3x3 Intramurals Bingo card, and claim verified stage raffle entries.",
+    "Drop student memories into the infinite campus board, track your 3x3 Intramurals Bingo card, and share campus spirit.",
   robots: {
     index: false,
     follow: false,
