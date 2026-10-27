@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useSyncExternalStore, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore, type ReactNode } from "react";
 import { createRealtimeClient, type SealedLiveQuery } from "@neon/realtime/client";
 import { RealtimeProvider, useLiveQuery } from "@neon/realtime-react";
 import type { PostRecord } from "./memory-board";
@@ -27,12 +27,17 @@ function LiveQueryListener({
   }, []);
 
   const { data, error } = useLiveQuery(sealedQuery, { refreshQuery });
+  const onLivePostsRef = useRef(onLivePosts);
 
   useEffect(() => {
-    if (data && data.length > 0) {
-      onLivePosts(data);
+    onLivePostsRef.current = onLivePosts;
+  }, [onLivePosts]);
+
+  useEffect(() => {
+    if (data) {
+      onLivePostsRef.current?.(data);
     }
-  }, [data, onLivePosts]);
+  }, [data]);
 
   if (error) {
     console.warn("Neon Realtime notice:", error);
