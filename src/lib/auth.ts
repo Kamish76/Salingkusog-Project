@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { auth } from "@/lib/auth/server";
 import { pushDiagnosticLog } from "@/lib/server-log-buffer";
@@ -24,6 +25,14 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 export async function getCurrentUser(): Promise<AuthUser | null> {
   // Live Neon Managed Better Auth session resolution (Google OAuth)
   try {
+    // Await cookies() before calling auth.getSession() so Next.js 16 prerendering
+    // suspends and rejects here instead of inside @neondatabase/auth (which catches
+    // HANGING_PROMISE_REJECTION on cookies() and then calls fetch() after prerender).
+    const cookieStore = await cookies();
+    if (!cookieStore.getAll().some((c) => c.name.includes("neon-auth"))) {
+      return null;
+    }
+
     const { data: session } = await auth.getSession();
     if (session?.user) {
       let userRole: UserRole = "user";

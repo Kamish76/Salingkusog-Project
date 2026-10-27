@@ -213,6 +213,13 @@ export function ActivityLogsClient() {
             <span>TASKS RESET</span>
           </span>
         );
+      case "POST_UPLOAD_ERROR":
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/40 flex items-center gap-1">
+            <span>⚠️</span>
+            <span>UPLOAD ERROR</span>
+          </span>
+        );
       default:
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-zinc-800 text-zinc-400 border border-zinc-700">
@@ -308,6 +315,7 @@ export function ActivityLogsClient() {
               className="px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-mono focus:outline-hidden focus:border-indigo-500 cursor-pointer"
             >
               <option value="all">All Action Types</option>
+              <option value="POST_UPLOAD_ERROR">Upload Errors (POST_UPLOAD_ERROR)</option>
               <option value="USER_REGISTER">New Users (USER_REGISTER)</option>
               <option value="POST_SUBMIT">Photo Posts (POST_SUBMIT)</option>
               <option value="USER_BAN">User Bans (USER_BAN)</option>
