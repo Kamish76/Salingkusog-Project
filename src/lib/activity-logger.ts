@@ -22,7 +22,8 @@ export type ActivityActionType =
   | "CONSENT_AGREE"
   | "CONSENT_UPDATE"
   | "ACCOUNT_WIPEOUT"
-  | "PHOTO_REPORT";
+  | "PHOTO_REPORT"
+  | "POST_UPLOAD_ERROR";
 
 export interface LogActivityParams {
   actionType: ActivityActionType;

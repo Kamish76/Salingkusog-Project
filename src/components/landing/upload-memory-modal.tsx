@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type ChangeEvent, type FormEvent, type DragEvent } from "react";
 import { processAndDownscaleImage, isHeicFormat, hasHeicMagicBytes } from "@/lib/image-processing";
-import { submitStudentPostAction } from "@/app/actions/posts";
+import { submitStudentPostAction, reportClientUploadErrorAction } from "@/app/actions/posts";
 import { authClient } from "@/lib/auth/client";
 import { isTaskUnlocked } from "@/lib/bingo-engine";
 
@@ -63,6 +63,7 @@ export function UploadMemoryModal({
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorDiagnostic, setErrorDiagnostic] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<string | null>(null);
   const [previewOrientation, setPreviewOrientation] = useState<"portrait" | "landscape" | "square">("landscape");
 
@@ -113,6 +114,7 @@ export function UploadMemoryModal({
       setPreviewOrientation("landscape");
       setCaption("");
       setErrorMessage(null);
+      setErrorDiagnostic(null);
       setSuccessInfo(null);
     }
   };
@@ -170,6 +172,7 @@ export function UploadMemoryModal({
     try {
       setIsProcessingImage(true);
       setErrorMessage(null);
+      setErrorDiagnostic(null);
 
       // Downscale to 1080p WebP/JPEG in browser to preserve storage and bandwidth,
       // and safely transcode iOS HEIC photos
@@ -189,11 +192,24 @@ export function UploadMemoryModal({
       console.error("Image processing failed:", err);
       setSelectedFile(null);
       setPreviewUrl(null);
-      setErrorMessage(
+      const rawMsg =
         err instanceof Error
           ? err.message
-          : "Could not read this photo format. Please take a new snapshot or choose a standard photo."
-      );
+          : "Could not read this photo format. Please take a new snapshot or choose a standard photo.";
+      const errorCode = `ERR-IMG-${Date.now().toString(36).slice(-5).toUpperCase()}`;
+      const sizeKb = Math.round(file.size / 1024);
+      setErrorMessage(rawMsg);
+      setErrorDiagnostic(`${errorCode} • stage: client_image_optimize • ${sizeKb}KB ${file.type || "unknown"}`);
+      void reportClientUploadErrorAction({
+        errorCode,
+        stage: "client_image_optimize",
+        message: rawMsg,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        bingoTaskId: selectedTaskId || null,
+        route: typeof window !== "undefined" ? window.location.pathname : undefined,
+      });
     } finally {
       setIsProcessingImage(false);
       if (fileInputRef.current) {
@@ -248,6 +264,7 @@ export function UploadMemoryModal({
     try {
       setSubmitting(true);
       setErrorMessage(null);
+      setErrorDiagnostic(null);
 
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -260,7 +277,18 @@ export function UploadMemoryModal({
       const res = await submitStudentPostAction(formData);
 
       if (!res.success) {
+        const sizeKb = Math.round(selectedFile.size / 1024);
         setErrorMessage(res.error || "Failed to drop memory.");
+        setErrorDiagnostic(
+          [
+            res.errorCode,
+            res.stage ? `stage: ${res.stage}` : null,
+            `${sizeKb}KB ${selectedFile.type || "image"}`,
+            activeTask ? `Slot #${activeTask.slotIndex + 1}` : null,
+          ]
+            .filter(Boolean)
+            .join(" • ") || null
+        );
         setSubmitting(false);
         return;
       }
@@ -275,7 +303,36 @@ export function UploadMemoryModal({
         handleClose();
       }, 1500);
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Upload failed");
+      const rawMsg = err instanceof Error ? err.message : String(err);
+      const digest = (err as { digest?: string })?.digest;
+      const errorCode = `ERR-NET-${Date.now().toString(36).slice(-5).toUpperCase()}`;
+      const sizeKb = Math.round(selectedFile.size / 1024);
+      const isUnexpectedServerResponse = rawMsg.includes("unexpected response was received from the server");
+      const friendlyMsg = isUnexpectedServerResponse
+        ? "Server rejected or interrupted the upload response (HTTP 413/500 or stale session). Please refresh the page and try again."
+        : rawMsg || "Upload failed";
+      setErrorMessage(friendlyMsg);
+      setErrorDiagnostic(
+        [
+          errorCode,
+          "stage: server_action_transport",
+          digest ? `digest: ${digest}` : null,
+          `${sizeKb}KB ${selectedFile.type || "image"}`,
+          activeTask ? `Slot #${activeTask.slotIndex + 1}` : null,
+        ]
+          .filter(Boolean)
+          .join(" • ")
+      );
+      void reportClientUploadErrorAction({
+        errorCode,
+        stage: "server_action_transport",
+        message: `${rawMsg}${digest ? ` (digest: ${digest})` : ""}`,
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type,
+        bingoTaskId: selectedTaskId || null,
+        route: typeof window !== "undefined" ? window.location.pathname : undefined,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -568,11 +625,18 @@ export function UploadMemoryModal({
 
               {/* Error & Success Feedback */}
               {errorMessage && (
-                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs text-center font-body flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                  </svg>
-                  <span>{errorMessage}</span>
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-body flex flex-col items-center justify-center gap-1.5">
+                  <div className="flex items-center justify-center gap-2 text-center">
+                    <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                    </svg>
+                    <span>{errorMessage}</span>
+                  </div>
+                  {errorDiagnostic && (
+                    <div className="px-2 py-0.5 rounded bg-red-100/80 border border-red-200/80 text-[10px] font-mono text-red-900/80 select-all break-all text-center">
+                      {errorDiagnostic}
+                    </div>
+                  )}
                 </div>
               )}
 
