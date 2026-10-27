@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { sql } from "@/lib/db";
 import { auth } from "@/lib/auth/server";
 import { pushDiagnosticLog } from "@/lib/server-log-buffer";
@@ -25,9 +26,10 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 export async function getCurrentUser(): Promise<AuthUser | null> {
   // Live Neon Managed Better Auth session resolution (Google OAuth)
   try {
-    // Await cookies() before calling auth.getSession() so Next.js 16 prerendering
-    // suspends and rejects here instead of inside @neondatabase/auth (which catches
-    // HANGING_PROMISE_REJECTION on cookies() and then calls fetch() after prerender).
+    // Await connection() before cookies() and auth.getSession() so both build-time
+    // ('prerender') and runtime ('prerender-runtime') prerenders suspend here instead
+    // of resolving cookies() in 'prerender-runtime' and rejecting on fetch() inside @neondatabase/auth.
+    await connection();
     const cookieStore = await cookies();
     if (!cookieStore.getAll().some((c) => c.name.includes("neon-auth"))) {
       return null;
