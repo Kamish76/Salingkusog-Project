@@ -26,6 +26,7 @@ import {
   type ReportReason,
   VALID_REPORT_REASONS,
 } from "@/lib/consent-predicates";
+import { validatePaginationCursor } from "@/lib/pagination";
 
 export type { ReportReason };
 
@@ -1010,8 +1011,14 @@ export async function loadMorePostsAction(
   limit = 10
 ): Promise<LoadMorePostsResult> {
   try {
-    if (!cursorCreatedAt || !cursorId) {
-      return { success: false, posts: [], hasMore: false, error: "Missing pagination cursor" };
+    const validation = validatePaginationCursor(cursorCreatedAt, cursorId);
+    if (!validation.isValid) {
+      return {
+        success: false,
+        posts: [],
+        hasMore: false,
+        error: validation.error || "Invalid pagination cursor",
+      };
     }
 
     const safeLimit = Math.min(Math.max(1, limit), 20);

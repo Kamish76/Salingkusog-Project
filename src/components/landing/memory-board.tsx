@@ -68,6 +68,8 @@ export function MemoryBoard({
   const [prependedPosts, setPrependedPosts] = useState<PostRecord[]>([]);
   const [appendedPosts, setAppendedPosts] = useState<PostRecord[]>([]);
   const [pendingRealtimePosts, setPendingRealtimePosts] = useState<PostRecord[]>([]);
+  const [remotelyDeletedIds, setRemotelyDeletedIds] = useState<Set<string>>(new Set());
+  const lastLiveRowIdsRef = useRef<Set<string> | null>(null);
 
   // Combined posts stream
   const allPosts = useMemo(() => {
@@ -96,7 +98,30 @@ export function MemoryBoard({
   // Handle incoming live rows from Neon Realtime
   const handleLivePostsUpdate = useCallback(
     (liveRows: readonly PostRecord[]) => {
-      if (!liveRows || liveRows.length === 0) return;
+      if (!liveRows) return;
+
+      const liveIds = new Set(liveRows.map((r) => r.id));
+
+      // Reconcile deletions / moderations: if a post was previously in the live top-window
+      // but is now absent from liveRows, mark it as remotely deleted.
+      if (lastLiveRowIdsRef.current) {
+        const deletedIds: string[] = [];
+        for (const prevId of lastLiveRowIdsRef.current) {
+          if (!liveIds.has(prevId)) {
+            deletedIds.push(prevId);
+          }
+        }
+        if (deletedIds.length > 0) {
+          setRemotelyDeletedIds((prev) => {
+            const next = new Set(prev);
+            deletedIds.forEach((id) => next.add(id));
+            return next;
+          });
+        }
+      }
+      lastLiveRowIdsRef.current = liveIds;
+
+      if (liveRows.length === 0) return;
 
       const isScrolledDown = typeof window !== "undefined" && window.scrollY > 200;
 
@@ -243,9 +268,10 @@ export function MemoryBoard({
         (p) =>
           Boolean(p.imageUrl && p.imageUrl.trim()) &&
           !failedPostIds.has(p.id) &&
-          !locallyDeletedIds.has(p.id)
+          !locallyDeletedIds.has(p.id) &&
+          !remotelyDeletedIds.has(p.id)
       ),
-    [allPosts, failedPostIds, locallyDeletedIds]
+    [allPosts, failedPostIds, locallyDeletedIds, remotelyDeletedIds]
   );
 
   // Track natural image aspect ratio to adapt polaroid orientation (landscape vs portrait vs square)
@@ -402,9 +428,13 @@ export function MemoryBoard({
 
 
 
+  const isRealtimeActive = Boolean(
+    sealedPostsQuery && process.env.NEXT_PUBLIC_NEON_REALTIME_URL
+  );
+
   return (
     <RealtimePostsProvider>
-      {sealedPostsQuery && (
+      {isRealtimeActive && sealedPostsQuery && (
         <LiveMemoryBoardSubscriber
           sealedQuery={sealedPostsQuery}
           onLivePosts={handleLivePostsUpdate}
