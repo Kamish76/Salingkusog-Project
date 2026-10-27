@@ -119,7 +119,7 @@ export default function TermsOfUsePage() {
               </li>
               <li>
                 <strong>Email Takedown Desk:</strong> Send a quick email to{" "}
-                <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1 py-0.5 rounded font-semibold text-[#b4281e]">[TAKEDOWN EMAIL]</span>{" "}
+                <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1 py-0.5 rounded font-semibold text-[#b4281e] break-words">[TAKEDOWN EMAIL]</span>{" "}
                 with the memory caption or link. Takedown requests are honored promptly by the student developer committee.
               </li>
             </ol>

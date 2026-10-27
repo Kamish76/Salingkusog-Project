@@ -45,7 +45,7 @@ export default async function RallyRulesPage() {
               : "Intramurals 3×3 Bingo Rally Rules"}
           </h1>
           <p className="text-xs sm:text-sm text-[#8e706c] font-body mt-1">
-            Active for Event Dates: <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1 py-0.5 rounded font-bold text-[#8e4e14]">[EVENT DATES]</span>
+            Active for Event Dates: <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1 py-0.5 rounded font-bold text-[#8e4e14] break-words">[EVENT DATES]</span>
           </p>
         </div>
 
@@ -149,7 +149,7 @@ export default async function RallyRulesPage() {
                 <ol className="list-decimal pl-5 space-y-1.5">
                   <li>
                     <strong>Physical Appearance:</strong> The student winner must be physically present at the live drawing or arrive at{" "}
-                    <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1 py-0.5 rounded font-bold text-[#8e4e14]">[PRIZE CLAIM BOOTH LOCATION]</span>{" "}
+                    <span className="font-mono bg-[#fff8f5] border border-[#ffdad5] px-1 py-0.5 rounded font-bold text-[#8e4e14] break-words">[PRIZE CLAIM BOOTH LOCATION]</span>{" "}
                     within the designated grace period announced by stage emcees.
                   </li>
                   <li>
