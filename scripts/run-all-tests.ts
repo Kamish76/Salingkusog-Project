@@ -21,6 +21,8 @@ import { runHealthProbesTest } from "./tests/test-health-probes.ts";
 import { runPhotoModerationTest } from "./tests/test-photo-moderation.ts";
 import { runConsentDpaTest } from "./tests/test-consent-dpa.ts";
 import { runDayUploadConstraintsTest } from "./tests/test-day-upload-constraints.ts";
+import { runLegalHeaderResponsiveTest } from "./tests/test-legal-header-responsive.ts";
+import { runLegalTokenWrappingTest } from "./tests/test-legal-token-wrapping.ts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -182,7 +184,7 @@ async function runAllSuites() {
     console.error("\n❌ ONE OR MORE SUITES FAILED PRODUCTION VERIFICATION.\n");
     process.exit(1);
   } else {
-    console.log("\n🎉 ALL 13 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
+    console.log("\n🎉 ALL 15 PRODUCTION INTEGRATION SUITES PASSED CLEANLY!\n");
   }
 }
 
