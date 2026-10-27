@@ -60,7 +60,7 @@ async function logUploadFailure(params: {
     ...params.meta,
   };
 
-  console.error(`[upload-error] ${params.errorCode} (${params.stage}): ${params.userMessage}`, details);
+  console.error("[upload-error] %s (%s): %s", params.errorCode, params.stage, params.userMessage, details);
 
   pushDiagnosticLog({
     subsystem: params.subsystem,
