@@ -182,10 +182,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </span>
             </Link>
 
-            {/* Subtle Day Indicator grouped with event brand */}
+            {/* Subtle Status Indicator */}
             <div className="inline-flex items-center gap-1.5 text-xs font-body text-[#5a413d] bg-white px-2.5 py-1 rounded-full border border-[#e8ded5] shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-[#ff5e4d]"></span>
-              <span className="font-display font-bold text-[#8e4e14] whitespace-nowrap">Day {currentDay}</span>
+              <span className="w-2 h-2 rounded-full bg-[#588157]"></span>
+              <span className="font-display font-bold text-[#2b6127] whitespace-nowrap">Event Concluded</span>
+              <span className="text-[#8e706c] hidden sm:inline">• Uploads Open</span>
             </div>
           </div>
 
@@ -245,23 +246,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {/* HERO TITLE SECTION */}
         <section className="text-center max-w-3xl mx-auto pt-2 sm:pt-4">
           <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-3 py-1 rounded-md bg-white border border-[#e8ded5] text-stone-600 text-xs font-medium shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-[#ff5e4d] animate-pulse"></span>
-            <span className="font-display font-semibold text-xs text-[#8e4e14]">
-              Intramurals 2026 • Live Photo Rally
+            <span className="w-2 h-2 rounded-full bg-[#588157]"></span>
+            <span className="font-display font-semibold text-xs text-[#2b6127]">
+              Intramurals 2026 Concluded • Photo Uploads &amp; Bingo Card Still Open
             </span>
           </div>
 
           <h1 className="text-2xl sm:text-5xl md:text-6xl font-display font-extrabold text-[#1e1b19] tracking-tight leading-[1.18]">
-            Capture the spirit of Intramurals 2026 —{" "}
+            Relive the memories of Intramurals 2026 —{" "}
             <span className="font-handwriting font-normal text-[#ff5e4d] text-4xl sm:text-6xl md:text-7xl block sm:inline mt-1 sm:mt-0">
-              one stamp at a time
+              the board is still open
             </span>
           </h1>
 
           <p className="mt-3 sm:mt-4 text-[#5a413d] font-body text-xs sm:text-base max-w-xl mx-auto font-normal leading-relaxed px-2">
-            {isRaffleActive
-              ? "Join the 3×3 live photo rally: snap student moments, stamp your card, and earn your ticket into the stage raffle draw."
-              : "Join the 3×3 live photo rally: snap student moments, stamp your card, and share memories on the campus board."}
+            The event is done, but the memories live on! You can still upload your event photos, drop campus moments, and complete or export your 3×3 Bingo Card.
           </p>
 
           {/* Real Live Stats Bar */}
@@ -291,9 +290,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className="hidden sm:flex items-center gap-2 text-[#1e1b19]">
               <span className="w-2 h-2 rounded-full bg-[#588157]"></span>
               <span className="font-display font-bold text-sm text-[#588157]">
-                Day {currentDay}
+                Uploads Open
               </span>
-              <span className="text-[#8e706c]">Rally Active</span>
+              <span className="text-[#8e706c]">Bingo Card Stays</span>
             </div>
           </div>
         </section>
