@@ -398,7 +398,7 @@ export function UploadMemoryModal({
         <div className="flex items-center justify-between px-4 sm:px-6 pt-5 pb-3 border-b border-[#e8ded5]/80 shrink-0 bg-white">
           <div className="flex items-center gap-2 truncate pr-2">
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#f5ece9] text-[#8e4e14] border border-[#e8ded5] shrink-0 font-body">
-              Day {currentDay} • {activeTask ? `Slot #${activeTask.slotIndex + 1}` : "Memory Well"}
+              Uploads Open • {activeTask ? `Slot #${activeTask.slotIndex + 1}` : "Memory Well"}
             </span>
             <h2 className="font-display font-bold text-sm sm:text-base text-[#1e1b19] truncate">
               {activeTask ? activeTask.title : "Drop a Memory"}
@@ -428,9 +428,7 @@ export function UploadMemoryModal({
                 Sign in to Drop Memories
               </h3>
               <p className="font-body text-xs text-[#5a413d] max-w-xs leading-relaxed">
-                {isRaffleActive
-                  ? "Sign in with your student Google account to upload photos, earn bingo stamps, and enter stage raffle drawings."
-                  : "Sign in with your student Google account to upload photos and earn bingo stamps."}
+                Sign in with your student Google account to upload photos, stamp your 3×3 Bingo Card, and drop campus memories.
               </p>
               <button
                 onClick={handleSignIn}

@@ -119,15 +119,13 @@ export function ScrapbookLandingController({
             <p className="text-xs font-body text-[#5a413d] leading-relaxed">
               {completedCount >= 9 ? (
                 <span className="text-[#2b6127] font-semibold">
-                  {isRaffleActive
-                    ? "🎉 Card completed! You have earned your entry into the Stage Raffle Draw."
-                    : "🎉 Card completed! You have stamped all 9 campus challenges."}
+                  🎉 Card completed! All 9 campus challenges stamped. You can still export your card as a keepsake!
                 </span>
               ) : (
                 <>
-                  Snap <strong className="font-bold text-[#b4281e]">{remainingTasks} more</strong>{" "}
-                  {remainingTasks === 1 ? "campus photo" : "campus photos"} to complete your card
-                  {isRaffleActive ? " and enter the stage raffle draw!" : "!"}
+                  Event wrapped up, but your card is staying open! Upload{" "}
+                  <strong className="font-bold text-[#b4281e]">{remainingTasks} more</strong>{" "}
+                  {remainingTasks === 1 ? "photo" : "photos"} to complete your 3×3 keepsake.
                 </>
               )}
             </p>
@@ -154,15 +152,13 @@ export function ScrapbookLandingController({
 
             <div className="flex-1 text-center sm:text-left pt-1">
               <span className="text-[11px] font-display font-bold uppercase tracking-wider text-[#ff5e4d]">
-                Join the Rally
+                Memories Still Open
               </span>
               <h2 className="font-display font-extrabold text-lg sm:text-xl text-[#1e1b19] tracking-tight mt-0.5">
-                Ready to start your 3×3 Card?
+                Have Intramurals photos to share?
               </h2>
               <p className="text-xs font-body text-[#5a413d] mt-1 leading-relaxed">
-                {isRaffleActive
-                  ? "Sign in with your Google account to snap challenges, stamp your board, and win stage raffle prizes."
-                  : "Sign in with your Google account to snap challenges, stamp your board, and share memories on the campus board."}
+                The event has concluded, but photo uploads and the 3×3 Bingo Card remain open! Sign in with your Google account to drop memories and complete your card.
               </p>
             </div>
 
@@ -177,11 +173,11 @@ export function ScrapbookLandingController({
         )}
       </div>
 
-      {/* 2. "HOW TO PLAY & WIN" 3-STEP VISUAL STRIP */}
-      <section aria-label="How to play" className="w-full max-w-5xl mx-auto">
+      {/* 2. "HOW IT WORKS" 3-STEP VISUAL STRIP */}
+      <section aria-label="How it works" className="w-full max-w-5xl mx-auto">
         <div className="text-center mb-4 sm:mb-6">
           <h2 className="font-display font-extrabold text-sm sm:text-base tracking-tight text-[#8e706c] uppercase">
-            How to Play & Win
+            How It Works • Post-Event Keepsake
           </h2>
         </div>
 
@@ -193,11 +189,11 @@ export function ScrapbookLandingController({
                 1
               </span>
               <h3 className="font-display font-bold text-sm text-[#1e1b19]">
-                Pick a Challenge
+                Upload Your Photos
               </h3>
             </div>
             <p className="font-body text-xs text-[#5a413d] leading-relaxed pl-10">
-              Browse 9 fun Intramural tasks — block mate selfies, cheering chants, and team booth visits.
+              Still got shots in your camera roll? Upload candid moments, games, booth snaps, and celebrations anytime.
             </p>
           </div>
 
@@ -208,11 +204,11 @@ export function ScrapbookLandingController({
                 2
               </span>
               <h3 className="font-display font-bold text-sm text-[#1e1b19]">
-                Snap & Stamp
+                Bingo Card Stays Open
               </h3>
             </div>
             <p className="font-body text-xs text-[#5a413d] leading-relaxed pl-10">
-              Snap photos live during the games. Each submission stamps your card and joins the campus board.
+              The 3×3 Bingo Card is staying open for now! Stamp your remaining slots with your event photos to complete your grid.
             </p>
           </div>
 
@@ -223,13 +219,11 @@ export function ScrapbookLandingController({
                 3
               </span>
               <h3 className="font-display font-bold text-sm text-[#1e1b19]">
-                {isRaffleActive ? "Win Stage Prizes" : "Complete Your Board"}
+                Export &amp; Relive
               </h3>
             </div>
             <p className="font-body text-xs text-[#5a413d] leading-relaxed pl-10">
-              {isRaffleActive
-                ? "Complete all 9 squares to earn your verified raffle code for the official stage draw!"
-                : "Complete all 9 challenges to fill your memory card and celebrate with campus spirit!"}
+              Download your completed 3×3 Polaroid card as a keepsake, or browse the community memory board.
             </p>
           </div>
         </div>

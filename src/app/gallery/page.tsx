@@ -153,8 +153,8 @@ export default async function PersonalGalleryPage() {
           {/* Right Status & Controls */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="flex items-center gap-1.5 text-xs font-body text-[#5a413d] bg-white sm:bg-transparent px-2 py-1 sm:px-0 sm:py-0 rounded-full border border-[#e8ded5] sm:border-none">
-              <span className="w-2 h-2 rounded-full bg-[#ff5e4d]"></span>
-              <span className="font-display font-bold text-[#8e4e14] whitespace-nowrap">Day {currentDay}</span>
+              <span className="w-2 h-2 rounded-full bg-[#588157]"></span>
+              <span className="font-display font-bold text-[#2b6127] whitespace-nowrap">Event Concluded</span>
             </div>
 
             <span className="text-xs font-display font-semibold text-[#5a413d] hidden md:inline truncate max-w-[100px]">

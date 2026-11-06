@@ -290,15 +290,15 @@ export function PersonalGalleryView({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 sm:pb-5 border-b border-[#e8ded5]">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#fbf2ee] text-[#b4281e] border border-[#ffdcc4]">
-                Day {currentDay} • Active Rally
+              <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Event Concluded • Bingo Open
               </span>
               <span className="text-xs text-[#8e706c] font-body">
                 {completedCount} of 9 stamped
               </span>
             </div>
             <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#1e1b19] tracking-tight mt-1">
-              My 3×3 Bingo Rally Card
+              My 3×3 Bingo Card
             </h2>
           </div>
 

@@ -438,7 +438,7 @@ export function MemoryBoard({
               Campus Memories
             </h2>
             <p className="font-body text-xs text-[#8e706c]">
-              {validPosts.length} {validPosts.length === 1 ? "moment shared" : "moments shared"} from the rally
+              {validPosts.length} {validPosts.length === 1 ? "moment shared" : "moments shared"} from Intramurals 2026
             </p>
           </div>
         </div>
@@ -454,7 +454,7 @@ export function MemoryBoard({
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
               </svg>
-              <span>View 3×3 Tasks</span>
+              <span>View 3×3 Bingo Card</span>
             </button>
           )}
 
@@ -469,7 +469,7 @@ export function MemoryBoard({
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            <span>Upload Rally Photo</span>
+            <span>Upload Memory Photo</span>
           </button>
         </div>
       </div>
@@ -488,11 +488,11 @@ export function MemoryBoard({
           </div>
 
           <h3 className="font-display font-extrabold text-lg sm:text-2xl text-[#1e1b19] tracking-tight">
-            The rally board is waiting for its first snapshot
+            The memory board is waiting for its first snapshot
           </h3>
 
           <p className="font-body text-xs sm:text-sm text-[#5a413d] mt-2 max-w-md leading-relaxed px-2">
-            No memories have been dropped yet. Be the first student to complete an intramural challenge and stamp your photo on the board!
+            No memories have been dropped yet. Upload your intramurals photos and be the first to stamp your memories on the board!
           </p>
 
           <button
@@ -506,7 +506,7 @@ export function MemoryBoard({
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            <span>Upload the First Rally Photo</span>
+            <span>Upload the First Photo</span>
           </button>
         </div>
       ) : (

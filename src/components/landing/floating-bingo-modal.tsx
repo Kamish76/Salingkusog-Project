@@ -573,7 +573,7 @@ export function FloatingBingoModal({
 
             <div className="flex flex-col text-left">
               <span className="font-display font-bold text-xs sm:text-sm tracking-tight text-[#1e1b19] leading-tight">
-                3×3 Bingo Rally
+                3×3 Bingo Card
               </span>
               <span className="font-body text-[11px] text-[#8e706c] font-normal leading-tight">
                 {completedCount >= 9 ? "🎉 Card completed!" : `${completedCount} of 9 stamped`}
@@ -616,8 +616,8 @@ export function FloatingBingoModal({
                   <span className="font-display font-bold text-base sm:text-xl text-[#1e1b19] tracking-tight">
                     Intramurals 3x3 Bingo
                   </span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-200">
-                    Day {currentDay}
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    Card Stays Open
                   </span>
                   {!isEventActive && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
@@ -626,9 +626,7 @@ export function FloatingBingoModal({
                   )}
                 </div>
                 <p className="font-body text-xs text-[#5a413d] mt-1">
-                  {isRaffleActive
-                    ? "Complete all 9 challenges to enter the official stage raffle draw"
-                    : "Complete all 9 challenges to finish your 3×3 card"}
+                  The event has wrapped up, but the 3×3 Bingo Card is staying open! Upload your photos, finish remaining squares, and export your keepsake.
                 </p>
                 {!isEventActive && (
                   <div className="mt-2 text-[11px] sm:text-xs text-amber-900 font-body px-2.5 py-1.5 bg-amber-50 border border-amber-200/90 rounded-lg flex items-center gap-1.5">
